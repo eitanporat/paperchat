@@ -1170,26 +1170,42 @@ function updateZoomLabel() {
   $('#zoom-label').textContent = Math.round(state.zoomFactor * 100) + '%';
 }
 
+// Collapse-queue: rapid wheel/button events all just update the target;
+// the in-flight render finishes, then loops to the latest target. No two
+// renderPdf() calls ever run concurrently against the same container.
+let _zoomTarget = null;
+let _zoomRunning = false;
+
 async function setZoom(newFactor) {
   if (!state.paper) return;
   const clamped = Math.max(0.25, Math.min(4, newFactor));
-  if (Math.abs(clamped - state.zoomFactor) < 0.001) return;
-  const wrap = $('.viewer-wrap') || viewer.parentElement;
+  _zoomTarget = clamped;
+  if (_zoomRunning) return;
+  _zoomRunning = true;
+  try {
+    while (_zoomTarget != null && Math.abs(_zoomTarget - state.zoomFactor) >= 0.001) {
+      const target = _zoomTarget;
+      _zoomTarget = null;
+      await applyZoom(target);
+    }
+  } finally {
+    _zoomRunning = false;
+  }
+}
 
-  // Capture which page is at the top of the viewport and how far into that
-  // page we are (as a fraction of page height). This is exact under uniform
-  // zoom: pages scale linearly, gaps stay constant per-zoom, so re-anchoring
-  // by (page, fraction) puts the user back on the same line of text.
+async function applyZoom(target) {
+  const wrap = $('.viewer-wrap') || viewer.parentElement;
+  // Capture viewport anchor (which page is at top + how far down) so the user
+  // doesn't drift to a different page across the re-render.
   const anchor = captureViewportAnchor(wrap);
 
-  state.zoomFactor = clamped;
-  localStorage.setItem('paperchat.zoom', String(clamped));
+  state.zoomFactor = target;
+  localStorage.setItem('paperchat.zoom', String(target));
   updateZoomLabel();
 
-  const { pages } = await renderPdf(state.paper.blob, viewer, BASE_SCALE * clamped);
+  const { pages } = await renderPdf(state.paper.blob, viewer, BASE_SCALE * target);
   state.pages = pages;
   redrawHighlights();
-
   restoreViewportAnchor(wrap, anchor);
 }
 
