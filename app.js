@@ -244,6 +244,48 @@ function jumpToPage(pageNum) {
   page.wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// Scroll the PDF viewer so the thread's first anchor rect is visible,
+// positioned roughly a quarter from the top of the viewport (so the
+// passage and some context above it are both shown). No-op for whole-
+// paper threads (no anchor) or when the rect is already on screen.
+function scrollViewerToThread(t) {
+  if (!t || !t.pageNum) return;
+  const page = state.pages.find(p => p.pageNum === t.pageNum);
+  if (!page) return;
+  const wrap = document.querySelector('.viewer-wrap');
+  if (!wrap) return;
+
+  const r0 = t.anchorRects?.[0];
+  if (!r0) {
+    // No rect on file — fall back to the page top.
+    page.wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  // Anchor rects are in page-local pixels at the scale they were captured
+  // at; scale to the current zoom.
+  const currentScale = BASE_SCALE * state.zoomFactor;
+  const ratio = currentScale / (t.anchorScale || BASE_SCALE);
+
+  // Convert page.wrap's current viewport position into scroll-content coords:
+  //   pageTopInWrap = (page.wrap.top − wrap.top) + wrap.scrollTop
+  const wrapRect = wrap.getBoundingClientRect();
+  const pageRect = page.wrap.getBoundingClientRect();
+  const pageTopInWrap = (pageRect.top - wrapRect.top) + wrap.scrollTop;
+  const rectTop = pageTopInWrap + r0.y * ratio;
+  const rectBot = rectTop + r0.h * ratio;
+
+  // Skip if the rect is already comfortably on screen (margin of 20/60 px
+  // above/below the visible band so we don't bounce on near-misses).
+  const visTop = wrap.scrollTop + 20;
+  const visBot = wrap.scrollTop + wrap.clientHeight - 60;
+  if (rectTop >= visTop && rectBot <= visBot) return;
+
+  // Place the rect ~25% down from the top of the viewport.
+  const target = Math.max(0, rectTop - wrap.clientHeight * 0.25);
+  wrap.scrollTo({ top: target, behavior: 'smooth' });
+}
+
 function closePaper() {
   state.paper = null;
   state.pages = [];
@@ -586,6 +628,10 @@ async function openThread(id, { prefill = '' } = {}) {
   const t = state.threads.find(x => x.id === id) || await Threads.get(id);
   if (!t) return;
   state.activeThreadId = id;
+  // Scroll the viewer to the anchor first (smooth) so when the user dismisses
+  // the dialog they're at the right spot. Fire-and-forget; no-op for whole
+  // paper threads.
+  scrollViewerToThread(t);
   const isWhole = !t.pageNum;
   threadDlgTitle.textContent = isWhole
     ? `Whole paper · default ${t.defaultMention}`
