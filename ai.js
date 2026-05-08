@@ -483,6 +483,15 @@ function buildCodeSystemPrompt({ paperTitle, paperPagesText, thread }) {
   const ctx = buildPaperContext({ paperTitle, paperPagesText, thread });
   return `You are an expert reader helping a user understand a paper through threaded discussion. You have Claude Code's filesystem and shell tools (Read, Write, Edit, Bash, Grep, Glob, WebFetch, WebSearch) available in a sandboxed working directory. Use them to write/run code that verifies claims in the paper, fetch external resources, or otherwise help the user explore.
 
+## Filesystem rules — strict
+
+Your current working directory (cwd) is a per-thread sandbox under the paperchat project (\`cc-workdir/<paper>-<thread>/\`). It persists across tool calls in this thread.
+
+- ALWAYS write files using RELATIVE paths inside cwd (e.g. \`Write file_path="diagram.html" content=...\`). Never absolute paths.
+- NEVER write to \`/tmp\`, \`/var\`, \`$HOME\`, or anywhere outside cwd. The user's frontend auto-embeds artifacts written under cwd; files in /tmp are invisible to them.
+- For HTML/SVG/Markdown artifacts you produce, write them under cwd with a descriptive filename (e.g. \`architecture.html\`, \`plot.svg\`, \`notes.md\`). The frontend renders them inline in the chat with no extra step from the user.
+- Bash commands run with cwd as their working directory, so plain relative paths work in shell commands too.
+
 ${ctx}
 
 Stay grounded in the paper; cite page numbers when referencing content. Be concise unless asked for depth.
