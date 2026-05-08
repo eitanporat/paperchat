@@ -192,17 +192,27 @@ async function handleClaudeCode(req, res) {
         systemPrompt: systemPrompt || undefined,
         cwd: workdir,
         permissionMode: 'bypassPermissions',
+        includePartialMessages: true,
       },
     });
     for await (const msg of iter) {
       // Normalize SDK events into our SSE protocol.
       const t = msg?.type;
+      // Token-level streaming. Forward text_delta events as they arrive;
+      // ignore tool input_json_delta (we get the assembled tool_use later).
+      if (t === 'stream_event') {
+        const ev = msg.event;
+        if (ev?.type === 'content_block_delta' && ev.delta?.type === 'text_delta' && ev.delta.text) {
+          send({ type: 'text', content: ev.delta.text });
+        }
+        continue;
+      }
       if (t === 'assistant') {
-        // Assistant turn — may carry text and/or tool_use blocks.
+        // Full assistant turn — text was already streamed via stream_event,
+        // so only forward tool_use blocks here (assembled with parsed input).
         const blocks = msg.message?.content || [];
         for (const b of blocks) {
-          if (b.type === 'text' && b.text) send({ type: 'text', content: b.text });
-          else if (b.type === 'tool_use') {
+          if (b.type === 'tool_use') {
             send({ type: 'tool_use', id: b.id, name: b.name, args: b.input || {} });
           }
         }
