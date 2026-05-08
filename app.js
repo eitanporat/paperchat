@@ -1,7 +1,7 @@
 // Top-level app wiring: library, viewer, threads, settings.
 
 import { Papers, Threads, Messages, uid, hashBlob } from './db.js';
-import { renderPdf, BASE_SCALE, getOutline, getPdfMetadataTitle, extractText, captureSelection, drawHighlight, clearHighlights, highlightQuoteOnPage } from './pdf.js';
+import { renderPdf, ensurePageRendered, BASE_SCALE, getOutline, getPdfMetadataTitle, extractText, captureSelection, drawHighlight, clearHighlights, highlightQuoteOnPage } from './pdf.js';
 import {
   streamChat, parseMention, MENTIONS, mentionClass, extractPaperTitle,
   getKey, setKey, envKey, getModels, setModels, modelFor,
@@ -241,6 +241,7 @@ function buildOutlineList(items) {
 function jumpToPage(pageNum) {
   const page = state.pages.find(p => p.pageNum === pageNum);
   if (!page) return;
+  ensurePageRendered(page);
   page.wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -254,6 +255,9 @@ function scrollViewerToThread(t) {
   if (!page) return;
   const wrap = document.querySelector('.viewer-wrap');
   if (!wrap) return;
+  // Kick off render of the target page immediately — by the time the smooth
+  // scroll lands, the canvas will be there instead of a blank placeholder.
+  ensurePageRendered(page);
 
   const r0 = t.anchorRects?.[0];
   if (!r0) {

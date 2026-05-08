@@ -10,52 +10,99 @@ export const BASE_SCALE = 1.5;
 
 // Render a PDF into the given container. Returns { doc, pages: [{pageNum, viewport, wrap, textLayer, highlightLayer}] }
 // `scale` is the absolute pdf.js viewport scale (default = BASE_SCALE).
+//
+// Pages are placeholder-rendered immediately (correct dimensions, empty
+// highlight layer ready) and lazy canvas-rendered as they approach the
+// viewport. Big papers open in milliseconds; pages 5+ render on demand.
 export async function renderPdf(blob, container, scale = BASE_SCALE) {
   container.innerHTML = '';
   const data = await blob.arrayBuffer();
   const doc = await pdfjsLib.getDocument({ data }).promise;
   const dpr = window.devicePixelRatio || 1;
   const pages = [];
+
+  // First pass: get every page's viewport (cheap — no canvas) and create
+  // empty placeholder DOM with the correct dimensions. This makes the
+  // total scroll height correct from the start so anchor / scroll math
+  // works even for pages that haven't rendered yet.
   for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const viewport = page.getViewport({ scale });
+    const pdfPage = await doc.getPage(i);
+    const viewport = pdfPage.getViewport({ scale });
 
     const wrap = document.createElement('div');
-    wrap.className = 'page-wrap';
+    wrap.className = 'page-wrap loading';
     wrap.dataset.page = String(i);
     wrap.style.width = viewport.width + 'px';
     wrap.style.height = viewport.height + 'px';
 
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.floor(viewport.width * dpr);
-    canvas.height = Math.floor(viewport.height * dpr);
-    canvas.style.width = viewport.width + 'px';
-    canvas.style.height = viewport.height + 'px';
-    wrap.appendChild(canvas);
-
-    const textLayer = document.createElement('div');
-    textLayer.className = 'text-layer';
-    textLayer.style.width = viewport.width + 'px';
-    textLayer.style.height = viewport.height + 'px';
-    wrap.appendChild(textLayer);
-
-    const linkLayer = document.createElement('div');
-    linkLayer.className = 'link-layer';
-    wrap.appendChild(linkLayer);
-
+    // Highlight layer exists from the start so redrawHighlights and
+    // threadAtPoint work uniformly across rendered + unrendered pages.
     const highlightLayer = document.createElement('div');
     highlightLayer.className = 'highlight-layer';
     wrap.appendChild(highlightLayer);
 
     container.appendChild(wrap);
 
-    await page.render({
+    pages.push({
+      pageNum: i, viewport, wrap, highlightLayer,
+      textLayer: null, linkLayer: null, canvas: null,
+      _pdfPage: pdfPage, _rendered: false, _renderPromise: null,
+    });
+  }
+
+  // Lazy canvas render driven by IntersectionObserver. The viewer-wrap
+  // (container's parent) is the scroll root; we trigger rendering when a
+  // page's placeholder is within 800px of the viewport in either direction.
+  const root = container.parentElement;
+  const observer = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      const p = pages.find(pg => pg.wrap === e.target);
+      if (!p || p._rendered) continue;
+      observer.unobserve(p.wrap);
+      ensurePageRendered(p, dpr);
+    }
+  }, { root, rootMargin: '800px 0px' });
+  for (const p of pages) observer.observe(p.wrap);
+
+  return { doc, pages };
+}
+
+// Render the canvas + text/link layers for a single placeholder page. Idempotent:
+// concurrent calls return the same in-flight promise. Dispatches a
+// 'paperchat:page-rendered' CustomEvent on the page-wrap when done so
+// callers can re-draw highlights and reposition layers.
+export function ensurePageRendered(p, dpr = window.devicePixelRatio || 1) {
+  if (p._rendered) return Promise.resolve();
+  if (p._renderPromise) return p._renderPromise;
+  p._renderPromise = (async () => {
+    const { _pdfPage: pdfPage, viewport, wrap } = p;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(viewport.width * dpr);
+    canvas.height = Math.floor(viewport.height * dpr);
+    canvas.style.width = viewport.width + 'px';
+    canvas.style.height = viewport.height + 'px';
+    // Insert before highlight-layer so highlights overlay the canvas.
+    wrap.insertBefore(canvas, wrap.firstChild);
+
+    const textLayer = document.createElement('div');
+    textLayer.className = 'text-layer';
+    textLayer.style.width = viewport.width + 'px';
+    textLayer.style.height = viewport.height + 'px';
+    canvas.after(textLayer);
+
+    const linkLayer = document.createElement('div');
+    linkLayer.className = 'link-layer';
+    textLayer.after(linkLayer);
+
+    await pdfPage.render({
       canvasContext: canvas.getContext('2d'),
       viewport,
       transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
     }).promise;
 
-    const textContent = await page.getTextContent();
+    const textContent = await pdfPage.getTextContent();
     const layerTask = new pdfjsLib.TextLayer({
       textContentSource: textContent,
       container: textLayer,
@@ -63,12 +110,20 @@ export async function renderPdf(blob, container, scale = BASE_SCALE) {
     });
     await layerTask.render();
 
-    await renderLinkLayer(page, viewport, linkLayer);
+    await renderLinkLayer(pdfPage, viewport, linkLayer);
     linkifyTextLayer(textLayer, linkLayer, wrap);
 
-    pages.push({ pageNum: i, viewport, wrap, textLayer, linkLayer, highlightLayer });
-  }
-  return { doc, pages };
+    p.canvas = canvas;
+    p.textLayer = textLayer;
+    p.linkLayer = linkLayer;
+    p._rendered = true;
+    wrap.classList.remove('loading');
+    wrap.dispatchEvent(new CustomEvent('paperchat:page-rendered', {
+      bubbles: true,
+      detail: { pageNum: p.pageNum },
+    }));
+  })();
+  return p._renderPromise;
 }
 
 // Scan rendered text layer for plain-text URLs and overlay transparent <a>

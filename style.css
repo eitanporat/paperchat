@@ -354,6 +354,16 @@ button:hover { background: var(--accent-soft); }
   background: var(--paper);
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
+.page-wrap.loading {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      var(--paper) 0,
+      var(--paper) 12px,
+      var(--bg) 12px,
+      var(--bg) 24px
+    );
+}
 .page-wrap canvas { display: block; }
 .text-layer {
   position: absolute;
