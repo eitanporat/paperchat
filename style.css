@@ -65,7 +65,77 @@ button:hover { background: var(--accent-soft); }
   overflow-y: auto;
   background: var(--paper);
 }
-.threads { border-right: 0; border-left: 1px solid var(--border); }
+.threads {
+  border-right: 0;
+  border-left: 1px solid var(--border);
+  /* Stack the two sections; each gets half the available height. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.thread-section {
+  flex: 1 1 50%;
+  min-height: 0;          /* allow inner overflow to take effect */
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+.thread-section + .thread-section {
+  border-top: 1px solid var(--border);
+}
+.thread-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.thread-sec-head h3 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.whole-actions { position: relative; }
+.whole-new-btn {
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+.new-whole-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  z-index: 30;
+  min-width: 100px;
+}
+.new-whole-popover .ntr-btn {
+  font-size: 12px;
+  padding: 4px 8px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: 3px;
+}
+.new-whole-popover .ntr-btn:hover { background: var(--accent-soft); }
+.thread-list-scroll {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
 
 .library h3, .threads h3 {
   margin: 0 0 8px;

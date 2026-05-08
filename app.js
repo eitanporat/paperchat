@@ -15,8 +15,10 @@ const libraryEmpty = $('#library-empty');
 const viewer = $('#viewer');
 const viewerPlaceholder = $('#viewer-placeholder');
 const paperTitleEl = $('#paper-title');
-const threadList = $('#thread-list');
-const threadsEmpty = $('#threads-empty');
+const passageList = $('#passage-list');
+const wholeList = $('#whole-list');
+const passageEmpty = $('#passage-empty');
+const wholeEmpty = $('#whole-empty');
 const floatingAsk = $('#floating-ask');
 const dropOverlay = $('#drop-overlay');
 const fileInput = $('#file-input');
@@ -179,7 +181,7 @@ async function openPaper(id) {
   const displayTitle = paper.title || paper.name;
   paperTitleEl.textContent = displayTitle;
   document.title = `${displayTitle} — paperchat`;
-  $('#new-thread-row').hidden = false;
+  $('#new-whole-btn').hidden = false;
   viewerPlaceholder.style.display = 'none';
   viewer.innerHTML = '';
   viewer.appendChild(viewerPlaceholder);
@@ -246,13 +248,15 @@ function closePaper() {
   state.activeThreadId = null;
   paperTitleEl.textContent = 'No paper open';
   document.title = 'paperchat';
-  $('#new-thread-row').hidden = true;
+  $('#new-whole-btn').hidden = true;
   viewer.innerHTML = '';
   viewer.appendChild(viewerPlaceholder);
   viewerPlaceholder.style.display = 'block';
   viewerPlaceholder.innerHTML = '<p>Open or drop a PDF to begin.</p>';
-  threadList.innerHTML = '';
-  threadsEmpty.hidden = false;
+  passageList.innerHTML = '';
+  wholeList.innerHTML = '';
+  passageEmpty.hidden = false;
+  wholeEmpty.hidden = false;
   $('#contents-panel').hidden = true;
 }
 
@@ -275,39 +279,50 @@ async function renderThreadList() {
   const data = await Promise.all(
     state.threads.map(async t => ({ t, msgs: await Messages.byThread(t.id) }))
   );
-  threadList.innerHTML = '';
-  threadsEmpty.hidden = data.length > 0;
-  for (const { t, msgs } of data) {
-    const li = document.createElement('li');
-    li.className = 'thread-card' + (t.id === state.activeThreadId ? ' active' : '');
-    const last = msgs[msgs.length - 1];
-    const lastText = last ? (last.role === 'assistant' ? `${last.mention || '@?'}: ${stripMd(last.content)}` : stripMd(last.content)) : '(empty)';
-    const isWhole = !t.pageNum;
-    const meta = isWhole
-      ? `whole paper · ${msgs.length} msg${msgs.length === 1 ? '' : 's'}`
-      : `p.${t.pageNum} · ${msgs.length} msg${msgs.length === 1 ? '' : 's'}`;
-    li.innerHTML = `
-      <div class="quote"></div>
-      <div class="last"></div>
-      <div class="meta"><span>${meta}</span><span class="time"></span></div>
-    `;
-    li.querySelector('.quote').textContent = isWhole ? '(whole paper)' : t.quote;
-    if (isWhole) li.querySelector('.quote').classList.add('whole');
-    li.querySelector('.last').textContent = lastText;
-    li.querySelector('.time').textContent = relTime(t.createdAt);
-    li.addEventListener('click', () => openThread(t.id));
-    const delBtn = document.createElement('button');
-    delBtn.className = 'thread-card-del';
-    delBtn.title = 'Delete thread';
-    delBtn.textContent = '✕';
-    delBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!await confirmAction('Delete this thread and its messages?')) return;
-      await deleteThread(t.id);
-    });
-    li.appendChild(delBtn);
-    threadList.appendChild(li);
-  }
+  const passage = data.filter(d => d.t.pageNum);
+  const whole = data.filter(d => !d.t.pageNum);
+
+  passageList.innerHTML = '';
+  passageEmpty.hidden = passage.length > 0;
+  for (const { t, msgs } of passage) passageList.appendChild(buildThreadCard(t, msgs));
+
+  wholeList.innerHTML = '';
+  wholeEmpty.hidden = whole.length > 0;
+  for (const { t, msgs } of whole) wholeList.appendChild(buildThreadCard(t, msgs));
+}
+
+function buildThreadCard(t, msgs) {
+  const li = document.createElement('li');
+  li.className = 'thread-card' + (t.id === state.activeThreadId ? ' active' : '');
+  const last = msgs[msgs.length - 1];
+  const lastText = last
+    ? (last.role === 'assistant' ? `${last.mention || '@?'}: ${stripMd(last.content)}` : stripMd(last.content))
+    : '(empty)';
+  const isWhole = !t.pageNum;
+  const meta = isWhole
+    ? `whole paper · ${msgs.length} msg${msgs.length === 1 ? '' : 's'}`
+    : `p.${t.pageNum} · ${msgs.length} msg${msgs.length === 1 ? '' : 's'}`;
+  li.innerHTML = `
+    <div class="quote"></div>
+    <div class="last"></div>
+    <div class="meta"><span>${meta}</span><span class="time"></span></div>
+  `;
+  li.querySelector('.quote').textContent = isWhole ? '(whole paper)' : t.quote;
+  if (isWhole) li.querySelector('.quote').classList.add('whole');
+  li.querySelector('.last').textContent = lastText;
+  li.querySelector('.time').textContent = relTime(t.createdAt);
+  li.addEventListener('click', () => openThread(t.id));
+  const delBtn = document.createElement('button');
+  delBtn.className = 'thread-card-del';
+  delBtn.title = 'Delete thread';
+  delBtn.textContent = '✕';
+  delBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!await confirmAction('Delete this thread and its messages?')) return;
+    await deleteThread(t.id);
+  });
+  li.appendChild(delBtn);
+  return li;
 }
 
 async function deleteThread(id) {
@@ -482,9 +497,23 @@ async function startWholePaperThread(defaultMention) {
   await openThread(t.id, { prefill: defaultMention + ' ' });
 }
 
-// Wire up the "new thread" buttons in the threads sidebar.
-for (const btn of document.querySelectorAll('#new-thread-row .ntr-btn')) {
-  btn.addEventListener('click', () => startWholePaperThread(btn.dataset.mention));
+// "+ new whole-paper thread" button + popover with mention picker.
+const newWholeBtn = $('#new-whole-btn');
+const newWholePopover = $('#new-whole-popover');
+newWholeBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  newWholePopover.hidden = !newWholePopover.hidden;
+});
+document.addEventListener('click', (e) => {
+  if (newWholePopover.hidden) return;
+  if (e.target.closest('#new-whole-popover, #new-whole-btn')) return;
+  newWholePopover.hidden = true;
+});
+for (const btn of newWholePopover.querySelectorAll('.ntr-btn')) {
+  btn.addEventListener('click', () => {
+    newWholePopover.hidden = true;
+    startWholePaperThread(btn.dataset.mention);
+  });
 }
 
 // ---- Thread dialog ----
