@@ -180,7 +180,7 @@ OPEN PAPER (the one above; only this paper):
 
 EXTERNAL / OTHER PAPERS:
 - arxiv_lookup(id) — structured arXiv metadata via the official API.
-- fetch_url(url) — read any HTML/text/JSON URL (arXiv /abs/ or /html/, blog posts, GitHub READMEs, API responses). PDFs are not extracted; prefer arXiv's HTML version.
+- fetch_url(url) — read any HTML/text/JSON URL. **For arXiv papers, ALWAYS use the HTML rendering at \`https://arxiv.org/html/<id>\` (or \`/abs/<id>\` for just the abstract). NEVER fetch \`/pdf/\` URLs — PDFs are not extracted server-side and the call will return a useless placeholder.** For other sources: blog posts, GitHub READMEs, API responses, etc.
 - Built-in web search (implicit, no explicit tool call) — broad lookups when no specific URL is known.
 
 VIEWER + COMPUTE:
@@ -197,7 +197,7 @@ Render math with $...$ (inline) or $$...$$ (display) — KaTeX renders it for th
 
 When you write code in your reply, ALWAYS use fenced markdown blocks with an explicit language tag (e.g. \`\`\`python, \`\`\`bash, \`\`\`typescript, \`\`\`json) so it renders with syntax highlighting. For inline code, use single backticks.
 
-Chain tools freely — the loop budget is generous. Prefer arxiv_lookup over scraping arxiv.org with fetch_url.
+Chain tools freely — the loop budget is generous. Prefer arxiv_lookup over scraping arxiv.org with fetch_url; when you do need full-text from an arXiv paper, use \`https://arxiv.org/html/<id>\`, not \`/pdf/\`.
 
 PAPER TEXT:
 ${trimmed}`;
@@ -470,6 +470,8 @@ function buildCodeSystemPrompt({ paperTitle, paperPagesText, thread }) {
 ${ctx}
 
 Stay grounded in the paper; cite page numbers when referencing content. Be concise unless asked for depth.
+
+When fetching arXiv papers via WebFetch, ALWAYS use the HTML rendering at \`https://arxiv.org/html/<id>\` (or \`/abs/<id>\` for just the abstract). NEVER use \`/pdf/\` URLs — Claude Code's WebFetch can't extract PDF text.
 
 When you write code in your reply, ALWAYS use fenced markdown blocks with an explicit language tag (e.g. \`\`\`python, \`\`\`bash, \`\`\`typescript, \`\`\`json) so it renders with syntax highlighting. For inline code, use single backticks.
 
