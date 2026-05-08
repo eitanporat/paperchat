@@ -82,7 +82,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'fetch_url',
-      description: 'Fetch a web page (HTML, text, JSON, or XML) by absolute http(s) URL and return its text content. Use for cited papers (arXiv abstract pages, blog posts), repositories (GitHub README), API responses, etc. PDFs and private/loopback hosts are not supported. Up to ~80k chars returned.',
+      description: 'Fetch a web page (HTML, text, JSON, or XML) by absolute http(s) URL and return its text content. Use for cited papers (arXiv abstract pages, blog posts), repositories (GitHub README), API responses, etc. JS-rendered SPAs are auto-handled — when the raw HTML strip is empty the proxy transparently falls back to r.jina.ai (browser-rendered markdown). PDFs and private/loopback hosts are not supported. Up to ~80k chars returned.',
       parameters: {
         type: 'object',
         properties: {

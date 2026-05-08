@@ -114,8 +114,34 @@ async function proxyFetch(target) {
   raw += dec.decode();
 
   let text;
+  let viaJina = false;
   if (ct.includes('html') || ct.includes('xml+xhtml')) {
     text = stripHtml(raw);
+    // If the page appears JS-rendered (lots of <script>, almost no
+    // extracted body text) retry via r.jina.ai, which loads the URL in
+    // a real browser and returns clean markdown. Free, no auth.
+    const looksEmpty = text.length < 500;
+    const isSpa = /<script[\s>]/i.test(raw) && raw.length > 2000;
+    if (looksEmpty && isSpa) {
+      try {
+        const jr = await fetch(`https://r.jina.ai/${target}`, {
+          headers: { 'user-agent': 'paperchat/0.1', accept: 'text/plain' },
+          signal: AbortSignal.timeout(20000),
+        });
+        if (jr.ok) {
+          const jt = await jr.text();
+          // Only accept the rendered version if it's clearly more useful
+          // than the raw HTML strip — defends against jina returning a
+          // captcha/error page that's also short.
+          if (jt && jt.length > Math.max(text.length + 200, 600)) {
+            text = jt;
+            viaJina = true;
+          }
+        }
+      } catch {
+        // network/timeout — keep the original stripped text
+      }
+    }
   } else if (ct.includes('pdf')) {
     text = `[content-type: ${ct}] PDF fetched from URL is not extracted server-side. ` +
            `For arXiv papers, prefer the /abs/ or /html/ URL instead of /pdf/.`;
@@ -132,7 +158,7 @@ async function proxyFetch(target) {
   if (text.length > MAX_RETURN_CHARS) {
     text = text.slice(0, MAX_RETURN_CHARS) + `\n\n[truncated at ${MAX_RETURN_CHARS} chars]`;
   }
-  return { status: r.status, finalUrl: r.url, contentType: ct, text };
+  return { status: r.status, finalUrl: r.url, contentType: ct, text, viaJina };
 }
 
 // On macOS, the local `claude` CLI stores its API key in the login keychain
@@ -316,7 +342,7 @@ createServer(async (req, res) => {
       if (!target) { res.writeHead(400); return res.end('missing url'); }
       try {
         const out = await proxyFetch(target);
-        const header = `# fetched\nurl: ${out.finalUrl}\nstatus: ${out.status}\ncontent-type: ${out.contentType}\n\n`;
+        const header = `# fetched\nurl: ${out.finalUrl}\nstatus: ${out.status}\ncontent-type: ${out.contentType}${out.viaJina ? '\nrendered-via: r.jina.ai (JS-rendered fallback)' : ''}\n\n`;
         res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
         return res.end(header + out.text);
       } catch (err) {
