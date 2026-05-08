@@ -353,7 +353,45 @@ function setMarkdown(el, text) {
       } catch {}
     }
   }
+  // Auto-fix common LaTeX subscript mistakes the model loves to make
+  // (e.g. `\mathcal{L}{x}` → `\mathcal{L}_{x}`, `\sum{i}` → `\sum_{i}`).
+  // Runs on text nodes only, skipping <pre>/<code>, before KaTeX renders.
+  fixMathInDom(el);
   renderMathIn(el);
+}
+
+function fixMathInDom(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      let p = node.parentNode;
+      while (p && p !== root) {
+        const tag = p.nodeType === 1 ? p.tagName : '';
+        if (tag === 'CODE' || tag === 'PRE') return NodeFilter.FILTER_REJECT;
+        p = p.parentNode;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  const nodes = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n);
+  for (const n of nodes) {
+    const fixed = autoFixMathSyntax(n.nodeValue);
+    if (fixed !== n.nodeValue) n.nodeValue = fixed;
+  }
+}
+
+// Apply LaTeX subscript repairs only inside $...$ / $$...$$ regions so we
+// don't touch prose that happens to contain backslashes.
+function autoFixMathSyntax(text) {
+  if (!text || (!text.includes('$') && !text.includes('\\['))) return text;
+  return text.replace(
+    /(\$\$[\s\S]*?\$\$|\$[^\$\n]+\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g,
+    (block) => block
+      // \mathcal{L}{x} → \mathcal{L}_{x}, also for \mathbb / \mathbf / \mathrm / \mathit / \mathfrak
+      .replace(/(\\(?:mathcal|mathbb|mathbf|mathrm|mathit|mathfrak|mathsf|mathtt)\{[^{}]+\})\s*\{/g, '$1_{')
+      // \sum{...} → \sum_{...} (and other big operators / functions)
+      .replace(/\\(sum|prod|int|oint|iint|iiint|coprod|max|min|sup|inf|lim|liminf|limsup|bigcup|bigcap|bigotimes|bigoplus|bigsqcup)\s*\{/g, '\\$1_{')
+  );
 }
 
 const _pendingMath = new WeakSet();
