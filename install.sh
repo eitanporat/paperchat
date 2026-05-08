@@ -21,17 +21,55 @@ warn() { printf "%s !%s %s\n" "$C_WARN" "$C_OFF" "$1" >&2; }
 die()  { printf "%s ✗ error:%s %s\n" "$C_ERR" "$C_OFF" "$1" >&2; exit 1; }
 
 # ---- prerequisite checks -------------------------------------------------
-need() {
-  command -v "$1" >/dev/null 2>&1 || die "$1 is required. $2"
+# When run via `curl | bash` the script's stdin is the pipe, so reads from it
+# would always return EOF. Bind /dev/tty for interactive prompts.
+TTY=""
+if [ -e /dev/tty ] && [ -r /dev/tty ] && [ -t 1 ]; then
+  TTY=/dev/tty
+fi
+ask() {
+  # ask "Prompt? [Y/n] " "default-answer"
+  local prompt="$1" default="${2:-}"
+  if [ -z "$TTY" ]; then
+    printf "%s [non-interactive: assuming '%s']\n" "$prompt" "$default"
+    REPLY="$default"
+    return 0
+  fi
+  printf "%s" "$prompt"
+  IFS= read -r REPLY <"$TTY" || REPLY=""
+  REPLY="${REPLY:-$default}"
 }
-need git  "Install with: 'brew install git' (macOS) or 'apt install git' (Linux)."
-need node "Install Node.js >= 20 from https://nodejs.org/ or via 'brew install node' / 'nvm install 20'."
-need npm  "Comes with Node.js — make sure your installation is intact."
+
+ensure_brew_pkg() {
+  # ensure_brew_pkg <pkg> "<failed-instructions>"
+  local pkg="$1" hint="$2"
+  if ! command -v brew >/dev/null 2>&1; then
+    die "$pkg is required. $hint"
+  fi
+  ask "Install $pkg with Homebrew now? [Y/n] " "y"
+  case "$REPLY" in
+    [Yy]*) step "Running: brew install $pkg" && brew install "$pkg" ;;
+    *) die "$pkg is required. $hint" ;;
+  esac
+}
+
+if ! command -v git >/dev/null 2>&1; then
+  ensure_brew_pkg git "Install with: 'brew install git' (macOS) or 'apt install git' (Linux)."
+fi
+
+if ! command -v node >/dev/null 2>&1 || [ "$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)" -lt 20 ]; then
+  warn "Node.js >= 20 not found."
+  ensure_brew_pkg node "Install Node.js 20+ from https://nodejs.org/ or via 'nvm install 20'."
+  # brew install puts node in PATH for new shells; refresh hash for this one.
+  hash -r 2>/dev/null || true
+  command -v node >/dev/null 2>&1 || die "node still not on PATH after install. Open a new shell and re-run."
+fi
 
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 if [ "$NODE_MAJOR" -lt 20 ]; then
   die "node $NODE_MAJOR detected; paperchat needs node >= 20."
 fi
+command -v npm >/dev/null 2>&1 || die "npm not found (it ships with Node.js — your install may be broken)."
 
 # ---- clone or update -----------------------------------------------------
 if [ -d "$INSTALL_DIR/.git" ]; then
@@ -65,11 +103,10 @@ ${C_DIM}Next steps:${C_OFF}
 EOF
 
 # ---- optional: launch dev server ----------------------------------------
-if [ -t 0 ] && [ -t 1 ] && [ -z "${PAPERCHAT_NO_START:-}" ]; then
-  printf "Start the dev server now? [Y/n] "
-  read -r ans || ans=""
-  case "${ans:-y}" in
-    [Yy]|"")
+if [ -n "$TTY" ] && [ -z "${PAPERCHAT_NO_START:-}" ]; then
+  ask "Start the dev server now? [Y/n] " "y"
+  case "${REPLY}" in
+    [Yy]*|"")
       cd "$INSTALL_DIR"
       step "Starting paperchat at http://localhost:5173 (Ctrl-C to stop)"
       # Best-effort: open browser when server is ready (macOS only).
