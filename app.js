@@ -839,7 +839,94 @@ function buildToolCard(tc) {
     body.appendChild(resBlock);
   }
   detailsEl.appendChild(body);
+
+  // Inline artifact preview: any tool call whose args carry an HTML/SVG/markdown
+  // payload gets a sandboxed iframe right inside the message, so the user
+  // doesn't have to open files in a separate tab.
+  const artifact = detectArtifact(tc);
+  if (artifact && tc.ok !== false) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tool-card-wrap';
+    wrap.appendChild(detailsEl);
+    wrap.appendChild(buildArtifactBlock(artifact));
+    return wrap;
+  }
   return detailsEl;
+}
+
+// Recognize common shapes of "artifact-producing" tool calls. Returns
+// { kind: 'html'|'svg'|'markdown', content, label } or null.
+function detectArtifact(tc) {
+  if (!tc || !tc.args) return null;
+  const path = (tc.args.file_path || tc.args.filepath || tc.args.path || '').toLowerCase();
+  const content = tc.args.content || tc.args.body || tc.args.html;
+  if (!content || typeof content !== 'string') return null;
+  if (/\.html?$/.test(path) || /^<!doctype html|<html[\s>]/i.test(content.slice(0, 200))) {
+    return { kind: 'html', content, label: path || 'artifact.html' };
+  }
+  if (/\.svg$/.test(path) || /^<svg[\s>]/i.test(content.slice(0, 200))) {
+    return { kind: 'svg', content, label: path || 'artifact.svg' };
+  }
+  if (/\.(md|markdown)$/.test(path)) {
+    return { kind: 'markdown', content, label: path };
+  }
+  return null;
+}
+
+function buildArtifactBlock(art) {
+  const wrap = document.createElement('div');
+  wrap.className = 'artifact';
+
+  const head = document.createElement('div');
+  head.className = 'artifact-head';
+  head.innerHTML = `<span class="artifact-label">📎 ${escapeHtml(art.label)}</span>`;
+  const expandBtn = document.createElement('button');
+  expandBtn.className = 'artifact-expand';
+  expandBtn.textContent = 'Open full';
+  expandBtn.title = 'Open in a new tab';
+  expandBtn.addEventListener('click', () => openArtifactFull(art));
+  head.appendChild(expandBtn);
+  wrap.appendChild(head);
+
+  const frameWrap = document.createElement('div');
+  frameWrap.className = 'artifact-frame';
+  if (art.kind === 'svg') {
+    // Inline SVG so it scales naturally with the card; no iframe needed.
+    frameWrap.innerHTML = art.content;
+  } else if (art.kind === 'html') {
+    const iframe = document.createElement('iframe');
+    iframe.className = 'artifact-iframe';
+    iframe.sandbox = 'allow-scripts'; // no allow-same-origin → can't reach app state
+    iframe.srcdoc = art.content;
+    iframe.loading = 'lazy';
+    frameWrap.appendChild(iframe);
+  } else if (art.kind === 'markdown') {
+    const md = document.createElement('div');
+    md.className = 'body';
+    setMarkdown(md, art.content);
+    frameWrap.appendChild(md);
+  }
+  wrap.appendChild(frameWrap);
+  return wrap;
+}
+
+function openArtifactFull(art) {
+  const win = window.open('', '_blank');
+  if (!win) {
+    showToast('Pop-up blocked — allow pop-ups for paperchat to use "Open full".', { type: 'error' });
+    return;
+  }
+  if (art.kind === 'html') {
+    win.document.open(); win.document.write(art.content); win.document.close();
+  } else if (art.kind === 'svg') {
+    win.document.open();
+    win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(art.label)}</title><body style="margin:0;display:flex;align-items:center;justify-content:center;background:#1a1a1a">${art.content}</body>`);
+    win.document.close();
+  } else if (art.kind === 'markdown') {
+    win.document.open();
+    win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(art.label)}</title><pre style="white-space:pre-wrap;font:14px ui-serif;padding:24px;max-width:780px;margin:auto">${escapeHtml(art.content)}</pre>`);
+    win.document.close();
+  }
 }
 
 function showToast(message, opts = {}) {
