@@ -7,6 +7,10 @@ invite with `@mentions` (`@claude`, `@grok`, `@gpt`, `@code`).
 
 [fermat]: https://fermatslibrary.com/
 
+![paperchat demo](assets/demo.gif)
+
+*(4× speed)*
+
 - **Multiple models per thread** — invite different agents into the same
   conversation by mentioning them.
 - **Tools** — the agents can search inside the paper, fetch arXiv metadata,
