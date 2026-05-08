@@ -585,6 +585,37 @@ button:hover { background: var(--accent-soft); }
   font-size: 0.92em;
 }
 
+/* Defense-in-depth: even with KaTeX output='html', force the screen-reader
+   mathml span to stay invisible. Some page-wide rules (e.g. flex children
+   override) can re-expose it on certain browsers. */
+.katex .katex-mathml {
+  position: absolute !important;
+  clip: rect(1px, 1px, 1px, 1px) !important;
+  clip-path: inset(50%) !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+/* Math inside markdown tables: allow horizontal overflow on the cell so a
+   long formula doesn't squash the column or wrap mid-expression. */
+.msg .body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.msg .body table th, .msg .body table td {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+.msg .body table th { background: var(--bg); }
+.msg .body .katex-display {
+  margin: 0.4em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
 .cursor {
   display: inline-block;
   color: var(--accent);

@@ -474,6 +474,17 @@ function renderMathIn(el) {
         ],
         throwOnError: false,
         ignoredTags: ['script', 'style', 'pre', 'code'],
+        // KaTeX defaults to 'htmlAndMathml' which emits BOTH a visible
+        // .katex-html span and a .katex-mathml span (hidden via clip).
+        // If anything in the page CSS interferes with the clip rect, the
+        // mathml leaks through and the user sees the formula twice (once
+        // properly typeset, once spelled out one symbol per line). Force
+        // 'html' only — accessibility tools can still read the alt text.
+        output: 'html',
+        // Inside a narrow markdown table cell, KaTeX can mis-line-wrap a
+        // long expression. trust:true lets users opt-in to \htmlClass etc.
+        // strict:false silences benign warnings.
+        strict: false,
       });
     } catch {}
     return;
