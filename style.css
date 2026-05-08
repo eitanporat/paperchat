@@ -65,6 +65,42 @@ button:hover { background: var(--accent-soft); }
   overflow-y: auto;
   background: var(--paper);
 }
+
+.library {
+  /* Stacked sections, each gets half. Mirrors the .threads aside. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.lib-section {
+  flex: 1 1 50%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+.lib-section + .lib-section {
+  border-top: 1px solid var(--border);
+}
+.lib-sec-head { margin-bottom: 8px; }
+.lib-sec-head h3 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.lib-section-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* When only the library section is visible (no paper open → contents hidden),
+   let it use the full height instead of being stuck at 50%. */
+.library:has(> #contents-panel[hidden]) #lib-papers-section {
+  flex-basis: 100%;
+}
 .threads {
   border-right: 0;
   border-left: 1px solid var(--border);
@@ -174,8 +210,6 @@ button:hover { background: var(--accent-soft); }
   font-style: italic;
 }
 
-#contents-panel { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
-.contents-head { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .contents-tree, .contents-tree ul { list-style: none; margin: 0; padding: 0; }
 .contents-tree ul { padding-left: 12px; border-left: 1px dotted var(--border); margin-left: 4px; }
 .contents-tree .toc-item {

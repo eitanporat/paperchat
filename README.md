@@ -27,8 +27,17 @@ invite with `@mentions` (`@claude`, `@grok`, `@gpt`, `@code`).
 
 ## Quick start
 
+One-line install (clones to `~/paperchat`, installs deps, optionally
+launches the dev server):
+
 ```sh
-git clone <your-fork> paperchat
+curl -fsSL https://raw.githubusercontent.com/eitanporat/paperchat/main/install.sh | bash
+```
+
+Or manually:
+
+```sh
+git clone https://github.com/eitanporat/paperchat.git
 cd paperchat
 npm install
 npm run dev
@@ -40,6 +49,15 @@ click `@claude`.
 
 On macOS, `@code` works automatically — the dev server reads the API
 key from your local `claude` CLI's keychain entry. No extra setup.
+
+Installer environment overrides:
+
+| Variable | Purpose |
+|---|---|
+| `PAPERCHAT_DIR` | Install destination (default `~/paperchat`). |
+| `PAPERCHAT_REPO` | Use a fork instead of the canonical repo. |
+| `PAPERCHAT_BRANCH` | Check out a different branch (default `main`). |
+| `PAPERCHAT_NO_START=1` | Skip the "start the dev server now?" prompt. |
 
 ## Configuration
 

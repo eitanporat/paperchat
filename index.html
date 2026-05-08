@@ -28,18 +28,24 @@
 
   <main class="layout">
     <aside class="library" id="library">
-      <h3>Library</h3>
-      <ul id="library-list"></ul>
-      <div class="empty" id="library-empty">Drop a PDF anywhere to add it.</div>
-      <details id="library-archived" class="archived-section" hidden>
-        <summary><span id="library-archived-count">Archived</span></summary>
-        <ul id="library-archived-list"></ul>
-      </details>
-      <div id="contents-panel" hidden>
-        <h3 class="contents-head">Contents</h3>
-        <ul id="contents-tree" class="contents-tree"></ul>
-        <div class="empty" id="contents-empty" hidden>No outline in this PDF.</div>
-      </div>
+      <section class="lib-section" id="lib-papers-section">
+        <header class="lib-sec-head"><h3>Library</h3></header>
+        <div class="lib-section-scroll">
+          <ul id="library-list"></ul>
+          <div class="empty" id="library-empty">Drop a PDF anywhere to add it.</div>
+          <details id="library-archived" class="archived-section" hidden>
+            <summary><span id="library-archived-count">Archived</span></summary>
+            <ul id="library-archived-list"></ul>
+          </details>
+        </div>
+      </section>
+      <section class="lib-section" id="contents-panel" hidden>
+        <header class="lib-sec-head"><h3>Contents</h3></header>
+        <div class="lib-section-scroll">
+          <ul id="contents-tree" class="contents-tree"></ul>
+          <div class="empty" id="contents-empty" hidden>No outline in this PDF.</div>
+        </div>
+      </section>
     </aside>
 
     <section class="viewer-wrap">
