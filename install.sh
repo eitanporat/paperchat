@@ -17,6 +17,7 @@ C_OFF=$'\033[0m'; C_DIM=$'\033[2m'; C_OK=$'\033[1;32m'; C_INFO=$'\033[1;36m'; C_
 
 step() { printf "%s==>%s %s\n" "$C_INFO" "$C_OFF" "$1"; }
 ok()   { printf "%s ✓%s %s\n" "$C_OK"   "$C_OFF" "$1"; }
+info() { printf "%s i%s %s\n" "$C_INFO" "$C_OFF" "$1"; }
 warn() { printf "%s !%s %s\n" "$C_WARN" "$C_OFF" "$1" >&2; }
 die()  { printf "%s ✗ error:%s %s\n" "$C_ERR" "$C_OFF" "$1" >&2; exit 1; }
 
@@ -90,31 +91,76 @@ step "Installing dependencies (npm install)"
 
 ok "Installed in $INSTALL_DIR"
 
-# ---- next steps ----------------------------------------------------------
-cat <<EOF
+# ---- optional OpenRouter setup ------------------------------------------
+# Offered only when interactive AND no key is already configured.
+ENVF="$INSTALL_DIR/.env.local"
+HAS_KEY=0
+if [ -f "$ENVF" ] && grep -q '^OPENROUTER_API_KEY=.\+' "$ENVF" 2>/dev/null; then
+  HAS_KEY=1
+fi
 
-${C_DIM}Next steps:${C_OFF}
-  cd $INSTALL_DIR
-  npm run dev
-  # then open http://localhost:5173
-  #   click ⚙ to paste your OpenRouter key (https://openrouter.ai/keys)
-  #   on macOS, @code uses your local 'claude' CLI's key automatically
+if [ -n "$TTY" ] && [ "$HAS_KEY" -eq 0 ]; then
+  echo
+  printf "%sOptional:%s OpenRouter key for @claude / @grok / @gpt mentions.\n" "$C_INFO" "$C_OFF"
+  printf "  Get one at %shttps://openrouter.ai/keys%s\n" "$C_DIM" "$C_OFF"
+  printf "  Skip (Enter) if you only want @code (uses your local Claude Code key on macOS).\n"
+  printf "  You can also paste it later via the in-app ⚙ Settings dialog.\n"
+  ask "OpenRouter API key: " ""
+  if [ -n "$REPLY" ]; then
+    touch "$ENVF"
+    grep -v '^OPENROUTER_API_KEY=' "$ENVF" > "$ENVF.tmp" 2>/dev/null || true
+    printf "OPENROUTER_API_KEY=%s\n" "$REPLY" >> "$ENVF.tmp"
+    mv "$ENVF.tmp" "$ENVF"
+    chmod 600 "$ENVF"
+    ok "Saved OpenRouter key to $ENVF (mode 600)"
+  else
+    info "Skipped. Set it later via ⚙ Settings or by editing $ENVF."
+  fi
+fi
+
+# ---- launch dev server (auto, unless explicitly disabled) ----------------
+if [ -n "${PAPERCHAT_NO_START:-}" ]; then
+  cat <<EOF
+
+${C_DIM}Skipping auto-start (PAPERCHAT_NO_START set). Run when ready:${C_OFF}
+  cd $INSTALL_DIR && npm run dev
 
 EOF
+  exit 0
+fi
 
-# ---- optional: launch dev server ----------------------------------------
-if [ -n "$TTY" ] && [ -z "${PAPERCHAT_NO_START:-}" ]; then
-  ask "Start the dev server now? [Y/n] " "y"
-  case "${REPLY}" in
+cd "$INSTALL_DIR"
+
+# ---- check for an existing process on the port --------------------------
+PORT="${PORT:-5173}"
+EXISTING_PIDS="$(lsof -ti:"$PORT" 2>/dev/null || true)"
+if [ -n "$EXISTING_PIDS" ]; then
+  warn "Port $PORT is already in use (PID(s): $(echo "$EXISTING_PIDS" | tr '\n' ' '))"
+  ask "Kill the running process(es) and continue? [Y/n] " "y"
+  case "${REPLY:-y}" in
     [Yy]*|"")
-      cd "$INSTALL_DIR"
-      step "Starting paperchat at http://localhost:5173 (Ctrl-C to stop)"
-      # Best-effort: open browser when server is ready (macOS only).
-      if command -v open >/dev/null 2>&1; then
-        ( sleep 1 && open "http://localhost:5173" >/dev/null 2>&1 ) &
+      echo "$EXISTING_PIDS" | xargs kill 2>/dev/null || true
+      sleep 0.4
+      LEFTOVER="$(lsof -ti:"$PORT" 2>/dev/null || true)"
+      if [ -n "$LEFTOVER" ]; then
+        warn "Some process(es) survived SIGTERM; sending SIGKILL"
+        echo "$LEFTOVER" | xargs kill -9 2>/dev/null || true
+        sleep 0.2
       fi
-      exec npm run dev
+      ok "Port $PORT freed"
       ;;
-    *) ;;
+    *) die "Port $PORT is occupied. Set PORT=<other> and re-run." ;;
   esac
 fi
+
+step "Starting paperchat at http://localhost:$PORT (Ctrl-C to stop)"
+printf "%sTip:%s click ⚙ to paste your OpenRouter key (https://openrouter.ai/keys); on macOS @code uses your local 'claude' CLI key automatically.\n\n" "$C_DIM" "$C_OFF"
+
+# Best-effort: open the browser once the server is up.
+if command -v open >/dev/null 2>&1; then
+  ( sleep 1; open "http://localhost:$PORT" >/dev/null 2>&1 ) &
+elif command -v xdg-open >/dev/null 2>&1; then
+  ( sleep 1; xdg-open "http://localhost:$PORT" >/dev/null 2>&1 ) &
+fi
+
+exec npm run dev
