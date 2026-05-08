@@ -360,6 +360,22 @@ function setMarkdown(el, text) {
   renderMathIn(el);
 }
 
+// Auto-scroll behavior: stay pinned to bottom by default, but back off if the
+// user scrolls up while a reply is streaming so they can read earlier content
+// without being yanked back. Resumes pinning when they scroll back to bottom.
+let _pinned = true;
+threadMsgsEl.addEventListener('scroll', () => {
+  const distance = threadMsgsEl.scrollHeight - threadMsgsEl.scrollTop - threadMsgsEl.clientHeight;
+  _pinned = distance < 40;
+});
+function scrollIfPinned() {
+  if (_pinned) threadMsgsEl.scrollTop = threadMsgsEl.scrollHeight;
+}
+function scrollToBottomNow() {
+  _pinned = true;
+  threadMsgsEl.scrollTop = threadMsgsEl.scrollHeight;
+}
+
 function fixMathInDom(root) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -575,7 +591,7 @@ async function openThread(id, { prefill = '' } = {}) {
   for (const m of msgs) renderMessage(m);
   threadInput.value = prefill;
   threadDlg.showModal();
-  threadMsgsEl.scrollTop = threadMsgsEl.scrollHeight;
+  scrollToBottomNow(); // opening a thread always jumps to the latest message
   if (prefill) threadInput.focus();
   redrawHighlights();
   renderThreadList();
@@ -634,7 +650,7 @@ function renderMessage(m) {
     }
   }
   threadMsgsEl.appendChild(div);
-  threadMsgsEl.scrollTop = threadMsgsEl.scrollHeight;
+  scrollIfPinned();
 }
 
 function escapeHtml(s) {
@@ -685,7 +701,7 @@ threadForm.addEventListener('submit', async (e) => {
   // position they fire (text segment → tool card → text segment → ...).
   const card = createStreamingCard(mention);
   threadMsgsEl.appendChild(card.el);
-  threadMsgsEl.scrollTop = threadMsgsEl.scrollHeight;
+  scrollToBottomNow(); // user just hit Send — re-pin to bottom
 
   const segments = [];      // [{ type: 'text', content } | { type: 'tool', tc }]
   let segText = '';
@@ -724,7 +740,7 @@ threadForm.addEventListener('submit', async (e) => {
         cursor.className = 'cursor';
         cursor.textContent = '▍';
         currentBody.appendChild(cursor);
-        threadMsgsEl.scrollTop = threadMsgsEl.scrollHeight;
+        scrollIfPinned();
       },
       onToolCall: (tc) => {
         toolCalls.push(tc);
@@ -733,7 +749,7 @@ threadForm.addEventListener('submit', async (e) => {
         // Insert tool card before the (empty) currentBody so order is preserved
         card.el.insertBefore(tcEl, currentBody);
         segments.push({ type: 'tool', tc });
-        threadMsgsEl.scrollTop = threadMsgsEl.scrollHeight;
+        scrollIfPinned();
       },
     });
 
