@@ -387,6 +387,10 @@ document.addEventListener('mouseup', (e) => {
   if (!state.paper) return;
   // Don't trigger when clicking inside the floating button itself
   if (floatingAsk.contains(document.activeElement)) return;
+  // Don't trigger when clicking inside any open <dialog> — otherwise clicks
+  // on the dialog (Send, Cancel, etc.) hit-test against highlights underneath
+  // the modal and accidentally open another thread.
+  if (e.target instanceof Element && e.target.closest('dialog')) return;
   const cap = captureSelection(state.pages);
   if (cap) {
     state.pendingSelection = cap;
