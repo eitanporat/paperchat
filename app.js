@@ -1174,10 +1174,13 @@ async function setZoom(newFactor) {
   if (!state.paper) return;
   const clamped = Math.max(0.25, Math.min(4, newFactor));
   if (Math.abs(clamped - state.zoomFactor) < 0.001) return;
-  // Preserve scroll position roughly across re-render.
   const wrap = $('.viewer-wrap') || viewer.parentElement;
-  const oldRange = wrap.scrollHeight - wrap.clientHeight;
-  const ratio = oldRange > 0 ? wrap.scrollTop / oldRange : 0;
+
+  // Capture which page is at the top of the viewport and how far into that
+  // page we are (as a fraction of page height). This is exact under uniform
+  // zoom: pages scale linearly, gaps stay constant per-zoom, so re-anchoring
+  // by (page, fraction) puts the user back on the same line of text.
+  const anchor = captureViewportAnchor(wrap);
 
   state.zoomFactor = clamped;
   localStorage.setItem('paperchat.zoom', String(clamped));
@@ -1187,8 +1190,43 @@ async function setZoom(newFactor) {
   state.pages = pages;
   redrawHighlights();
 
-  const newRange = wrap.scrollHeight - wrap.clientHeight;
-  wrap.scrollTop = ratio * newRange;
+  restoreViewportAnchor(wrap, anchor);
+}
+
+// Find the page currently anchoring the top of the viewport and the fraction
+// of that page's height we've scrolled past. Returns { pageNum, fraction } or
+// null if no page intersects the top edge.
+function captureViewportAnchor(wrap) {
+  if (!wrap || !state.pages.length) return null;
+  const wrapRect = wrap.getBoundingClientRect();
+  // Use a small offset (8px) so a one-pixel sliver of the previous page
+  // doesn't latch us to it.
+  const probe = 8;
+  for (const page of state.pages) {
+    const r = page.wrap.getBoundingClientRect();
+    const topRel = r.top - wrapRect.top;
+    const botRel = topRel + r.height;
+    if (topRel <= probe && botRel > probe) {
+      const offset = probe - topRel; // pixels into this page
+      const fraction = r.height > 0 ? offset / r.height : 0;
+      return { pageNum: page.pageNum, fraction };
+    }
+  }
+  // Fallback: clamp to first / last page when nothing intersects.
+  const first = state.pages[0].wrap.getBoundingClientRect();
+  if (first.top - wrapRect.top > probe) return { pageNum: state.pages[0].pageNum, fraction: 0 };
+  return { pageNum: state.pages[state.pages.length - 1].pageNum, fraction: 1 };
+}
+
+function restoreViewportAnchor(wrap, anchor) {
+  if (!anchor || !wrap) return;
+  const page = state.pages.find(p => p.pageNum === anchor.pageNum);
+  if (!page) return;
+  const wrapRect = wrap.getBoundingClientRect();
+  const pageRect = page.wrap.getBoundingClientRect();
+  const pageTopInContent = (pageRect.top - wrapRect.top) + wrap.scrollTop;
+  const target = pageTopInContent + anchor.fraction * pageRect.height - 8; // mirror probe offset
+  wrap.scrollTop = Math.max(0, target);
 }
 
 function zoomStep(delta) {
