@@ -530,8 +530,11 @@ document.addEventListener('mouseup', (e) => {
   }
   state.pendingSelection = null;
   floatingAsk.hidden = true;
-  // No selection — treat as click. If point falls inside one or more highlights,
-  // open the topmost (most-recently-created) thread under the cursor.
+  // No selection — treat as click. Only open a thread when the click landed
+  // inside a rendered .page-wrap. Otherwise we'd hit-test scrollbar releases,
+  // empty gutter clicks, etc., which would auto-scroll the viewer to a
+  // random thread the cursor happened to be over.
+  if (!(e.target instanceof Element) || !e.target.closest('.page-wrap')) return;
   const threadId = threadAtPoint(e.clientX, e.clientY);
   if (threadId) openThread(threadId);
 });
