@@ -131,6 +131,23 @@ async function renderLinkLayer(page, viewport, layer) {
   }
 }
 
+// Try to read the PDF's embedded title from its metadata. Returns null when
+// missing or trivial.
+export async function getPdfMetadataTitle(blob) {
+  try {
+    const data = await blob.arrayBuffer();
+    const doc = await pdfjsLib.getDocument({ data }).promise;
+    const meta = await doc.getMetadata().catch(() => null);
+    const title = (meta?.info?.Title || '').trim();
+    if (!title || title.length < 4 || /^untitled|microsoft word|^layout|^paper$|\.(docx?|tex|pdf)$/i.test(title)) {
+      return null;
+    }
+    return title;
+  } catch {
+    return null;
+  }
+}
+
 // Extract the PDF outline (table of contents). Returns a tree of
 // { title, pageNum, children: [...] }. pageNum is 1-indexed or null if unresolvable.
 export async function getOutline(doc) {

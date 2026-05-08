@@ -1,7 +1,7 @@
 // Top-level app wiring: library, viewer, threads, settings.
 
 import { Papers, Threads, Messages, uid, hashBlob } from './db.js';
-import { renderPdf, getOutline, extractText, captureSelection, drawHighlight, clearHighlights, highlightQuoteOnPage } from './pdf.js';
+import { renderPdf, getOutline, getPdfMetadataTitle, extractText, captureSelection, drawHighlight, clearHighlights, highlightQuoteOnPage } from './pdf.js';
 import {
   streamChat, parseMention, MENTIONS, mentionClass,
   getKey, setKey, envKey, getModels, setModels, modelFor,
@@ -50,25 +50,69 @@ const state = {
 
 // ---- Library ----
 
+function isPaperArchived(p) { return !!p.archivedAt; }
+
 async function renderLibrary() {
   const papers = await Papers.list();
+  const active = papers.filter(p => !isPaperArchived(p));
+  const archived = papers
+    .filter(isPaperArchived)
+    .sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
+
   libraryList.innerHTML = '';
-  libraryEmpty.hidden = papers.length > 0;
-  for (const p of papers) {
-    const li = document.createElement('li');
-    li.className = 'lib-item' + (state.paper?.id === p.id ? ' active' : '');
-    li.innerHTML = `<span class="title"></span><button class="del" title="Delete">✕</button>`;
-    li.querySelector('.title').textContent = p.name;
-    li.querySelector('.title').addEventListener('click', () => openPaper(p.id));
-    li.querySelector('.del').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!await confirmAction(`Delete "${p.name}" and all of its threads?`)) return;
-      await Papers.delete(p.id);
-      if (state.paper?.id === p.id) closePaper();
-      renderLibrary();
-    });
-    libraryList.appendChild(li);
-  }
+  libraryEmpty.hidden = active.length > 0;
+  for (const p of active) libraryList.appendChild(buildLibraryItem(p, false));
+
+  const archSec = $('#library-archived');
+  const archList = $('#library-archived-list');
+  archList.innerHTML = '';
+  archSec.hidden = archived.length === 0;
+  $('#library-archived-count').textContent = `Archived (${archived.length})`;
+  for (const p of archived) archList.appendChild(buildLibraryItem(p, true));
+}
+
+function buildLibraryItem(p, archived) {
+  const li = document.createElement('li');
+  li.className = 'lib-item' +
+    (state.paper?.id === p.id ? ' active' : '') +
+    (archived ? ' archived' : '');
+  li.innerHTML = `
+    <span class="title"></span>
+    <button class="arch" title=""></button>
+    <button class="del" title="Delete">✕</button>
+  `;
+  const title = li.querySelector('.title');
+  title.textContent = p.title || p.name;
+  title.title = p.name;
+  title.addEventListener('click', () => openPaper(p.id));
+
+  const archBtn = li.querySelector('.arch');
+  archBtn.textContent = archived ? '↩' : '📁';
+  archBtn.title = archived ? 'Unarchive' : 'Archive';
+  archBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await setPaperArchived(p.id, !archived);
+  });
+
+  li.querySelector('.del').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!await confirmAction(`Delete "${p.title || p.name}" and all of its threads?`)) return;
+    await Papers.delete(p.id);
+    if (state.paper?.id === p.id) closePaper();
+    renderLibrary();
+  });
+  return li;
+}
+
+async function setPaperArchived(id, archived) {
+  const p = await Papers.get(id);
+  if (!p) return;
+  p.archivedAt = archived ? Date.now() : null;
+  await Papers.put(p);
+  // If the currently-open paper was archived, close it.
+  if (archived && state.paper?.id === id) closePaper();
+  await renderLibrary();
+  showToast(archived ? 'Paper archived' : 'Paper unarchived', { type: 'info', durationMs: 2000 });
 }
 
 async function addPaperFromFile(file) {
@@ -85,10 +129,14 @@ async function addPaperFromFile(file) {
   // Show a placeholder while extracting
   viewerPlaceholder.style.display = 'block';
   viewerPlaceholder.innerHTML = `<p>Extracting text from <b>${file.name}</b>…</p>`;
-  const pagesText = await extractText(file);
+  const [pagesText, metaTitle] = await Promise.all([
+    extractText(file),
+    getPdfMetadataTitle(file),
+  ]);
   const paper = {
     id,
     name: file.name,
+    title: metaTitle || null,
     blob: file,
     pagesText,
     addedAt: Date.now(),
@@ -106,7 +154,9 @@ async function openPaper(id) {
   state.paper = paper;
   state.activeThreadId = null;
   state.pendingSelection = null;
-  paperTitleEl.textContent = paper.name;
+  const displayTitle = paper.title || paper.name;
+  paperTitleEl.textContent = displayTitle;
+  document.title = `${displayTitle} — paperchat`;
   viewerPlaceholder.style.display = 'none';
   viewer.innerHTML = '';
   viewer.appendChild(viewerPlaceholder);
@@ -172,6 +222,7 @@ function closePaper() {
   state.threads = [];
   state.activeThreadId = null;
   paperTitleEl.textContent = 'No paper open';
+  document.title = 'paperchat';
   viewer.innerHTML = '';
   viewer.appendChild(viewerPlaceholder);
   viewerPlaceholder.style.display = 'block';
@@ -802,6 +853,92 @@ fileInput.addEventListener('change', async () => {
   if (f) await addPaperFromFile(f);
   fileInput.value = '';
 });
+
+// ---- Add by URL (arXiv etc.) ----
+const urlDlg = $('#url-dialog');
+const urlInput = $('#url-input');
+const urlError = $('#url-error');
+const urlSubmit = $('#url-submit');
+
+$('#btn-from-url').addEventListener('click', () => {
+  urlInput.value = '';
+  urlError.hidden = true;
+  urlError.textContent = '';
+  urlSubmit.disabled = false;
+  urlSubmit.textContent = 'Add';
+  urlDlg.showModal();
+  urlInput.focus();
+});
+$('#url-cancel').addEventListener('click', () => urlDlg.close());
+
+$('#url-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const raw = urlInput.value.trim();
+  if (!raw) return;
+  let target;
+  try {
+    target = normalizePaperUrl(raw);
+  } catch (err) {
+    urlError.textContent = err.message;
+    urlError.hidden = false;
+    return;
+  }
+  urlError.hidden = true;
+  urlSubmit.disabled = true;
+  urlSubmit.textContent = 'Fetching…';
+  try {
+    const r = await fetch(`/api/fetch_pdf?url=${encodeURIComponent(target)}`);
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error(`${r.status}: ${t.slice(0, 200)}`);
+    }
+    const blob = await r.blob();
+    const filename = filenameFromUrl(target);
+    const file = new File([blob], filename, { type: 'application/pdf' });
+    urlDlg.close();
+    showToast(`Adding ${filename}…`, { type: 'info', durationMs: 2000 });
+    await addPaperFromFile(file);
+  } catch (err) {
+    urlError.textContent = `Fetch failed: ${err.message}`;
+    urlError.hidden = false;
+    urlSubmit.disabled = false;
+    urlSubmit.textContent = 'Add';
+  }
+});
+
+// Normalize various arXiv-flavored inputs into a direct PDF URL. Returns the
+// fetch target. Throws on inputs we can't make sense of.
+function normalizePaperUrl(input) {
+  // Bare arXiv ID, e.g. "2304.12345" or "math.AG/0302234"
+  if (/^\d{4}\.\d{4,5}(v\d+)?$/.test(input) || /^[a-z\-]+(\.[A-Z]{2})?\/\d{7}(v\d+)?$/i.test(input)) {
+    return `https://arxiv.org/pdf/${input}`;
+  }
+  let u;
+  try { u = new URL(input); }
+  catch { throw new Error('Not a URL or arXiv ID.'); }
+  if (!/^https?:$/.test(u.protocol)) throw new Error('Only http(s) URLs are supported.');
+  // arXiv abstract → PDF
+  if (/(^|\.)arxiv\.org$/i.test(u.hostname)) {
+    const m = u.pathname.match(/\/(?:abs|pdf|html|format)\/(.+?)(?:\.pdf)?$/i);
+    if (m) return `https://arxiv.org/pdf/${m[1]}`;
+  }
+  // Otherwise pass through unchanged — assume the URL itself points at a PDF.
+  return u.toString();
+}
+
+function filenameFromUrl(target) {
+  try {
+    const u = new URL(target);
+    if (/(^|\.)arxiv\.org$/i.test(u.hostname)) {
+      const m = u.pathname.match(/\/pdf\/(.+?)(\.pdf)?$/i);
+      if (m) return `arxiv-${m[1].replace(/[^\w.-]/g, '_')}.pdf`;
+    }
+    const last = u.pathname.split('/').filter(Boolean).pop() || 'paper.pdf';
+    return last.toLowerCase().endsWith('.pdf') ? last : last + '.pdf';
+  } catch {
+    return 'paper.pdf';
+  }
+}
 
 let dragDepth = 0;
 window.addEventListener('dragenter', (e) => {

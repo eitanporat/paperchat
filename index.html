@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>📄 paperchat</title>
+  <title>paperchat</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%84%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
@@ -21,6 +21,7 @@
     <div class="topbar-actions">
       <button id="btn-upload" title="Upload PDF">＋ PDF</button>
       <input id="file-input" type="file" accept="application/pdf" hidden />
+      <button id="btn-from-url" title="Add paper by URL (arXiv or direct PDF link)">＋ URL</button>
       <button id="btn-settings" title="Settings">⚙</button>
     </div>
   </header>
@@ -30,6 +31,10 @@
       <h3>Library</h3>
       <ul id="library-list"></ul>
       <div class="empty" id="library-empty">Drop a PDF anywhere to add it.</div>
+      <details id="library-archived" class="archived-section" hidden>
+        <summary><span id="library-archived-count">Archived</span></summary>
+        <ul id="library-archived-list"></ul>
+      </details>
       <div id="contents-panel" hidden>
         <h3 class="contents-head">Contents</h3>
         <ul id="contents-tree" class="contents-tree"></ul>
@@ -69,6 +74,19 @@
     <form id="thread-form" class="thread-form">
       <textarea id="thread-input" rows="2" placeholder="Reply… use @claude / @grok / @gpt to route"></textarea>
       <button type="submit" id="thread-send">Send</button>
+    </form>
+  </dialog>
+
+  <dialog id="url-dialog">
+    <form id="url-form" method="dialog">
+      <h2>Add paper by URL</h2>
+      <p class="dlg-hint">arXiv abstract URL (<code>arxiv.org/abs/2304.12345</code>), arXiv PDF URL, just an arXiv ID, or a direct PDF link.</p>
+      <input type="text" id="url-input" placeholder="https://arxiv.org/abs/... or 2304.12345" autocomplete="off" />
+      <div id="url-error" class="dlg-error" hidden></div>
+      <div class="actions">
+        <button type="button" id="url-cancel">Cancel</button>
+        <button type="submit" id="url-submit">Add</button>
+      </div>
     </form>
   </dialog>
 

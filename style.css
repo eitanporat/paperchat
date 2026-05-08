@@ -123,6 +123,43 @@ button:hover { background: var(--accent-soft); }
 }
 .lib-item:hover .del { visibility: visible; }
 
+.lib-item .arch {
+  visibility: hidden;
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0 4px;
+}
+.lib-item:hover .arch { visibility: visible; }
+.lib-item .arch:hover { color: var(--accent); background: none; }
+.lib-item.archived .title { color: var(--muted); font-style: italic; }
+
+.archived-section {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px dotted var(--border);
+}
+.archived-section > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding: 4px 0;
+  user-select: none;
+}
+.archived-section > summary::-webkit-details-marker { display: none; }
+.archived-section > summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 4px;
+  transition: transform 0.1s;
+}
+.archived-section[open] > summary::before { transform: rotate(90deg); }
+.archived-section ul { list-style: none; margin: 0; padding: 0; }
+
 .empty {
   font-size: 12px;
   color: var(--muted);
@@ -458,6 +495,51 @@ button:hover { background: var(--accent-soft); }
   border-radius: 4px;
 }
 .thread-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#url-dialog {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  background: var(--paper);
+  width: min(480px, 90vw);
+}
+#url-dialog::backdrop { background: rgba(0,0,0,0.25); }
+#url-dialog h2 { margin-top: 0; }
+#url-dialog .dlg-hint { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+#url-dialog code { font-family: ui-monospace, monospace; font-size: 11px; }
+#url-dialog input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+}
+#url-dialog .dlg-error {
+  margin-top: 8px;
+  color: #b03020;
+  font-size: 12px;
+  background: #fff4f1;
+  border: 1px solid #f1c1bb;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+#url-dialog .actions {
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px;
+}
+#url-dialog .actions button {
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  cursor: pointer;
+  font: inherit;
+}
+#url-dialog .actions #url-submit {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+#url-dialog .actions #url-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
 #settings-dialog {
   border: 1px solid var(--border);

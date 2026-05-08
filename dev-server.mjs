@@ -238,6 +238,36 @@ createServer(async (req, res) => {
     if (url.pathname === '/api/claude_code' && req.method === 'POST') {
       return handleClaudeCode(req, res);
     }
+    if (url.pathname === '/api/fetch_pdf') {
+      const target = url.searchParams.get('url');
+      if (!target) { res.writeHead(400); return res.end('missing url'); }
+      let parsed;
+      try { parsed = new URL(target); }
+      catch { res.writeHead(400); return res.end('invalid url'); }
+      if (!/^https?:$/.test(parsed.protocol)) { res.writeHead(400); return res.end('http(s) only'); }
+      const host = parsed.hostname.toLowerCase();
+      if (
+        host === 'localhost' || /^127\./.test(host) || /^10\./.test(host) ||
+        /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host === '0.0.0.0'
+      ) {
+        res.writeHead(403); return res.end('private/loopback hosts blocked');
+      }
+      try {
+        const r = await fetch(target, { redirect: 'follow', headers: { 'user-agent': 'paperchat/0.1' } });
+        if (!r.ok) { res.writeHead(r.status); return res.end(`upstream ${r.status}`); }
+        const ct = r.headers.get('content-type') || '';
+        if (!ct.includes('pdf') && !parsed.pathname.toLowerCase().endsWith('.pdf')) {
+          res.writeHead(415); return res.end(`expected PDF, got content-type: ${ct}`);
+        }
+        res.writeHead(200, { 'content-type': 'application/pdf' });
+        for await (const chunk of r.body) res.write(chunk);
+        res.end();
+      } catch (err) {
+        res.writeHead(502);
+        res.end('fetch_pdf error: ' + err.message);
+      }
+      return;
+    }
     if (url.pathname === '/api/fetch') {
       const target = url.searchParams.get('url');
       if (!target) { res.writeHead(400); return res.end('missing url'); }
