@@ -241,6 +241,11 @@ async function handleClaudeCode(req, res) {
         cwd: workdir,
         permissionMode: 'bypassPermissions',
         includePartialMessages: true,
+        // SDK-isolation mode: ignore the user's ~/.claude/ settings, plugins,
+        // and skills so the @code agent doesn't pick up unrelated context like
+        // 'install the Vercel CLI'. Just paperchat's prompt + paper context.
+        settingSources: [],
+        skills: [],
       },
     });
     for await (const msg of iter) {
