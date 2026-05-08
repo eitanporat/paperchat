@@ -31,26 +31,31 @@ invite with `@mentions` (`@claude`, `@grok`, `@gpt`, `@code`).
 git clone <your-fork> paperchat
 cd paperchat
 npm install
-cp .env.example .env
-# Edit .env and add at least OPENROUTER_API_KEY
 npm run dev
 ```
 
-Open <http://localhost:5173>, drop a PDF, select a passage, click `@claude`.
+Open <http://localhost:5173>, click ⚙ to paste your OpenRouter key (or
+put it in `.env` — see Configuration), drop a PDF, select a passage,
+click `@claude`.
+
+On macOS, `@code` works automatically — the dev server reads the API
+key from your local `claude` CLI's keychain entry. No extra setup.
 
 ## Configuration
 
-All config is via environment variables read from `.env` and `.env.local` (the
-latter overrides the former; both are gitignored).
+Credentials come from (in order of precedence):
 
-| Variable | Required | Purpose |
+1. **macOS Keychain** — `dev-server.mjs` reads the local `claude` CLI's API
+   key from the `Claude Code` keychain entry. Used as the default for `@code`
+   when no other Anthropic key is set. Linux/Windows: skipped.
+2. **`.env` and `.env.local`** — both gitignored; `.env.local` overrides `.env`.
+3. **In-app ⚙ Settings** — for OpenRouter only; stored in `localStorage`.
+
+| Variable | Powers | Required |
 |---|---|---|
-| `OPENROUTER_API_KEY` | Yes | Powers `@claude`, `@grok`, `@gpt`. Get one at <https://openrouter.ai/keys>. |
-| `ANTHROPIC_API_KEY`  | Optional | Powers `@code` (the Claude Agent SDK path). Get one at <https://console.anthropic.com/>. |
-| `PORT` | Optional | Dev server port (default `5173`). |
-
-You can also set the OpenRouter key in the in-app ⚙ settings dialog (stored in
-`localStorage`); `.env` takes precedence when present.
+| `OPENROUTER_API_KEY` | `@claude` / `@grok` / `@gpt` | Yes, unless you set it via ⚙ Settings. Get one at <https://openrouter.ai/keys>. |
+| `ANTHROPIC_API_KEY`  | `@code` (Claude Agent SDK)   | Optional on macOS (keychain fallback covers it); required on Linux/Windows if you want `@code`. Get one at <https://console.anthropic.com/>. |
+| `PORT` | dev server port | Optional (default `5173`). |
 
 Default models per mention (override in ⚙ settings):
 
