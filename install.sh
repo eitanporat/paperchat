@@ -92,29 +92,83 @@ step "Installing dependencies (npm install)"
 ok "Installed in $INSTALL_DIR"
 
 # ---- optional OpenRouter setup ------------------------------------------
-# Offered only when interactive AND no key is already configured.
 ENVF="$INSTALL_DIR/.env.local"
 HAS_KEY=0
 if [ -f "$ENVF" ] && grep -q '^OPENROUTER_API_KEY=.\+' "$ENVF" 2>/dev/null; then
   HAS_KEY=1
 fi
 
+# Try to find an existing OpenRouter key the user already has elsewhere.
+# Echoes "<key>|<source-label>" if found.
+detect_openrouter_key() {
+  if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+    printf "%s|the \$OPENROUTER_API_KEY env var" "$OPENROUTER_API_KEY"
+    return
+  fi
+  local f="$HOME/.local/share/opencode/auth.json"
+  if [ -f "$f" ] && command -v python3 >/dev/null 2>&1; then
+    local k
+    k=$(python3 -c "
+import json
+try:
+  d=json.load(open('$f'))
+  print(d.get('openrouter',{}).get('key','') or '')
+except Exception:
+  pass
+" 2>/dev/null)
+    if [ -n "$k" ]; then
+      printf "%s|~/.local/share/opencode/auth.json (opencode)" "$k"
+      return
+    fi
+  fi
+}
+
+save_or_key() {
+  # save_or_key <key>
+  touch "$ENVF"
+  grep -v '^OPENROUTER_API_KEY=' "$ENVF" > "$ENVF.tmp" 2>/dev/null || true
+  printf "OPENROUTER_API_KEY=%s\n" "$1" >> "$ENVF.tmp"
+  mv "$ENVF.tmp" "$ENVF"
+  chmod 600 "$ENVF"
+  ok "Saved OpenRouter key to $ENVF (mode 600)"
+}
+
 if [ -n "$TTY" ] && [ "$HAS_KEY" -eq 0 ]; then
-  echo
-  printf "%sOptional:%s OpenRouter key for @claude / @grok / @gpt mentions.\n" "$C_INFO" "$C_OFF"
-  printf "  Get one at %shttps://openrouter.ai/keys%s\n" "$C_DIM" "$C_OFF"
-  printf "  Skip (Enter) if you only want @code (uses your local Claude Code key on macOS).\n"
-  printf "  You can also paste it later via the in-app ⚙ Settings dialog.\n"
-  ask "OpenRouter API key: " ""
-  if [ -n "$REPLY" ]; then
-    touch "$ENVF"
-    grep -v '^OPENROUTER_API_KEY=' "$ENVF" > "$ENVF.tmp" 2>/dev/null || true
-    printf "OPENROUTER_API_KEY=%s\n" "$REPLY" >> "$ENVF.tmp"
-    mv "$ENVF.tmp" "$ENVF"
-    chmod 600 "$ENVF"
-    ok "Saved OpenRouter key to $ENVF (mode 600)"
-  else
-    info "Skipped. Set it later via ⚙ Settings or by editing $ENVF."
+  DETECTED="$(detect_openrouter_key || true)"
+  if [ -n "$DETECTED" ]; then
+    FOUND_KEY="${DETECTED%|*}"
+    FOUND_SRC="${DETECTED##*|}"
+    echo
+    info "Found an OpenRouter key in $FOUND_SRC"
+    ask "Use it for paperchat? [Y/n] " "y"
+    case "${REPLY:-y}" in
+      [Yy]*|"") save_or_key "$FOUND_KEY"; HAS_KEY=1 ;;
+      *) DETECTED="" ;;
+    esac
+  fi
+
+  if [ "$HAS_KEY" -eq 0 ]; then
+    echo
+    printf "%sOptional:%s OpenRouter powers @claude / @grok / @gpt mentions.\n" "$C_INFO" "$C_OFF"
+    printf "  Skip (Enter) if you only want @code (uses your local Claude Code key on macOS).\n"
+    ask "Open https://openrouter.ai/keys in your browser to grab one? [Y/n] " "y"
+    case "${REPLY:-y}" in
+      [Yy]*|"")
+        if command -v open >/dev/null 2>&1; then
+          open "https://openrouter.ai/keys" >/dev/null 2>&1 || true
+        elif command -v xdg-open >/dev/null 2>&1; then
+          xdg-open "https://openrouter.ai/keys" >/dev/null 2>&1 || true
+        else
+          info "(no 'open' / 'xdg-open' on this system — visit the URL manually)"
+        fi
+        ;;
+    esac
+    ask "Paste your OpenRouter API key (or press Enter to skip): " ""
+    if [ -n "$REPLY" ]; then
+      save_or_key "$REPLY"
+    else
+      info "Skipped. Set it later via ⚙ Settings or by editing $ENVF."
+    fi
   fi
 fi
 
