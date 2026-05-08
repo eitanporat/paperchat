@@ -179,6 +179,7 @@ async function openPaper(id) {
   const displayTitle = paper.title || paper.name;
   paperTitleEl.textContent = displayTitle;
   document.title = `${displayTitle} — paperchat`;
+  $('#new-thread-row').hidden = false;
   viewerPlaceholder.style.display = 'none';
   viewer.innerHTML = '';
   viewer.appendChild(viewerPlaceholder);
@@ -245,6 +246,7 @@ function closePaper() {
   state.activeThreadId = null;
   paperTitleEl.textContent = 'No paper open';
   document.title = 'paperchat';
+  $('#new-thread-row').hidden = true;
   viewer.innerHTML = '';
   viewer.appendChild(viewerPlaceholder);
   viewerPlaceholder.style.display = 'block';
@@ -280,12 +282,17 @@ async function renderThreadList() {
     li.className = 'thread-card' + (t.id === state.activeThreadId ? ' active' : '');
     const last = msgs[msgs.length - 1];
     const lastText = last ? (last.role === 'assistant' ? `${last.mention || '@?'}: ${stripMd(last.content)}` : stripMd(last.content)) : '(empty)';
+    const isWhole = !t.pageNum;
+    const meta = isWhole
+      ? `whole paper · ${msgs.length} msg${msgs.length === 1 ? '' : 's'}`
+      : `p.${t.pageNum} · ${msgs.length} msg${msgs.length === 1 ? '' : 's'}`;
     li.innerHTML = `
       <div class="quote"></div>
       <div class="last"></div>
-      <div class="meta"><span>p.${t.pageNum} · ${msgs.length} msg${msgs.length === 1 ? '' : 's'}</span><span class="time"></span></div>
+      <div class="meta"><span>${meta}</span><span class="time"></span></div>
     `;
-    li.querySelector('.quote').textContent = t.quote;
+    li.querySelector('.quote').textContent = isWhole ? '(whole paper)' : t.quote;
+    if (isWhole) li.querySelector('.quote').classList.add('whole');
     li.querySelector('.last').textContent = lastText;
     li.querySelector('.time').textContent = relTime(t.createdAt);
     li.addEventListener('click', () => openThread(t.id));
@@ -453,14 +460,45 @@ async function startThread(cap, defaultMention) {
   await openThread(t.id, { prefill: defaultMention + ' ' });
 }
 
+// Whole-paper thread (no selection). Distinguished by pageNum=null + empty quote.
+async function startWholePaperThread(defaultMention) {
+  if (!state.paper) return;
+  const t = {
+    id: uid(),
+    paperId: state.paper.id,
+    pageNum: null,
+    quote: '',
+    anchorRects: [],
+    defaultMention,
+    createdAt: Date.now(),
+    wholePaper: true,
+  };
+  await Threads.put(t);
+  state.threads.push(t);
+  await openThread(t.id, { prefill: defaultMention + ' ' });
+}
+
+// Wire up the "new thread" buttons in the threads sidebar.
+for (const btn of document.querySelectorAll('#new-thread-row .ntr-btn')) {
+  btn.addEventListener('click', () => startWholePaperThread(btn.dataset.mention));
+}
+
 // ---- Thread dialog ----
 
 async function openThread(id, { prefill = '' } = {}) {
   const t = state.threads.find(x => x.id === id) || await Threads.get(id);
   if (!t) return;
   state.activeThreadId = id;
-  threadDlgTitle.textContent = `Page ${t.pageNum} · default ${t.defaultMention}`;
-  threadQuoteEl.textContent = t.quote;
+  const isWhole = !t.pageNum;
+  threadDlgTitle.textContent = isWhole
+    ? `Whole paper · default ${t.defaultMention}`
+    : `Page ${t.pageNum} · default ${t.defaultMention}`;
+  if (isWhole) {
+    threadQuoteEl.hidden = true;
+  } else {
+    threadQuoteEl.hidden = false;
+    threadQuoteEl.textContent = t.quote;
+  }
   threadMsgsEl.innerHTML = '';
   const msgs = await Messages.byThread(id);
   for (const m of msgs) renderMessage(m);

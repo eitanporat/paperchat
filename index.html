@@ -58,8 +58,15 @@
 
     <aside class="threads" id="threads">
       <h3>Threads</h3>
+      <div id="new-thread-row" class="new-thread-row" hidden>
+        <span class="ntr-label">New thread:</span>
+        <button data-mention="@claude" class="ntr-btn">@claude</button>
+        <button data-mention="@grok"   class="ntr-btn">@grok</button>
+        <button data-mention="@gpt"    class="ntr-btn">@gpt</button>
+        <button data-mention="@code"   class="ntr-btn" title="Local Claude Agent SDK">@code</button>
+      </div>
       <ul id="thread-list"></ul>
-      <div class="empty" id="threads-empty">Select text in the paper to start a thread.</div>
+      <div class="empty" id="threads-empty">Select text in the paper to start a thread, or pick a model above to chat about the paper as a whole.</div>
     </aside>
   </main>
 

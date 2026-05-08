@@ -153,14 +153,12 @@ function buildPaperContext({ paperTitle, paperPagesText, thread }) {
   const trimmed = fullText.length > 40000
     ? fullText.slice(0, 40000) + `\n\n[truncated — paper has ${totalPages} pages]`
     : fullText;
+  const anchor = thread.pageNum
+    ? `The user has selected a passage on page ${thread.pageNum} and started this thread:\n"""\n${thread.quote}\n"""\n\n`
+    : `This thread is about the whole paper — no specific passage was selected.\n\n`;
   return `PAPER: "${paperTitle}" (${totalPages} pages)
 
-The user has selected a passage on page ${thread.pageNum} and started this thread:
-"""
-${thread.quote}
-"""
-
-PAPER TEXT:
+${anchor}PAPER TEXT:
 ${trimmed}`;
 }
 

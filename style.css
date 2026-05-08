@@ -77,6 +77,33 @@ button:hover { background: var(--accent-soft); }
 
 #library-list, #thread-list { list-style: none; margin: 0; padding: 0; }
 
+.new-thread-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dotted var(--border);
+}
+.new-thread-row .ntr-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 2px;
+}
+.new-thread-row .ntr-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+.thread-card .quote.whole {
+  color: var(--muted);
+  font-style: italic;
+}
+
 #contents-panel { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
 .contents-head { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .contents-tree, .contents-tree ul { list-style: none; margin: 0; padding: 0; }
