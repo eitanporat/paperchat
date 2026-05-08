@@ -90,6 +90,11 @@ export function ensurePageRendered(p, dpr = window.devicePixelRatio || 1) {
     textLayer.className = 'text-layer';
     textLayer.style.width = viewport.width + 'px';
     textLayer.style.height = viewport.height + 'px';
+    // pdfjs v4 TextLayer scales each <span> via the --scale-factor CSS var.
+    // Without it the spans are mis-sized and selection rectangles end at the
+    // wrong x — text looks correctly placed because of font baseline auto-
+    // adjust, but drag-selection misses the right edge of every line.
+    textLayer.style.setProperty('--scale-factor', String(viewport.scale));
     canvas.after(textLayer);
 
     const linkLayer = document.createElement('div');

@@ -368,19 +368,40 @@ button:hover { background: var(--accent-soft); }
 .text-layer {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  overflow: clip;
   opacity: 1;
   line-height: 1.0;
   user-select: text;
   color: transparent;
+  text-align: initial;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
 }
+.text-layer.highlighting { touch-action: none; }
 .text-layer > span, .text-layer > br {
   position: absolute;
   white-space: pre;
   cursor: text;
   transform-origin: 0 0;
+  color: transparent;
 }
 .text-layer ::selection { background: rgba(255, 220, 80, 0.55); }
+/* Avoids a Chrome bug where the line-break selection paints opaque. */
+.text-layer br::selection { background: transparent; }
+/* The endOfContent sentinel is what tells the browser the selection should
+   continue past the visible glyphs to the right margin, so drag-selecting
+   left-to-right covers the full line width and across line breaks. */
+.text-layer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: -1;
+  cursor: default;
+  user-select: none;
+}
+.text-layer.selecting .endOfContent { top: 0; }
 
 .link-layer {
   position: absolute;
