@@ -331,6 +331,11 @@ function setMarkdown(el, text) {
       } catch {}
     }
   }
+  renderMathIn(el);
+}
+
+const _pendingMath = new WeakSet();
+function renderMathIn(el) {
   if (window.renderMathInElement) {
     try {
       window.renderMathInElement(el, {
@@ -344,8 +349,18 @@ function setMarkdown(el, text) {
         ignoredTags: ['script', 'style', 'pre', 'code'],
       });
     } catch {}
+    return;
   }
+  // KaTeX hasn't loaded yet — defer until window.load.
+  _pendingMath.add(el);
 }
+window.addEventListener('load', () => {
+  if (!window.renderMathInElement) return;
+  // Re-render every assistant body in the current DOM (cheap, idempotent).
+  for (const body of document.querySelectorAll('.msg.assistant .body')) {
+    renderMathIn(body);
+  }
+});
 
 function stripMd(s) {
   return (s || '').replace(/[#*`_>]/g, '').trim().slice(0, 120);

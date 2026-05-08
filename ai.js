@@ -193,7 +193,21 @@ Routing rules:
 2. If the user asks about a DIFFERENT paper (cited reference, comparison, prior work), DO NOT use find_in_paper — it cannot see other papers. Use arxiv_lookup, fetch_url, or web search instead.
 3. If unsure whether the question is about the open paper or another, ask one clarifying question rather than searching the wrong source.
 
-Render math with $...$ (inline) or $$...$$ (display) — KaTeX renders it for the user.
+## Math formatting — strict
+
+Render ALL mathematical notation as LaTeX, wrapped in \`$...$\` (inline) or \`$$...$$\` (display). KaTeX renders it for the user.
+
+NEVER output bare Unicode math symbols. The frontend will display them as literal text and the math will look broken. Specifically forbidden as raw characters:
+- accents/decorations: \`x̄\`, \`x̂\`, \`ẋ\`, \`x⃗\` → write \`$\\bar x$\`, \`$\\hat x$\`, \`$\\dot x$\`, \`$\\vec x$\`
+- subscripts/superscripts: \`hᵢ\`, \`x²\`, \`Rᵈ\` → write \`$h_i$\`, \`$x^2$\`, \`$\\mathbb R^d$\`
+- operators: \`∑\`, \`∏\`, \`∫\`, \`∇\`, \`∂\` → write \`$\\sum$\`, \`$\\prod$\`, \`$\\int$\`, \`$\\nabla$\`, \`$\\partial$\`
+- relations: \`∈\`, \`⊆\`, \`≤\`, \`≥\`, \`≈\`, \`≠\` → write \`$\\in$\`, \`$\\subseteq$\`, \`$\\le$\`, \`$\\ge$\`, \`$\\approx$\`, \`$\\ne$\`
+- sets: \`ℝ\`, \`ℕ\`, \`ℂ\`, \`ℤ\`, \`ℚ\` → write \`$\\mathbb R$\`, \`$\\mathbb N$\`, \`$\\mathbb C$\`, \`$\\mathbb Z$\`, \`$\\mathbb Q$\`
+- greek (when used as math): \`φ\`, \`θ\`, \`λ\`, \`σ\`, \`ε\` → write \`$\\phi$\`, \`$\\theta$\`, \`$\\lambda$\`, \`$\\sigma$\`, \`$\\varepsilon$\`
+
+Also: keep math inside a single \`$...$\` pair — never break a formula across multiple \`$...$\` snippets, and never write \`$\` on its own line. Inside \`$$...$$\` blocks, use proper LaTeX subscript/superscript syntax (\`\\sum_{i=1}^N\` not \`\\sum{i=1}^N\`).
+
+## Code formatting
 
 When you write code in your reply, ALWAYS use fenced markdown blocks with an explicit language tag (e.g. \`\`\`python, \`\`\`bash, \`\`\`typescript, \`\`\`json) so it renders with syntax highlighting. For inline code, use single backticks.
 
@@ -475,7 +489,9 @@ When fetching arXiv papers via WebFetch, ALWAYS use the HTML rendering at \`http
 
 When you write code in your reply, ALWAYS use fenced markdown blocks with an explicit language tag (e.g. \`\`\`python, \`\`\`bash, \`\`\`typescript, \`\`\`json) so it renders with syntax highlighting. For inline code, use single backticks.
 
-Render math with $...$ (inline) or $$...$$ (display) — KaTeX renders it for the user.`;
+## Math formatting — strict
+
+Render ALL math as LaTeX, wrapped in \`$...$\` (inline) or \`$$...$$\` (display). KaTeX renders it for the user. NEVER output bare Unicode math symbols (\`x̄\`, \`∑\`, \`∈\`, \`ℝ\`, \`ᵢ\`, etc.) — write \`$\\bar x$\`, \`$\\sum$\`, \`$\\in$\`, \`$\\mathbb R$\`, \`$x_i$\` instead. Keep each formula inside a single \`$...$\` pair; never break a formula across snippets. Inside \`$$...$$\` use proper subscripts (\`\\sum_{i=1}^N\` not \`\\sum{i=1}^N\`).`;
 }
 
 // ===== @code path: Claude Agent SDK via local SSE endpoint =====
