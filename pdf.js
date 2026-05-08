@@ -246,14 +246,14 @@ function findPageWrap(node, pages) {
 }
 
 // Draw highlights for a thread on its page.
-export function drawHighlight(page, thread, { active = false, onClick } = {}) {
+export function drawHighlight(page, thread, { active = false, ratio = 1, onClick } = {}) {
   for (const r of thread.anchorRects) {
     const el = document.createElement('div');
     el.className = 'highlight' + (active ? ' active' : '');
-    el.style.left = r.x + 'px';
-    el.style.top = r.y + 'px';
-    el.style.width = r.w + 'px';
-    el.style.height = r.h + 'px';
+    el.style.left = (r.x * ratio) + 'px';
+    el.style.top = (r.y * ratio) + 'px';
+    el.style.width = (r.w * ratio) + 'px';
+    el.style.height = (r.h * ratio) + 'px';
     el.dataset.threadId = thread.id;
     if (onClick) el.addEventListener('click', () => onClick(thread.id));
     page.highlightLayer.appendChild(el);

@@ -268,11 +268,16 @@ function closePaper() {
 
 function redrawHighlights() {
   clearHighlights(state.pages);
+  const currentScale = BASE_SCALE * state.zoomFactor;
   for (const t of state.threads) {
     const page = state.pages.find(p => p.pageNum === t.pageNum);
     if (!page) continue;
+    // anchorScale defaults to BASE_SCALE for threads created before the zoom
+    // feature shipped (they were always captured at the base scale).
+    const ratio = currentScale / (t.anchorScale || BASE_SCALE);
     drawHighlight(page, t, {
       active: t.id === state.activeThreadId,
+      ratio,
       onClick: openThread,
     });
   }
@@ -528,6 +533,7 @@ async function startThread(cap, defaultMention) {
     pageNum: cap.pageNum,
     quote: cap.quote,
     anchorRects: cap.rects,
+    anchorScale: BASE_SCALE * state.zoomFactor,
     defaultMention,
     createdAt: Date.now(),
   };
