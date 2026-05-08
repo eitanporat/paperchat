@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fermat Clone — annotate papers with AI</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-dark.min.css" />
+  <script src="/env.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@13.0.3/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/highlight.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">📄 paperchat</div>
+    <div class="paper-title" id="paper-title">No paper open</div>
+    <div class="topbar-actions">
+      <button id="btn-upload" title="Upload PDF">＋ PDF</button>
+      <input id="file-input" type="file" accept="application/pdf" hidden />
+      <button id="btn-settings" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="library" id="library">
+      <h3>Library</h3>
+      <ul id="library-list"></ul>
+      <div class="empty" id="library-empty">Drop a PDF anywhere to add it.</div>
+      <div id="contents-panel" hidden>
+        <h3 class="contents-head">Contents</h3>
+        <ul id="contents-tree" class="contents-tree"></ul>
+        <div class="empty" id="contents-empty" hidden>No outline in this PDF.</div>
+      </div>
+    </aside>
+
+    <section class="viewer-wrap">
+      <div id="viewer" class="viewer">
+        <div class="placeholder" id="viewer-placeholder">
+          <p>Open or drop a PDF to begin.</p>
+        </div>
+      </div>
+      <div id="floating-ask" class="floating-ask" hidden>
+        <button data-mention="@claude">@claude</button>
+        <button data-mention="@grok">@grok</button>
+        <button data-mention="@gpt">@gpt</button>
+        <button data-mention="@code" title="Local Claude Agent SDK with filesystem + bash tools">@code</button>
+      </div>
+    </section>
+
+    <aside class="threads" id="threads">
+      <h3>Threads</h3>
+      <ul id="thread-list"></ul>
+      <div class="empty" id="threads-empty">Select text in the paper to start a thread.</div>
+    </aside>
+  </main>
+
+  <dialog id="thread-dialog" class="thread-dialog">
+    <div class="thread-dlg-head">
+      <span class="thread-dlg-title" id="thread-dlg-title">Thread</span>
+      <button class="thread-delete" id="thread-delete" title="Delete thread">🗑</button>
+      <button class="x" id="thread-dlg-close">✕</button>
+    </div>
+    <blockquote class="thread-quote" id="thread-quote"></blockquote>
+    <div class="thread-msgs" id="thread-msgs"></div>
+    <form id="thread-form" class="thread-form">
+      <textarea id="thread-input" rows="2" placeholder="Reply… use @claude / @grok / @gpt to route"></textarea>
+      <button type="submit" id="thread-send">Send</button>
+    </form>
+  </dialog>
+
+  <dialog id="settings-dialog">
+    <form id="settings-form" method="dialog">
+      <h2>Settings</h2>
+      <label>OpenRouter API key
+        <input type="password" id="settings-key" placeholder="sk-or-..." />
+      </label>
+      <label>@claude → model
+        <input type="text" id="settings-claude" placeholder="anthropic/claude-opus-4.7" />
+      </label>
+      <label>@grok → model
+        <input type="text" id="settings-grok" placeholder="x-ai/grok-4.3" />
+      </label>
+      <label>@gpt → model
+        <input type="text" id="settings-gpt" placeholder="openai/gpt-5.5" />
+      </label>
+      <div class="actions">
+        <button type="button" id="settings-cancel">Cancel</button>
+        <button type="submit" value="save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="drop-overlay" class="drop-overlay" hidden>Drop PDF to add</div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
