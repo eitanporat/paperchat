@@ -50,6 +50,19 @@ click `@claude`.
 On macOS, `@code` works automatically — the dev server reads the API
 key from your local `claude` CLI's keychain entry. No extra setup.
 
+During install, the script auto-detects an existing OpenRouter key
+from these sources (and asks for your permission before using it):
+
+- `$OPENROUTER_API_KEY` environment variable
+- [`opencode`](https://github.com/sst/opencode)'s auth store at
+  `~/.local/share/opencode/auth.json` (the `openrouter.key` field)
+
+If a key is found, the installer prints which file it came from and
+asks `Use it for paperchat? [Y/n]` — your choice. Decline (or have no
+key on disk yet) and it offers to open
+<https://openrouter.ai/keys> so you can grab one. Either path writes
+the key into `.env.local` (mode 600).
+
 Installer environment overrides:
 
 | Variable | Purpose |
@@ -57,7 +70,8 @@ Installer environment overrides:
 | `PAPERCHAT_DIR` | Install destination (default `~/paperchat`). |
 | `PAPERCHAT_REPO` | Use a fork instead of the canonical repo. |
 | `PAPERCHAT_BRANCH` | Check out a different branch (default `main`). |
-| `PAPERCHAT_NO_START=1` | Skip the "start the dev server now?" prompt. |
+| `PAPERCHAT_NO_START=1` | Skip auto-launching the dev server. |
+| `PORT` | Dev server port (default `5173`). |
 
 ## Configuration
 
