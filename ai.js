@@ -209,10 +209,7 @@ Also: keep math inside a single \`$...$\` pair — never break a formula across 
 
 When you write code in your reply, ALWAYS use fenced markdown blocks with an explicit language tag (e.g. \`\`\`python, \`\`\`bash, \`\`\`typescript, \`\`\`json) so it renders with syntax highlighting. For inline code, use single backticks.
 
-Chain tools freely — the loop budget is generous. Prefer arxiv_lookup over scraping arxiv.org with fetch_url; when you do need full-text from an arXiv paper, use \`https://arxiv.org/html/<id>\`, not \`/pdf/\`.
-
-PAPER TEXT:
-${trimmed}`;
+Chain tools freely — the loop budget is generous. Prefer arxiv_lookup over scraping arxiv.org with fetch_url; when you do need full-text from an arXiv paper, use \`https://arxiv.org/html/<id>\`, not \`/pdf/\`.`;
 }
 
 async function callOpenRouter(key, model, messages, { stream = false } = {}) {

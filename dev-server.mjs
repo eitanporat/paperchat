@@ -228,7 +228,18 @@ async function handleClaudeCode(req, res) {
           }
         }
       } else if (t === 'result') {
-        send({ type: 'done', stopReason: msg.stop_reason, totalCostUsd: msg.total_cost_usd });
+        // Surface SDK-level errors (e.g. credit balance too low) as a clean
+        // 'error' event with a help link when relevant.
+        if (msg.subtype && msg.subtype.startsWith('error_')) {
+          const errs = (msg.errors && msg.errors.length) ? msg.errors.join('\n') : msg.subtype;
+          let pretty = errs;
+          if (/credit balance is too low|out_of_credits|insufficient.*credit/i.test(errs)) {
+            pretty = `Anthropic credit balance is too low for @code. Top up at https://console.anthropic.com/settings/billing\n\n(The @claude / @grok / @gpt mentions go through OpenRouter and use a separate credit pool.)`;
+          }
+          send({ type: 'error', message: pretty });
+        } else {
+          send({ type: 'done', stopReason: msg.stop_reason, totalCostUsd: msg.total_cost_usd });
+        }
       } else if (t === 'system') {
         // Init / model info — don't surface for now.
       }
