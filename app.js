@@ -3,7 +3,7 @@
 import { Papers, Threads, Messages, uid, hashBlob } from './db.js';
 import { renderPdf, getOutline, getPdfMetadataTitle, extractText, captureSelection, drawHighlight, clearHighlights, highlightQuoteOnPage } from './pdf.js';
 import {
-  streamChat, parseMention, MENTIONS, mentionClass,
+  streamChat, parseMention, MENTIONS, mentionClass, extractPaperTitle,
   getKey, setKey, envKey, getModels, setModels, modelFor,
 } from './ai.js';
 
@@ -133,10 +133,12 @@ async function addPaperFromFile(file) {
     extractText(file),
     getPdfMetadataTitle(file),
   ]);
+  // Prefer LLM extraction (works on most papers); fall back to metadata, then filename.
+  const llmTitle = await extractPaperTitle(pagesText[0]).catch(() => null);
   const paper = {
     id,
     name: file.name,
-    title: metaTitle || null,
+    title: llmTitle || metaTitle || null,
     blob: file,
     pagesText,
     addedAt: Date.now(),
@@ -145,6 +147,26 @@ async function addPaperFromFile(file) {
   await Papers.put(paper);
   await renderLibrary();
   await openPaper(id);
+}
+
+// Backfill paper.title for any library entries that were imported before
+// title extraction existed. Runs in the background; refreshes UI as titles
+// arrive. Skips silently when no API key is set.
+async function backfillTitles() {
+  if (!getKey()) return;
+  const all = await Papers.list();
+  const todo = all.filter(p => !p.title && p.pagesText?.[0]);
+  for (const p of todo) {
+    const title = await extractPaperTitle(p.pagesText[0]).catch(() => null);
+    if (!title) continue;
+    p.title = title;
+    await Papers.put(p);
+    if (state.paper?.id === p.id) {
+      paperTitleEl.textContent = title;
+      document.title = `${title} — paperchat`;
+    }
+    renderLibrary();
+  }
 }
 
 async function openPaper(id) {
@@ -966,4 +988,6 @@ window.addEventListener('drop', async (e) => {
   // Open the most-recent paper if any
   const all = await Papers.list();
   if (all.length) await openPaper(all[0].id);
+  // One-shot: extract titles for any papers that don't have one (background)
+  backfillTitles();
 })();

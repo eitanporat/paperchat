@@ -420,6 +420,45 @@ export function mentionClass(mention) {
   return mention.replace('@', '');
 }
 
+// Extract a clean paper title from the first page text using a cheap+fast
+// model. Returns null on failure (caller falls back to PDF metadata or
+// filename). Costs ~$0.0001 per call.
+export async function extractPaperTitle(firstPageText) {
+  const key = getKey();
+  if (!key) return null;
+  const text = (firstPageText || '').slice(0, 3000);
+  if (text.replace(/\s+/g, '').length < 30) return null;
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': location.origin,
+        'X-Title': 'paperchat',
+      },
+      body: JSON.stringify({
+        model: 'anthropic/claude-haiku-4.5',
+        messages: [{
+          role: 'user',
+          content:
+            `Extract the paper's title from this first page of a research paper. Reply with ONLY the title text — no quotes, no commentary, no "Title:" prefix. If the text is not from a paper or you cannot identify a title, reply with exactly UNKNOWN.\n\nFIRST PAGE:\n${text}`,
+        }],
+        max_tokens: 80,
+      }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    let out = (json.choices?.[0]?.message?.content || '').trim();
+    out = out.replace(/^["“”'`]+|["“”'`]+$/g, '');
+    out = out.replace(/^(title:|paper title:)\s*/i, '');
+    if (!out || out.length < 4 || out.length > 250 || /^unknown$/i.test(out)) return null;
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 // System prompt for the @code path. The Claude Agent SDK has its own toolset
 // (Read/Edit/Bash/Grep/WebFetch/WebSearch) — DO NOT advertise the OpenRouter-
 // path tools (run_python, find_in_paper, etc.) here, or the agent will try to
