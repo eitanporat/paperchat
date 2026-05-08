@@ -203,7 +203,14 @@ NEVER output bare Unicode math symbols. The frontend will display them as litera
 - sets: \`ℝ\`, \`ℕ\`, \`ℂ\`, \`ℤ\`, \`ℚ\` → write \`$\\mathbb R$\`, \`$\\mathbb N$\`, \`$\\mathbb C$\`, \`$\\mathbb Z$\`, \`$\\mathbb Q$\`
 - greek (when used as math): \`φ\`, \`θ\`, \`λ\`, \`σ\`, \`ε\` → write \`$\\phi$\`, \`$\\theta$\`, \`$\\lambda$\`, \`$\\sigma$\`, \`$\\varepsilon$\`
 
-Also: keep math inside a single \`$...$\` pair — never break a formula across multiple \`$...$\` snippets, and never write \`$\` on its own line. Inside \`$$...$$\` blocks, use proper LaTeX subscript/superscript syntax (\`\\sum_{i=1}^N\` not \`\\sum{i=1}^N\`).
+Also: keep math inside a single \`$...$\` pair — never break a formula across multiple \`$...$\` snippets, and never write \`$\` on its own line. Inside \`$$...$$\` blocks, use proper LaTeX subscript/superscript syntax. After ANY operator/letter that takes an argument (\`\\mathbb{}\`, \`\\mathcal{}\`, \`\\mathbf{}\`, \`\\sum\`, \`\\prod\`, \`\\int\`, \`\\max\`, \`\\min\`, \`\\sup\`, \`\\inf\`, \`\\lim\`, \`\\bigcup\`, \`\\bigcap\`), a subscript ALWAYS needs an explicit \`_\`:
+
+  - WRONG: \`\\mathbb{E}{t, x}\`        RIGHT: \`\\mathbb{E}_{t, x}\`
+  - WRONG: \`\\mathcal{L}z(\\theta)\`     RIGHT: \`\\mathcal{L}_z(\\theta)\`
+  - WRONG: \`\\sum{i=1}^N\`             RIGHT: \`\\sum_{i=1}^N\`
+  - WRONG: \`\\max{x \\in S}\`           RIGHT: \`\\max_{x \\in S}\`
+
+Use \`\\,\` (thin space) between an operator and its body, NEVER a comma: \`\\mathbb{E}_{t}\\,\\lVert x \\rVert^2\` not \`\\mathbb{E}_{t}, \\lVert x \\rVert^2\`.
 
 ## Code formatting
 
