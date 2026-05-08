@@ -135,13 +135,35 @@ async function proxyFetch(target) {
   return { status: r.status, finalUrl: r.url, contentType: ct, text };
 }
 
+// On macOS, the local `claude` CLI stores its API key in the login keychain
+// under service name "Claude Code". We can read it as a free fallback so the
+// @code path uses the same billing account as the user's local Claude Code
+// session, without them having to copy the key into .env.
+import { spawn } from 'node:child_process';
+async function readMacKeychain(service) {
+  if (process.platform !== 'darwin') return '';
+  return await new Promise((resolve) => {
+    const p = spawn('security', ['find-generic-password', '-s', service, '-w'], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    p.stdout.on('data', (d) => { out += d.toString(); });
+    p.on('close', (code) => resolve(code === 0 ? out.trim() : ''));
+    p.on('error', () => resolve(''));
+  });
+}
+
 // SSE handler that streams Claude Agent SDK events to the browser.
 async function handleClaudeCode(req, res) {
-  const env = await readEnvFiles();
-  const apiKey = env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY || '';
+  // Prefer the local Claude Code session's key (read from macOS Keychain) so
+  // @code uses the same billing account as the user's `claude` CLI. Fall back
+  // to .env / process.env on non-Mac or when the keychain item is missing.
+  let apiKey = await readMacKeychain('Claude Code');
+  if (!apiKey) {
+    const env = await readEnvFiles();
+    apiKey = env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY || '';
+  }
   if (!apiKey) {
     res.writeHead(400);
-    return res.end('ANTHROPIC_API_KEY not set in .env');
+    return res.end('No Anthropic credentials found. Sign in to the local `claude` CLI, or set ANTHROPIC_API_KEY in .env.');
   }
 
   // Read the JSON body
@@ -322,6 +344,7 @@ createServer(async (req, res) => {
     const buf = await readFile(fp);
     res.writeHead(200, {
       'content-type': MIME[extname(fp).toLowerCase()] || 'application/octet-stream',
+      'cache-control': 'no-store',
     });
     res.end(buf);
   } catch (err) {
