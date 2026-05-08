@@ -1,7 +1,7 @@
 // Top-level app wiring: library, viewer, threads, settings.
 
 import { Papers, Threads, Messages, uid, hashBlob } from './db.js';
-import { renderPdf, getOutline, getPdfMetadataTitle, extractText, captureSelection, drawHighlight, clearHighlights, highlightQuoteOnPage } from './pdf.js';
+import { renderPdf, BASE_SCALE, getOutline, getPdfMetadataTitle, extractText, captureSelection, drawHighlight, clearHighlights, highlightQuoteOnPage } from './pdf.js';
 import {
   streamChat, parseMention, MENTIONS, mentionClass, extractPaperTitle,
   getKey, setKey, envKey, getModels, setModels, modelFor,
@@ -48,6 +48,7 @@ const state = {
   threads: [],        // threads on the current paper
   activeThreadId: null,
   pendingSelection: null, // { pageNum, quote, rects, anchor }
+  zoomFactor: Number(localStorage.getItem('paperchat.zoom')) || 1.0,
 };
 
 // ---- Library ----
@@ -187,8 +188,10 @@ async function openPaper(id) {
   viewer.appendChild(viewerPlaceholder);
   viewerPlaceholder.style.display = 'block';
   viewerPlaceholder.innerHTML = `<p>Rendering <b>${paper.name}</b>…</p>`;
-  const { doc, pages } = await renderPdf(paper.blob, viewer);
+  const { doc, pages } = await renderPdf(paper.blob, viewer, BASE_SCALE * state.zoomFactor);
   state.pages = pages;
+  $('#zoom-controls').hidden = false;
+  updateZoomLabel();
   viewerPlaceholder.style.display = 'none';
   state.threads = await Threads.byPaper(id);
   redrawHighlights();
@@ -248,6 +251,7 @@ function closePaper() {
   state.activeThreadId = null;
   paperTitleEl.textContent = 'No paper open';
   document.title = 'paperchat';
+  $('#zoom-controls').hidden = true;
   $('#new-whole-btn').hidden = true;
   viewer.innerHTML = '';
   viewer.appendChild(viewerPlaceholder);
@@ -1008,6 +1012,57 @@ settingsForm.addEventListener('submit', () => {
 });
 
 // ---- Upload + drop ----
+
+// ---- Zoom ----
+const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.85, 1.0, 1.15, 1.3, 1.5, 1.75, 2.0, 2.5, 3.0];
+
+function updateZoomLabel() {
+  $('#zoom-label').textContent = Math.round(state.zoomFactor * 100) + '%';
+}
+
+async function setZoom(newFactor) {
+  if (!state.paper) return;
+  const clamped = Math.max(0.25, Math.min(4, newFactor));
+  if (Math.abs(clamped - state.zoomFactor) < 0.001) return;
+  // Preserve scroll position roughly across re-render.
+  const wrap = $('.viewer-wrap') || viewer.parentElement;
+  const oldRange = wrap.scrollHeight - wrap.clientHeight;
+  const ratio = oldRange > 0 ? wrap.scrollTop / oldRange : 0;
+
+  state.zoomFactor = clamped;
+  localStorage.setItem('paperchat.zoom', String(clamped));
+  updateZoomLabel();
+
+  const { pages } = await renderPdf(state.paper.blob, viewer, BASE_SCALE * clamped);
+  state.pages = pages;
+  redrawHighlights();
+
+  const newRange = wrap.scrollHeight - wrap.clientHeight;
+  wrap.scrollTop = ratio * newRange;
+}
+
+function zoomStep(delta) {
+  // Snap to the nearest defined step and move by `delta` indices.
+  const cur = state.zoomFactor;
+  let nearest = 0;
+  for (let i = 0; i < ZOOM_STEPS.length; i++) {
+    if (Math.abs(ZOOM_STEPS[i] - cur) < Math.abs(ZOOM_STEPS[nearest] - cur)) nearest = i;
+  }
+  const next = Math.max(0, Math.min(ZOOM_STEPS.length - 1, nearest + delta));
+  setZoom(ZOOM_STEPS[next]);
+}
+
+$('#zoom-in').addEventListener('click', () => zoomStep(+1));
+$('#zoom-out').addEventListener('click', () => zoomStep(-1));
+$('#zoom-label').addEventListener('click', () => setZoom(1.0));
+
+// Cmd/Ctrl + scroll-wheel zoom over the viewer (matches native PDF readers).
+document.querySelector('.viewer-wrap')?.addEventListener('wheel', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  if (!state.paper) return;
+  e.preventDefault();
+  zoomStep(e.deltaY < 0 ? +1 : -1);
+}, { passive: false });
 
 $('#btn-upload').addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', async () => {

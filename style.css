@@ -51,7 +51,40 @@ button:hover { background: var(--accent-soft); }
 }
 .brand { font-weight: 700; }
 .paper-title { flex: 1; color: var(--muted); font-style: italic; }
-.topbar-actions { display: flex; gap: 8px; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+.zoom-controls {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.zoom-controls button {
+  border: 0;
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: 0;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--ink);
+  cursor: pointer;
+}
+.zoom-controls button:hover { background: var(--accent-soft); }
+.zoom-controls #zoom-label {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  min-width: 48px;
+  text-align: center;
+  align-self: center;
+}
+.zoom-controls #zoom-label:hover { color: var(--accent); background: var(--accent-soft); }
 
 .layout {
   display: grid;

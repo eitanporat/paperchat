@@ -6,10 +6,11 @@ import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.worker.min.mjs';
 
-const RENDER_SCALE = 1.5;
+export const BASE_SCALE = 1.5;
 
 // Render a PDF into the given container. Returns { doc, pages: [{pageNum, viewport, wrap, textLayer, highlightLayer}] }
-export async function renderPdf(blob, container) {
+// `scale` is the absolute pdf.js viewport scale (default = BASE_SCALE).
+export async function renderPdf(blob, container, scale = BASE_SCALE) {
   container.innerHTML = '';
   const data = await blob.arrayBuffer();
   const doc = await pdfjsLib.getDocument({ data }).promise;
@@ -17,7 +18,7 @@ export async function renderPdf(blob, container) {
   const pages = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
-    const viewport = page.getViewport({ scale: RENDER_SCALE });
+    const viewport = page.getViewport({ scale });
 
     const wrap = document.createElement('div');
     wrap.className = 'page-wrap';
