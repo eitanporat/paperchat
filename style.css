@@ -509,6 +509,19 @@ button:hover { background: var(--accent-soft); }
 }
 .thread-card:hover .thread-card-del { visibility: visible; }
 .thread-card-del:hover { color: #b03020; background: rgba(176,48,32,0.08); }
+.thread-card.inflight::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: thread-pulse 1.2s ease-in-out infinite;
+}
+.thread-card.inflight:hover::after { display: none; }
+@keyframes thread-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 
 .thread-dialog {
   border: 1px solid var(--border);

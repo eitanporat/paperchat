@@ -9,6 +9,39 @@ import {
 
 const $ = (sel) => document.querySelector(sel);
 
+// Stash math regions across marked.parse. Without this, multi-line $$...$$
+// blocks get shredded — a bare `=` line on its own becomes a setext-heading
+// underline, a `_x_` becomes <em>, etc. We pull math out, run marked, then
+// drop the literal $-delimited text back so KaTeX can render it normally.
+const _mathEscape = (s) => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+function stashMathAndRunMarked(text) {
+  const stash = [];
+  const ph = (i) => `MATHSTASH${i}ENDX`;
+  // Skip code regions so we don't pull math examples out of code blocks.
+  const codeRe = /```[\s\S]*?```|`[^`\n]+`/g;
+  let processed = '';
+  let last = 0;
+  const protect = (chunk) => chunk
+    // Display first so $$...$$ wins over $...$.
+    .replace(/\$\$[\s\S]*?\$\$/g, m => {
+      stash.push(m);
+      return `\n\n${ph(stash.length - 1)}\n\n`;
+    })
+    // Inline math, single line, must be closed.
+    .replace(/(?<!\\)\$([^\$\n]+?)\$/g, m => {
+      stash.push(m);
+      return ph(stash.length - 1);
+    });
+  for (let m; (m = codeRe.exec(text)); ) {
+    processed += protect(text.slice(last, m.index)) + m[0];
+    last = m.index + m[0].length;
+  }
+  processed += protect(text.slice(last));
+  let html = marked.parse(processed);
+  html = html.replace(/MATHSTASH(\d+)ENDX/g, (_, i) => _mathEscape(stash[+i]));
+  return html;
+}
+
 // ---- DOM ----
 const libraryList = $('#library-list');
 const libraryEmpty = $('#library-empty');
@@ -49,6 +82,10 @@ const state = {
   activeThreadId: null,
   pendingSelection: null, // { pageNum, quote, rects, anchor }
   zoomFactor: Number(localStorage.getItem('paperchat.zoom')) || 1.0,
+  // threadId -> live streaming card element (kept across dialog close/reopen
+  // so a request started in one thread keeps running while the user browses
+  // others; on reopen, the card is reattached to threadMsgsEl).
+  inflight: new Map(),
 };
 
 // ---- Library ----
@@ -348,7 +385,10 @@ async function renderThreadList() {
 
 function buildThreadCard(t, msgs) {
   const li = document.createElement('li');
-  li.className = 'thread-card' + (t.id === state.activeThreadId ? ' active' : '');
+  const inflight = state.inflight.has(t.id);
+  li.className = 'thread-card'
+    + (t.id === state.activeThreadId ? ' active' : '')
+    + (inflight ? ' inflight' : '');
   const last = msgs[msgs.length - 1];
   const lastText = last
     ? (last.role === 'assistant' ? `${last.mention || '@?'}: ${stripMd(last.content)}` : stripMd(last.content))
@@ -392,7 +432,7 @@ async function deleteThread(id) {
 }
 
 function setMarkdown(el, text) {
-  el.innerHTML = marked.parse(text || '');
+  el.innerHTML = stashMathAndRunMarked(preprocessMarkdownMath(text || ''));
   for (const a of el.querySelectorAll('a')) {
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
@@ -449,6 +489,34 @@ function fixMathInDom(root) {
     const fixed = autoFixMathSyntax(n.nodeValue);
     if (fixed !== n.nodeValue) n.nodeValue = fixed;
   }
+}
+
+// Pre-marked normalizer for LLM math output. Two rules from gpt2md:
+//   - postfix-operator merge:  $z$^2  → $z^2$   /   $z$_k → $z_k$
+//   - whole-line promotion:     $x = y$  alone on a line → $$x = y$$
+// Skip code regions (fenced and inline) so we never rewrite quoted text.
+function preprocessMarkdownMath(md) {
+  if (!md || !md.includes('$')) return md;
+  const re = /```[\s\S]*?```|`[^`\n]+`/g;
+  let out = '', last = 0;
+  for (let m; (m = re.exec(md)); ) {
+    out += applyMathPreFixes(md.slice(last, m.index)) + m[0];
+    last = m.index + m[0].length;
+  }
+  return out + applyMathPreFixes(md.slice(last));
+}
+function applyMathPreFixes(s) {
+  // Postfix-operator merge. Postfix arg must be braced, a \command, or a single
+  // alnum NOT followed by another word char — that lookahead avoids clobbering
+  // markdown italic like _word_.
+  s = s.replace(
+    /\$([^$\n]+)\$([_^])(\{[^{}]+\}|\\[A-Za-z]+|[A-Za-z0-9](?![A-Za-z0-9_]))/g,
+    '$$$1$2$3$$'
+  );
+  // Whole-line math promotion. Up to 3 leading spaces (any more and markdown
+  // treats it as a code block).
+  s = s.replace(/^( {0,3})\$([^$\n]+)\$[ \t]*$/gm, '$1$$$$$2$$$$');
+  return s;
 }
 
 // Apply LaTeX subscript repairs only inside $...$ / $$...$$ regions so we
@@ -663,7 +731,14 @@ async function openThread(id, { prefill = '' } = {}) {
   threadMsgsEl.innerHTML = '';
   const msgs = await Messages.byThread(id);
   for (const m of msgs) renderMessage(m);
+  // Reattach an in-flight streaming card if one exists for this thread —
+  // the request kept running while the dialog was closed or showing a
+  // different thread; now that the user is viewing this thread again, hook
+  // its live output back into the DOM.
+  const liveCard = state.inflight.get(id);
+  if (liveCard) threadMsgsEl.appendChild(liveCard);
   threadInput.value = prefill;
+  syncSendButton();
   threadDlg.showModal();
   scrollToBottomNow(); // opening a thread always jumps to the latest message
   if (prefill) threadInput.focus();
@@ -674,6 +749,13 @@ async function openThread(id, { prefill = '' } = {}) {
 // X button just closes the dialog; the 'close' event handler does the cleanup
 // once, regardless of whether the user clicked X or hit Esc.
 threadDlgClose.addEventListener('click', () => threadDlg.close());
+
+// Click outside the dialog content (on the backdrop) closes it. The native
+// <dialog> backdrop is a pseudo-element on the dialog itself, so backdrop
+// clicks register with target === threadDlg.
+threadDlg.addEventListener('click', (e) => {
+  if (e.target === threadDlg) threadDlg.close();
+});
 
 $('#thread-delete').addEventListener('click', async () => {
   if (!state.activeThreadId) return;
@@ -760,7 +842,7 @@ threadForm.addEventListener('submit', async (e) => {
   await Messages.put(userMsg);
   renderMessage(userMsg);
   threadInput.value = '';
-  threadSend.disabled = true;
+  syncSendButton();
 
   // Build history for the model: strip leading @mention from user content for cleanliness.
   const history = (await Messages.byThread(t.id)).map(m => {
@@ -775,6 +857,10 @@ threadForm.addEventListener('submit', async (e) => {
   // position they fire (text segment → tool card → text segment → ...).
   const card = createStreamingCard(mention);
   threadMsgsEl.appendChild(card.el);
+  // Track this request as inflight for the thread so it survives dialog close
+  // / thread-switch — re-renders the thread list to show a busy indicator.
+  state.inflight.set(t.id, card.el);
+  renderThreadList();
   scrollToBottomNow(); // user just hit Send — re-pin to bottom
 
   const segments = [];      // [{ type: 'text', content } | { type: 'tool', tc }]
@@ -868,9 +954,19 @@ threadForm.addEventListener('submit', async (e) => {
     };
     await Messages.put(errMsg);
   } finally {
-    threadSend.disabled = false;
+    state.inflight.delete(t.id);
+    syncSendButton();
+    renderThreadList();
   }
 });
+
+// The send button reflects whether the currently-open thread has an in-flight
+// request. Other threads' inflight state doesn't disable this button — they'd
+// each block their own thread, but the user can submit to a quiet thread.
+function syncSendButton() {
+  if (!state.activeThreadId) { threadSend.disabled = true; return; }
+  threadSend.disabled = state.inflight.has(state.activeThreadId);
+}
 
 function buildToolCard(tc) {
   const argsStr = (() => {

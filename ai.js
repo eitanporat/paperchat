@@ -203,14 +203,13 @@ NEVER output bare Unicode math symbols. The frontend will display them as litera
 - sets: \`ℝ\`, \`ℕ\`, \`ℂ\`, \`ℤ\`, \`ℚ\` → write \`$\\mathbb R$\`, \`$\\mathbb N$\`, \`$\\mathbb C$\`, \`$\\mathbb Z$\`, \`$\\mathbb Q$\`
 - greek (when used as math): \`φ\`, \`θ\`, \`λ\`, \`σ\`, \`ε\` → write \`$\\phi$\`, \`$\\theta$\`, \`$\\lambda$\`, \`$\\sigma$\`, \`$\\varepsilon$\`
 
-Also: keep math inside a single \`$...$\` pair — never break a formula across multiple \`$...$\` snippets, and never write \`$\` on its own line. Inside \`$$...$$\` blocks, use proper LaTeX subscript/superscript syntax. After ANY operator/letter that takes an argument (\`\\mathbb{}\`, \`\\mathcal{}\`, \`\\mathbf{}\`, \`\\sum\`, \`\\prod\`, \`\\int\`, \`\\max\`, \`\\min\`, \`\\sup\`, \`\\inf\`, \`\\lim\`, \`\\bigcup\`, \`\\bigcap\`), a subscript ALWAYS needs an explicit \`_\`:
+NEVER emit pseudo-rendered math: variable on one line and its subscript on the next (with optional U+200B glue), like the plain-text export of a rendered formula. Anything containing a subscript, a fraction, or a relation MUST be inside \`$...$\` or \`$$...$$\` as one LaTeX expression.
 
-  - WRONG: \`\\mathbb{E}{t, x}\`        RIGHT: \`\\mathbb{E}_{t, x}\`
-  - WRONG: \`\\mathcal{L}z(\\theta)\`     RIGHT: \`\\mathcal{L}_z(\\theta)\`
-  - WRONG: \`\\sum{i=1}^N\`             RIGHT: \`\\sum_{i=1}^N\`
-  - WRONG: \`\\max{x \\in S}\`           RIGHT: \`\\max_{x \\in S}\`
+Every \`$$...$$\` block must be a complete LaTeX expression with all operators present — if two sides should be equal, write the \`=\`. For multi-line displays use \`\\begin{aligned}...\\end{aligned}\` with \`&=\` and \`\\\\\`, not bare newlines.
 
-Use \`\\,\` (thin space) between an operator and its body, NEVER a comma: \`\\mathbb{E}_{t}\\,\\lVert x \\rVert^2\` not \`\\mathbb{E}_{t}, \\lVert x \\rVert^2\`.
+Keep math inside a single \`$...$\` pair — never break a formula across snippets, and never write \`$\` on its own line. After ANY operator that takes an argument (\`\\mathbb\`, \`\\mathcal\`, \`\\mathbf\`, \`\\sum\`, \`\\prod\`, \`\\int\`, \`\\max\`, \`\\min\`, \`\\sup\`, \`\\inf\`, \`\\lim\`, \`\\bigcup\`, \`\\bigcap\`), subscripts need an explicit \`_\`: \`\\mathbb{E}_{t,x}\`, \`\\sum_{i=1}^N\` — never \`\\mathbb{E}{t,x}\` or \`\\sum{i=1}^N\`.
+
+Use \`\\,\` (thin space) for spacing inside math, never a bare comma: \`\\int f(y)\\,dy\`, not \`\\int f(y),dy\`.
 
 ## Code formatting
 
