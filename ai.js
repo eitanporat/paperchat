@@ -218,7 +218,7 @@ When you write code in your reply, ALWAYS use fenced markdown blocks with an exp
 Chain tools freely — the loop budget is generous. Prefer arxiv_lookup over scraping arxiv.org with fetch_url; when you do need full-text from an arXiv paper, use \`https://arxiv.org/html/<id>\`, not \`/pdf/\`.`;
 }
 
-async function callOpenRouter(key, model, messages, { stream = false } = {}) {
+async function callOpenRouter(key, model, messages, { stream = false, signal } = {}) {
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -235,6 +235,7 @@ async function callOpenRouter(key, model, messages, { stream = false } = {}) {
       plugins: [{ id: 'web' }],
       stream,
     }),
+    signal,
   });
   if (!res.ok) {
     const txt = await res.text();
@@ -247,8 +248,8 @@ async function callOpenRouter(key, model, messages, { stream = false } = {}) {
 
 // Stream one round of completion. Returns { content, tool_calls } once the SSE
 // stream ends. tool_calls is null if the model produced plain text.
-async function streamOnce(key, model, messages, onDelta) {
-  const res = await callOpenRouter(key, model, messages, { stream: true });
+async function streamOnce(key, model, messages, onDelta, signal) {
+  const res = await callOpenRouter(key, model, messages, { stream: true, signal });
   // body might be missing on JSON-only error responses; we already threw on !ok.
   const reader = res.body.getReader();
   const dec = new TextDecoder();
@@ -299,11 +300,11 @@ async function streamOnce(key, model, messages, onDelta) {
 // Streaming variant of chat(). Calls onDelta(text) for each text fragment and
 // onToolCall({ name, args, ok, error, result }) once a tool call resolves.
 // `viewer` and `python` are optional capability adapters provided by app.js.
-export async function streamChat({ paperTitle, paperPagesText, thread, history, mention, onDelta, onToolCall, viewer, python }) {
+export async function streamChat({ paperTitle, paperPagesText, thread, history, mention, onDelta, onToolCall, viewer, python, signal }) {
   // @code routes to the local Claude Agent SDK via /api/claude_code (SSE).
   if (mention === '@code') {
     const systemPrompt = buildCodeSystemPrompt({ paperTitle, paperPagesText, thread });
-    return await streamClaudeCode({ systemPrompt, history, thread, onDelta, onToolCall });
+    return await streamClaudeCode({ systemPrompt, history, thread, onDelta, onToolCall, signal });
   }
 
   const key = getKey();
@@ -316,7 +317,7 @@ export async function streamChat({ paperTitle, paperPagesText, thread, history, 
   let finalContent = '';
   let safety = 0;
   while (safety++ < 100) {
-    const round = await streamOnce(key, model, messages, onDelta);
+    const round = await streamOnce(key, model, messages, onDelta, signal);
     if (round.content) finalContent = round.content;
 
     if (round.tool_calls?.length) {
@@ -505,7 +506,7 @@ Render ALL math as LaTeX, wrapped in \`$...$\` (inline) or \`$$...$$\` (display)
 }
 
 // ===== @code path: Claude Agent SDK via local SSE endpoint =====
-async function streamClaudeCode({ systemPrompt, history, thread, onDelta, onToolCall }) {
+async function streamClaudeCode({ systemPrompt, history, thread, onDelta, onToolCall, signal }) {
   // Flatten the prior conversation into a single prompt block so the SDK can
   // treat it as one "user message". The SDK manages its own context, so we
   // don't need to mimic OpenAI message-array semantics.
@@ -522,6 +523,7 @@ async function streamClaudeCode({ systemPrompt, history, thread, onDelta, onTool
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ systemPrompt, userPrompt, workdirName }),
+    signal,
   });
   if (!res.ok) {
     const t = await res.text();

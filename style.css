@@ -528,9 +528,19 @@ button:hover { background: var(--accent-soft); }
   border-radius: 8px;
   padding: 0;
   width: min(640px, 90vw);
-  max-height: 85vh;
+  height: min(720px, 85vh);
+  max-width: 95vw;
+  max-height: 95vh;
+  min-width: 360px;
+  min-height: 280px;
   background: var(--paper);
   box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  /* Native browser resize handle in the bottom-right corner. overflow must
+   * not be `visible` for resize to take effect. */
+  resize: both;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .thread-dialog::backdrop { background: rgba(0,0,0,0.25); }
 .thread-dlg-head {
@@ -573,7 +583,10 @@ button:hover { background: var(--accent-soft); }
 .thread-msgs {
   padding: 0 14px;
   overflow-y: auto;
-  max-height: 50vh;
+  /* Grow/shrink with the resizable dialog so the form stays anchored at the
+   * bottom; min-height keeps it scrollable even when the dialog is small. */
+  flex: 1 1 auto;
+  min-height: 80px;
 }
 .msg { margin-bottom: 12px; }
 .msg .who {
@@ -779,6 +792,10 @@ button:hover { background: var(--accent-soft); }
   border-radius: 4px;
 }
 .thread-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+#thread-stop {
+  background: #b03020;
+}
+#thread-stop:hover { background: #991e10; }
 
 #url-dialog {
   border: 1px solid var(--border);

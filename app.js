@@ -65,6 +65,7 @@ const threadMsgsEl = $('#thread-msgs');
 const threadForm = $('#thread-form');
 const threadInput = $('#thread-input');
 const threadSend = $('#thread-send');
+const threadStop = $('#thread-stop');
 
 // Settings dialog
 const settingsDlg = $('#settings-dialog');
@@ -82,9 +83,11 @@ const state = {
   activeThreadId: null,
   pendingSelection: null, // { pageNum, quote, rects, anchor }
   zoomFactor: Number(localStorage.getItem('paperchat.zoom')) || 1.0,
-  // threadId -> live streaming card element (kept across dialog close/reopen
-  // so a request started in one thread keeps running while the user browses
-  // others; on reopen, the card is reattached to threadMsgsEl).
+  // threadId -> { card: HTMLElement, controller: AbortController }
+  // Kept across dialog close/reopen so a request started in one thread keeps
+  // running while the user browses others; on reopen, the card is reattached
+  // to threadMsgsEl. The controller is wired through to the fetch underlying
+  // streamChat so a stop button can abort the stream.
   inflight: new Map(),
 };
 
@@ -497,7 +500,7 @@ function paintLiveBody(el, text) {
   // Only show the blinking cursor while streaming is still active for this
   // card — a deferred flush after stream-end shouldn't re-add it.
   const card = el.closest('.msg.assistant');
-  const stillStreaming = card && [...state.inflight.values()].includes(card);
+  const stillStreaming = card && [...state.inflight.values()].some(v => v.card === card);
   if (stillStreaming) {
     const cursor = document.createElement('span');
     cursor.className = 'cursor';
@@ -776,8 +779,8 @@ async function openThread(id, { prefill = '' } = {}) {
   // the request kept running while the dialog was closed or showing a
   // different thread; now that the user is viewing this thread again, hook
   // its live output back into the DOM.
-  const liveCard = state.inflight.get(id);
-  if (liveCard) threadMsgsEl.appendChild(liveCard);
+  const liveEntry = state.inflight.get(id);
+  if (liveEntry) threadMsgsEl.appendChild(liveEntry.card);
   threadInput.value = prefill;
   syncSendButton();
   threadDlg.showModal();
@@ -900,7 +903,10 @@ threadForm.addEventListener('submit', async (e) => {
   threadMsgsEl.appendChild(card.el);
   // Track this request as inflight for the thread so it survives dialog close
   // / thread-switch — re-renders the thread list to show a busy indicator.
-  state.inflight.set(t.id, card.el);
+  // Controller wires through to fetch() so the stop button can abort.
+  const controller = new AbortController();
+  state.inflight.set(t.id, { card: card.el, controller });
+  syncSendButton();
   renderThreadList();
   scrollToBottomNow(); // user just hit Send — re-pin to bottom
 
@@ -937,6 +943,7 @@ threadForm.addEventListener('submit', async (e) => {
       mention,
       viewer: viewerCapabilities(),
       python: pythonCapability(),
+      signal: controller.signal,
       onDelta: (delta) => {
         segText += delta;
         paintLiveBody(currentBody, segText);
@@ -982,16 +989,26 @@ threadForm.addEventListener('submit', async (e) => {
     renderThreadList();
   } catch (err) {
     card.el.querySelectorAll('.cursor').forEach(c => c.remove());
-    setMarkdown(currentBody, `**Error:** ${err.message}`);
-    const errMsg = {
-      id: uid(),
-      threadId: t.id,
-      role: 'assistant',
-      mention,
-      content: `**Error:** ${err.message}`,
-      createdAt: Date.now(),
-    };
-    await Messages.put(errMsg);
+    const stopped = err?.name === 'AbortError';
+    // Persist whatever text streamed before the abort, plus a [stopped] tag —
+    // an aborted reply is partial but worth keeping so the user can re-prompt
+    // with context. A real error gets the bold "Error:" treatment.
+    if (stopped) {
+      const partial = segText.trim() ? segText + '\n\n_[stopped]_' : '_[stopped]_';
+      setMarkdown(currentBody, partial);
+      segments.push({ type: 'text', content: partial });
+      const finalText = segments.filter(s => s.type === 'text').map(s => s.content).join('\n\n');
+      await Messages.put({
+        id: uid(), threadId: t.id, role: 'assistant', mention,
+        content: finalText, toolCalls, segments, createdAt: Date.now(),
+      });
+    } else {
+      setMarkdown(currentBody, `**Error:** ${err.message}`);
+      await Messages.put({
+        id: uid(), threadId: t.id, role: 'assistant', mention,
+        content: `**Error:** ${err.message}`, createdAt: Date.now(),
+      });
+    }
   } finally {
     state.inflight.delete(t.id);
     syncSendButton();
@@ -999,13 +1016,22 @@ threadForm.addEventListener('submit', async (e) => {
   }
 });
 
-// The send button reflects whether the currently-open thread has an in-flight
-// request. Other threads' inflight state doesn't disable this button — they'd
-// each block their own thread, but the user can submit to a quiet thread.
+// The send/stop buttons reflect whether the currently-open thread has an
+// in-flight request. Other threads' inflight state doesn't affect them —
+// each thread tracks its own controller.
 function syncSendButton() {
-  if (!state.activeThreadId) { threadSend.disabled = true; return; }
-  threadSend.disabled = state.inflight.has(state.activeThreadId);
+  const hasInflight = state.activeThreadId && state.inflight.has(state.activeThreadId);
+  if (!state.activeThreadId) { threadSend.disabled = true; threadStop.hidden = true; return; }
+  threadSend.disabled = hasInflight;
+  threadStop.hidden = !hasInflight;
 }
+
+threadStop.addEventListener('click', () => {
+  const id = state.activeThreadId;
+  if (!id) return;
+  const entry = state.inflight.get(id);
+  entry?.controller?.abort();
+});
 
 function buildToolCard(tc) {
   const argsStr = (() => {
