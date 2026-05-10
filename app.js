@@ -796,8 +796,11 @@ threadDlgClose.addEventListener('click', () => threadDlg.close());
 
 // Click outside the dialog content (on the backdrop) closes it. The native
 // <dialog> backdrop is a pseudo-element on the dialog itself, so backdrop
-// clicks register with target === threadDlg.
-threadDlg.addEventListener('click', (e) => {
+// clicks register with target === threadDlg. We listen to mousedown rather
+// than click — the previous click-based version sometimes needed two presses
+// because the first mousedown could clear an active text selection in the
+// content area without producing a same-target click event.
+threadDlg.addEventListener('mousedown', (e) => {
   if (e.target === threadDlg) threadDlg.close();
 });
 
