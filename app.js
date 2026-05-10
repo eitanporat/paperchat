@@ -471,6 +471,47 @@ function scrollToBottomNow() {
   threadMsgsEl.scrollTop = threadMsgsEl.scrollHeight;
 }
 
+// Streaming-aware body painter: setMarkdown rewrites innerHTML, which destroys
+// any selection the user has inside the body. While they're actively selecting
+// text in this body, defer the render — the latest text is stashed and flushed
+// once the selection moves away or collapses, so they can copy mid-stream.
+const _selectionPending = new Set();
+function selectionInside(el) {
+  const sel = window.getSelection?.();
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0) return false;
+  for (let i = 0; i < sel.rangeCount; i++) {
+    const r = sel.getRangeAt(i);
+    if (el.contains(r.startContainer) || el.contains(r.endContainer)) return true;
+  }
+  return false;
+}
+function paintLiveBody(el, text) {
+  if (selectionInside(el)) {
+    el._pendingText = text;
+    _selectionPending.add(el);
+    return;
+  }
+  el._pendingText = null;
+  _selectionPending.delete(el);
+  setMarkdown(el, text);
+  // Only show the blinking cursor while streaming is still active for this
+  // card — a deferred flush after stream-end shouldn't re-add it.
+  const card = el.closest('.msg.assistant');
+  const stillStreaming = card && [...state.inflight.values()].includes(card);
+  if (stillStreaming) {
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    cursor.textContent = '▍';
+    el.appendChild(cursor);
+  }
+  scrollIfPinned();
+}
+document.addEventListener('selectionchange', () => {
+  for (const el of [..._selectionPending]) {
+    if (!selectionInside(el)) paintLiveBody(el, el._pendingText ?? '');
+  }
+});
+
 function fixMathInDom(root) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -872,6 +913,10 @@ threadForm.addEventListener('submit', async (e) => {
     if (segText.trim()) {
       segments.push({ type: 'text', content: segText });
       segText = '';
+      // Body is being frozen — discard any deferred-render entry so a stale
+      // _pendingText doesn't get flushed onto a no-longer-active body.
+      _selectionPending.delete(currentBody);
+      currentBody._pendingText = null;
       // Strip blinking cursor on the now-frozen segment
       currentBody.querySelectorAll('.cursor').forEach(c => c.remove());
       const newBody = document.createElement('div');
@@ -894,13 +939,7 @@ threadForm.addEventListener('submit', async (e) => {
       python: pythonCapability(),
       onDelta: (delta) => {
         segText += delta;
-        setMarkdown(currentBody, segText);
-        // Markdown render strips the cursor; re-attach it at the end of streaming text
-        const cursor = document.createElement('span');
-        cursor.className = 'cursor';
-        cursor.textContent = '▍';
-        currentBody.appendChild(cursor);
-        scrollIfPinned();
+        paintLiveBody(currentBody, segText);
       },
       onToolCall: (tc) => {
         toolCalls.push(tc);
