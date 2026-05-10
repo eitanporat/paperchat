@@ -794,14 +794,17 @@ async function openThread(id, { prefill = '' } = {}) {
 // once, regardless of whether the user clicked X or hit Esc.
 threadDlgClose.addEventListener('click', () => threadDlg.close());
 
-// Click outside the dialog content (on the backdrop) closes it. The native
-// <dialog> backdrop is a pseudo-element on the dialog itself, so backdrop
-// clicks register with target === threadDlg. We listen to mousedown rather
-// than click — the previous click-based version sometimes needed two presses
-// because the first mousedown could clear an active text selection in the
-// content area without producing a same-target click event.
+// Click outside the dialog (on the backdrop) closes it. target===threadDlg
+// alone isn't enough: it's also true for the resize handle and any padding
+// inside the dialog box, so we'd close on innocuous in-dialog clicks. Gate
+// on the click coordinates being OUTSIDE the dialog's bounding rect — that
+// uniquely identifies a backdrop click.
 threadDlg.addEventListener('mousedown', (e) => {
-  if (e.target === threadDlg) threadDlg.close();
+  if (e.target !== threadDlg) return;
+  const r = threadDlg.getBoundingClientRect();
+  const inside = e.clientX >= r.left && e.clientX <= r.right
+              && e.clientY >= r.top  && e.clientY <= r.bottom;
+  if (!inside) threadDlg.close();
 });
 
 $('#thread-delete').addEventListener('click', async () => {
