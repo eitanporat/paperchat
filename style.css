@@ -432,7 +432,10 @@ button:hover { background: var(--accent-soft); }
   background: var(--highlight);
   pointer-events: none;        /* let selection pass through; clicks handled in JS */
   border-radius: 2px;
-  mix-blend-mode: multiply;    /* overlapping highlights darken naturally */
+  /* Previously used mix-blend-mode: multiply for natural darkening on overlap,
+   * but it can render as fully transparent inside certain stacking contexts
+   * (e.g. when the page-wrap creates an isolation due to box-shadow + flex
+   * ancestors). Plain alpha compositing is reliable. */
 }
 .highlight.active { background: var(--highlight-active); outline: 1px solid var(--accent); }
 .highlight.ai-temp {
