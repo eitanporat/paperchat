@@ -1187,16 +1187,24 @@ the FIRST TIME; ~250 words is too short to actually teach anything):
 > Figures available (use as-is, paths relative to index.html):
 >   - figures/<name>.jpg — <caption + role: 'embed' | 'recreate as <component>'>
 >
-> Interactive figure: EITHER
->   (a) pick a pc-* component (chain / stepped / timeline / grid / toggle /
->       slider / plot / annotated / equation / tree) and provide the JSON
->       content; OR
->   (b) describe a CUSTOM interactive figure: what the user can manipulate
->       (slider, click, drag), what changes in response, what concept it
->       teaches. The subagent will wrap it as a one-off web component.
-> Pick (a) when a component fits cleanly; pick (b) when the concept has
-> structure the user should manipulate to grok it (electron shells,
-> wave interference, phase cursor, draggable system, …).
+> Interactivity FIRST. For any concept with parameters, choices,
+> sequence, structure, or comparison — DEFAULT to building an
+> interactive figure instead of explaining it in prose. The reader
+> learns by manipulating, not by reading. Pick:
+>   (a) one or MORE pc-* components (chain / stepped / timeline /
+>       grid / toggle / slider / plot / annotated / equation / tree /
+>       term) and provide the JSON content. Sections often want
+>       multiple — e.g. a pc-grid AND a pc-slider, not just one.
+>   (b) a CUSTOM interactive figure: describe what the user can
+>       manipulate (slider, click, drag, hover), what changes in
+>       response, what concept it teaches. The subagent wraps it as
+>       a one-off web component.
+> Pick (a) when a component fits; pick (b) when the concept has
+> structure the user should manipulate to grok (electron shells,
+> wave interference, phase cursor, draggable lever, Fourier builder,
+> Punnett square, …). Pick BOTH when both serve the section. Only
+> fall back to prose paragraphs for genuinely linear narrative
+> (historical intro, plain definition).
 >
 > Length: as short as possible while still teaching the concept. No
 > word target — the subagent decides per section. Always shorter than

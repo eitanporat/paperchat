@@ -129,6 +129,46 @@ Every element should have one:
 
 Parent's wrapper has `.pc-stagger` so your children animate in sequence.
 
+## Default to interactivity. Prose is the last resort.
+
+If a concept can be explained interactively — by letting the reader
+click through a sequence, drag a parameter, toggle states, hover for
+a definition, switch between options, scroll through a sortable
+table, expand a tree, walk an annotated diagram — then **do that
+instead of writing it out as a paragraph**. A draggable slider that
+shows force-vs-separation as the reader moves r teaches more in 5
+seconds than 100 words of "as r decreases, the repulsive term
+grows…" The reader retains it because they discovered it.
+
+Hierarchy of preference for any chunk of explanation:
+
+1. **Direct interaction** — the reader manipulates a parameter, a
+   state, a position, a selection (pc-slider, pc-toggle, pc-stepped,
+   pc-annotated, pc-tree, or a custom web component with click/drag).
+2. **Layered reveal** — definitions inline (pc-term hover), details
+   on click (pc-chain, pc-equation, pc-grid).
+3. **Static figure with caption** — diagram, table, equation.
+4. **Prose paragraph** — only when 1–3 wouldn't naturally fit.
+
+Examples of "convert this prose to interactive":
+
+- "There are 7 crystal systems with these axes/angles…" → **pc-grid**
+  of 7 cards, click for the example mineral and a small SVG unit cell.
+- "The Aufbau order is 1s, 2s, 2p, 3s, 3p, 4s, 3d…" → **pc-stepped**
+  walking through electron-by-electron filling for a chosen Z.
+- "Ionic bonds form when ΔX is large…" → **pc-slider** over ΔX
+  reporting "% ionic character" via the Pauling formula.
+- "Materials fall into 4 classes…" → **pc-tree** with click-to-expand.
+- "Avogadro's number is 6.022e23…" → wrap in **pc-term** on first use
+  so hover shows the definition.
+- "Here are 5 elements and their electron configs…" → small sortable
+  table or **pc-grid** (more compact than 5 paragraphs).
+
+Don't force interactivity onto purely linear narrative (a historical
+intro, a definition that's just a definition). But for any concept
+that has parameters, choices, sequence, structure, or comparison —
+the default answer is "interactive figure," not "explanatory paragraph."
+
 ## Interactive figures — use the pc-* web component library
 
 `_lib/pc.js` registers 10 custom elements for the most common figure
