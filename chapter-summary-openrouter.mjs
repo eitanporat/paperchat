@@ -17,8 +17,8 @@
 import { streamText, tool, stepCountIs } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { z } from 'zod';
-import { readFile, writeFile, mkdir, readdir, stat, unlink } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 
 // ---- Tool implementations -------------------------------------------
@@ -39,20 +39,39 @@ function makeWorkdirTools(workdir) {
 
   return {
     Read: tool({
-      description: 'Read the contents of a file in the chapter workdir. Text files return numbered lines. Image files (PNG/JPG/etc.) return a short metadata stub — for vision-based figure vetting, this build does NOT pass image content back through tool results (would need experimental multi-modal-tool-result support that not all OpenRouter models implement). Treat images as opaque assets and rely on the planner system prompt + composites listing.',
-      inputSchema: z.object({ file_path: z.string().describe('Path relative to workdir (e.g. "_lib/pc.css")') }),
+      description: 'Read the contents of a file in the chapter workdir. Text files return numbered lines; image files (PNG/JPG/GIF/WEBP) return the actual image content so multimodal models (Kimi K2.6, etc.) can SEE them. Use on figures/img-*, composites/pages-*, and pages/page-* to vet what each image actually shows before assigning it in plan.json.',
+      inputSchema: z.object({ file_path: z.string().describe('Path relative to workdir (e.g. "_lib/pc.css" or "figures/img-040-002.jpg")') }),
       execute: async ({ file_path }) => {
         const abs = safePath(file_path);
         const isImage = /\.(png|jpe?g|gif|webp)$/i.test(file_path);
         if (isImage) {
-          // Text-only tool result for now. Returning a stub keeps the
-          // agent loop alive without trying to embed a base64 image
-          // into a place Vercel AI SDK 6 doesn't yet uniformly accept.
-          const s = await stat(abs);
-          return `[image file ${file_path}, ${s.size} bytes — opaque to this run]`;
+          const buf = await readFile(abs);
+          const mediaType = /\.png$/i.test(file_path) ? 'image/png'
+            : /\.gif$/i.test(file_path) ? 'image/gif'
+            : /\.webp$/i.test(file_path) ? 'image/webp'
+            : 'image/jpeg';
+          // Returning an object that the toModelOutput hook below
+          // converts to a multimodal tool-result content part.
+          return { __image: true, data: buf.toString('base64'), mediaType, file_path, bytes: buf.length };
         }
         const text = await readFile(abs, 'utf8');
         return text.split('\n').map((l, i) => `${String(i + 1).padStart(6)}\t${l}`).join('\n');
+      },
+      // Convert the execute() return value into the AI SDK's
+      // ToolResultOutput shape. Text stays text; image objects become
+      // a content array with an image-data part the multimodal model
+      // can see.
+      toModelOutput: ({ output }) => {
+        if (output && typeof output === 'object' && output.__image) {
+          return {
+            type: 'content',
+            value: [
+              { type: 'text', text: `Image: ${output.file_path} (${output.bytes} bytes, ${output.mediaType})` },
+              { type: 'image-data', data: output.data, mediaType: output.mediaType },
+            ],
+          };
+        }
+        return { type: 'text', value: typeof output === 'string' ? output : JSON.stringify(output) };
       },
     }),
 
