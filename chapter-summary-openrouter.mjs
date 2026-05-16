@@ -203,13 +203,22 @@ export async function runChapterAgentOpenRouter({
   let cumulativeCost = 0;
   let stepN = 0;
 
+  // Inner abort controller we can trigger ourselves (idle watchdog
+  // below). Also chained to the outer abortSignal so caller-side
+  // aborts still work.
+  const innerAbort = new AbortController();
+  if (abortSignal) {
+    if (abortSignal.aborted) innerAbort.abort();
+    else abortSignal.addEventListener('abort', () => innerAbort.abort(), { once: true });
+  }
+
   const result = streamText({
     model: openrouter(plannerModel),
     system: systemPrompt,
     prompt: userPrompt,
     tools: { ...tools, Task: taskTool },
     stopWhen: stepCountIs(80),
-    abortSignal,
+    abortSignal: innerAbort.signal,
     onStepFinish(step) {
       stepN++;
       // Translate AI-SDK step events to our SSE protocol.
@@ -247,14 +256,35 @@ export async function runChapterAgentOpenRouter({
   // LOT of reasoning before producing text or tool calls, sometimes
   // 1-3 minutes of pure reasoning tokens); the UI looked frozen.
   // fullStream gives us text + reasoning + tool calls + everything.
-  for await (const part of result.fullStream) {
-    if (part.type === 'text-delta' && part.text) {
-      send({ type: 'text', content: part.text });
-    } else if (part.type === 'reasoning-delta' && part.text) {
-      send({ type: 'thinking', content: part.text });
+  //
+  // Idle watchdog: OpenRouter occasionally drops the stream mid-
+  // message without signaling end (saw 8+ min of silence after a
+  // partial reasoning chunk). Track the last chunk timestamp; if
+  // nothing arrives for IDLE_LIMIT_MS, abort the agent loop with a
+  // clear error instead of hanging forever.
+  const IDLE_LIMIT_MS = 90_000;  // 90s of stream silence = treat as dropped
+  let lastChunkAt = Date.now();
+  const idleTimer = setInterval(() => {
+    if (Date.now() - lastChunkAt > IDLE_LIMIT_MS) {
+      clearInterval(idleTimer);
+      send({ type: 'error', message: `Stream idle for >${IDLE_LIMIT_MS / 1000}s — aborting (model or OpenRouter dropped the connection).` });
+      try { innerAbort.abort(); } catch {}
     }
-    // tool-call / tool-result deltas are surfaced via onStepFinish
-    // (with full args + results); we don't re-emit them here.
+  }, 10_000);
+
+  try {
+    for await (const part of result.fullStream) {
+      lastChunkAt = Date.now();
+      if (part.type === 'text-delta' && part.text) {
+        send({ type: 'text', content: part.text });
+      } else if (part.type === 'reasoning-delta' && part.text) {
+        send({ type: 'thinking', content: part.text });
+      }
+      // tool-call / tool-result deltas are surfaced via onStepFinish
+      // (with full args + results); we don't re-emit them here.
+    }
+  } finally {
+    clearInterval(idleTimer);
   }
   const totalUsage = await result.totalUsage;
   const finishReason = await result.finishReason;
