@@ -924,4 +924,211 @@ customElements.define('pc-annotated', PcAnnotated);
 customElements.define('pc-equation',  PcEquation);
 customElements.define('pc-tree',      PcTree);
 customElements.define('pc-term',      PcTerm);
+// --- pc-3d ------------------------------------------------------------
+// Generic interactive 3D scene. Load Three.js from a CDN the first
+// time a pc-3d appears on the page; render the declarative `data`
+// JSON as a small scene the reader can orbit/zoom/pick.
+//
+// Scene schema:
+//   data = {
+//     objects: [
+//       {type: 'sphere', pos: [x,y,z], r: 0.5, color: '#c25b2a', label?: 'C'},
+//       {type: 'box',    pos: [x,y,z], size: [1,1,1], wireframe?: true, color?},
+//       {type: 'cylinder', from: [x,y,z], to: [x,y,z], r: 0.05, color?},
+//       {type: 'line',   from: [x,y,z], to: [x,y,z], color?, dashed?: bool},
+//       {type: 'arrow',  from: [x,y,z], to: [x,y,z], color?},
+//       {type: 'label',  pos: [x,y,z], text: 'a'},
+//     ],
+//     camera?: [x,y,z],         // default [3,3,3]
+//     bg?: '#fbf6ea',           // default --paper
+//     axes?: bool,              // show x/y/z axes
+//     grid?: bool,              // show ground grid
+//     autoRotate?: bool,        // rotate slowly until user interacts
+//     caption?: string,         // text rendered under the canvas
+//   }
+//
+// Common use cases:
+//   - Crystal unit cells (atoms + bonds + bounding box)
+//   - Molecules (atoms + bonds, colored by element)
+//   - Vector fields (lots of arrows)
+//   - Geometry / polyhedra
+//   - Force diagrams in 3-space
+let _threePromise = null;
+function _loadThree() {
+  if (_threePromise) return _threePromise;
+  _threePromise = (async () => {
+    const imap = document.createElement('script');
+    imap.type = 'importmap';
+    imap.textContent = JSON.stringify({
+      imports: {
+        three: 'https://cdn.jsdelivr.net/npm/three@0.169/build/three.module.js',
+        'three/addons/': 'https://cdn.jsdelivr.net/npm/three@0.169/examples/jsm/',
+      },
+    });
+    if (!document.querySelector('script[type="importmap"]')) {
+      document.head.appendChild(imap);
+    }
+    const [THREE, { OrbitControls }] = await Promise.all([
+      import('three'),
+      import('three/addons/controls/OrbitControls.js'),
+    ]);
+    return { THREE, OrbitControls };
+  })();
+  return _threePromise;
+}
+class Pc3D extends HTMLElement {
+  async connectedCallback() {
+    const d = _pcData(this, {});
+    const objects = Array.isArray(d.objects) ? d.objects : [];
+    this.innerHTML = `
+      <figure class="pc-fig-interactive pc-rise" style="margin: 1rem auto;">
+        <div class="pc-3d-host" style="aspect-ratio: 1.4; width: 100%; max-width: 560px; margin: 0 auto;
+             background: ${_pcEsc(d.bg || 'var(--paper)')}; border-radius: 6px; overflow: hidden;
+             border: 1px solid var(--border); position: relative;">
+          <div class="pc-3d-hint" style="position: absolute; top: 8px; left: 12px;
+               font-family: var(--mono); font-size: 10px; color: var(--ink-soft); opacity: 0.7;
+               pointer-events: none; letter-spacing: 0.06em;">drag to rotate · scroll to zoom</div>
+        </div>
+        ${d.caption ? `<figcaption style="text-align: center; font-size: 13px; color: var(--ink-soft); margin-top: .4rem;">${_pcEsc(d.caption)}</figcaption>` : ''}
+      </figure>`;
+    const host = this.querySelector('.pc-3d-host');
+    let lib;
+    try { lib = await _loadThree(); }
+    catch (e) { host.textContent = 'pc-3d: failed to load Three.js — ' + e.message; return; }
+    const { THREE, OrbitControls } = lib;
+    const w = host.clientWidth || 560;
+    const h = host.clientHeight || 400;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+    const cam = d.camera || [3, 3, 3];
+    camera.position.set(cam[0], cam[1], cam[2]);
+    camera.lookAt(0, 0, 0);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    host.appendChild(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const key = new THREE.DirectionalLight(0xffffff, 0.7);
+    key.position.set(5, 8, 5);
+    scene.add(key);
+    if (d.axes) {
+      const ax = new THREE.AxesHelper(1.5);
+      scene.add(ax);
+    }
+    if (d.grid) {
+      const grid = new THREE.GridHelper(4, 8, 0xc25b2a, 0xd9cdb0);
+      scene.add(grid);
+    }
+    // --- Build objects ---
+    const labels = [];  // {text, pos: THREE.Vector3}
+    const v = (a) => new THREE.Vector3(a[0] || 0, a[1] || 0, a[2] || 0);
+    for (const o of objects) {
+      const color = o.color || '#c25b2a';
+      if (o.type === 'sphere') {
+        const m = new THREE.Mesh(
+          new THREE.SphereGeometry(o.r ?? 0.3, 32, 24),
+          new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.1 }),
+        );
+        m.position.copy(v(o.pos || [0, 0, 0]));
+        scene.add(m);
+        if (o.label) labels.push({ text: o.label, pos: m.position.clone() });
+      } else if (o.type === 'box') {
+        const size = o.size || [1, 1, 1];
+        const geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
+        let mesh;
+        if (o.wireframe) {
+          mesh = new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+            new THREE.LineBasicMaterial({ color }));
+        } else {
+          mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.5 }));
+        }
+        mesh.position.copy(v(o.pos || [0, 0, 0]));
+        scene.add(mesh);
+      } else if (o.type === 'cylinder' || o.type === 'line' || o.type === 'arrow') {
+        const a = v(o.from || [0, 0, 0]);
+        const b = v(o.to || [1, 0, 0]);
+        if (o.type === 'line') {
+          const geo = new THREE.BufferGeometry().setFromPoints([a, b]);
+          const mat = o.dashed
+            ? new THREE.LineDashedMaterial({ color, dashSize: 0.1, gapSize: 0.05 })
+            : new THREE.LineBasicMaterial({ color });
+          const line = new THREE.Line(geo, mat);
+          if (o.dashed) line.computeLineDistances();
+          scene.add(line);
+        } else if (o.type === 'arrow') {
+          const dir = b.clone().sub(a);
+          const len = dir.length();
+          dir.normalize();
+          const helper = new THREE.ArrowHelper(dir, a, len, new THREE.Color(color), 0.18, 0.1);
+          scene.add(helper);
+        } else {
+          // cylinder = stick (for bonds)
+          const len = a.distanceTo(b);
+          const r = o.r ?? 0.05;
+          const geo = new THREE.CylinderGeometry(r, r, len, 16);
+          const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.5 }));
+          mesh.position.copy(a.clone().add(b).multiplyScalar(0.5));
+          mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+          scene.add(mesh);
+        }
+      } else if (o.type === 'label') {
+        labels.push({ text: o.text || '', pos: v(o.pos || [0, 0, 0]) });
+      }
+    }
+    // 2D HTML labels overlaid on the canvas (projected each frame).
+    const labelLayer = document.createElement('div');
+    Object.assign(labelLayer.style, { position: 'absolute', inset: '0', pointerEvents: 'none' });
+    host.appendChild(labelLayer);
+    const labelEls = labels.map(({ text }) => {
+      const el = document.createElement('div');
+      el.textContent = text;
+      Object.assign(el.style, {
+        position: 'absolute', font: '12px var(--mono)', color: 'var(--ink)',
+        background: 'rgba(251,246,234,0.85)', padding: '1px 5px', borderRadius: '3px',
+        border: '1px solid var(--border)', transform: 'translate(-50%, -50%)',
+        whiteSpace: 'nowrap',
+      });
+      labelLayer.appendChild(el);
+      return el;
+    });
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.autoRotate = !!d.autoRotate;
+    controls.autoRotateSpeed = 0.6;
+    controls.addEventListener('start', () => { controls.autoRotate = false; });
+    // Render loop
+    const tmp = new THREE.Vector3();
+    let stopped = false;
+    const tick = () => {
+      if (stopped || !this.isConnected) return;
+      controls.update();
+      // Project labels
+      for (let i = 0; i < labels.length; i++) {
+        tmp.copy(labels[i].pos).project(camera);
+        const x = (tmp.x * 0.5 + 0.5) * w;
+        const y = (-tmp.y * 0.5 + 0.5) * h;
+        const visible = tmp.z < 1;
+        const el = labelEls[i];
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        el.style.opacity = visible ? '1' : '0';
+      }
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    };
+    tick();
+    // Resize on element resize
+    const ro = new ResizeObserver(() => {
+      const nw = host.clientWidth || w, nh = host.clientHeight || h;
+      camera.aspect = nw / nh;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nw, nh);
+    });
+    ro.observe(host);
+  }
+}
+
 customElements.define('pc-anki',      PcAnki);
+customElements.define('pc-3d',        Pc3D);
