@@ -1,46 +1,19 @@
 // Top-level app wiring: library, viewer, threads, settings.
 
 import { Papers, Threads, Messages, uid, hashBlob } from './db.js';
-import { renderPdf, ensurePageRendered, BASE_SCALE, getOutline, getPdfMetadataTitle, extractText, captureSelection, drawHighlight, clearHighlights, highlightQuoteOnPage } from './pdf.js';
+import { renderPdf, ensurePageRendered, BASE_SCALE, getOutline, getPdfMetadataTitle, extractText, captureSelection, drawHighlight, clearHighlights, highlightQuoteOnPage, deriveChapters, detectBookMode, chapterForPage, extractOutlineAndChaptersFromBlob } from './pdf.js';
 import {
   streamChat, parseMention, MENTIONS, mentionClass, extractPaperTitle,
   getKey, setKey, envKey, getModels, setModels, modelFor,
 } from './ai.js';
+import {
+  renderMathIn,
+  stashMathAndRunMarked,
+  preprocessMarkdownMath,
+  fixMathInDom,
+} from './_lib/pc-math.js';
 
 const $ = (sel) => document.querySelector(sel);
-
-// Stash math regions across marked.parse. Without this, multi-line $$...$$
-// blocks get shredded — a bare `=` line on its own becomes a setext-heading
-// underline, a `_x_` becomes <em>, etc. We pull math out, run marked, then
-// drop the literal $-delimited text back so KaTeX can render it normally.
-const _mathEscape = (s) => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-function stashMathAndRunMarked(text) {
-  const stash = [];
-  const ph = (i) => `MATHSTASH${i}ENDX`;
-  // Skip code regions so we don't pull math examples out of code blocks.
-  const codeRe = /```[\s\S]*?```|`[^`\n]+`/g;
-  let processed = '';
-  let last = 0;
-  const protect = (chunk) => chunk
-    // Display first so $$...$$ wins over $...$.
-    .replace(/\$\$[\s\S]*?\$\$/g, m => {
-      stash.push(m);
-      return `\n\n${ph(stash.length - 1)}\n\n`;
-    })
-    // Inline math, single line, must be closed.
-    .replace(/(?<!\\)\$([^\$\n]+?)\$/g, m => {
-      stash.push(m);
-      return ph(stash.length - 1);
-    });
-  for (let m; (m = codeRe.exec(text)); ) {
-    processed += protect(text.slice(last, m.index)) + m[0];
-    last = m.index + m[0].length;
-  }
-  processed += protect(text.slice(last));
-  let html = marked.parse(processed);
-  html = html.replace(/MATHSTASH(\d+)ENDX/g, (_, i) => _mathEscape(stash[+i]));
-  return html;
-}
 
 // ---- DOM ----
 const libraryList = $('#library-list');
@@ -74,15 +47,23 @@ const settingsKey = $('#settings-key');
 const settingsClaude = $('#settings-claude');
 const settingsGrok = $('#settings-grok');
 const settingsGpt = $('#settings-gpt');
+const settingsChapterPlanner = $('#settings-chapter-planner');
+const settingsChapterWriter = $('#settings-chapter-writer');
+const settingsChapterAutoOpen = $('#settings-chapter-autoopen');
 
 // ---- State ----
 const state = {
-  paper: null,        // { id, name, blob, pagesText, ... }
+  paper: null,        // { id, name, blob, pagesText, outline, chapters, bookMode, lastPage, ... }
   pages: [],          // rendered pages from pdf.js
   threads: [],        // threads on the current paper
   activeThreadId: null,
   pendingSelection: null, // { pageNum, quote, rects, anchor }
   zoomFactor: Number(localStorage.getItem('paperchat.zoom')) || 1.0,
+  // Book-mode runtime state. currentChapter follows the topmost visible page.
+  currentChapter: null,
+  scrollObserver: null,   // IntersectionObserver tracking visible pages
+  scrollHandler: null,    // viewer-wrap 'scroll' listener (debounced lastPage write)
+  topVisiblePage: 1,
   // threadId -> { card: HTMLElement, controller: AbortController }
   // Kept across dialog close/reopen so a request started in one thread keeps
   // running while the user browses others; on reopen, the card is reattached
@@ -172,18 +153,25 @@ async function addPaperFromFile(file) {
   // Show a placeholder while extracting
   viewerPlaceholder.style.display = 'block';
   viewerPlaceholder.innerHTML = `<p>Extracting text from <b>${file.name}</b>…</p>`;
-  const [pagesText, metaTitle] = await Promise.all([
+  const [pagesText, metaTitle, outlineInfo] = await Promise.all([
     extractText(file),
     getPdfMetadataTitle(file),
+    extractOutlineAndChaptersFromBlob(file),
   ]);
   // Prefer LLM extraction (works on most papers); fall back to metadata, then filename.
   const llmTitle = await extractPaperTitle(pagesText[0]).catch(() => null);
+  const autoBookMode = detectBookMode(outlineInfo.chapters, pagesText.length);
   const paper = {
     id,
     name: file.name,
     title: llmTitle || metaTitle || null,
     blob: file,
     pagesText,
+    outline: outlineInfo.outline,
+    chapters: outlineInfo.chapters,
+    bookMode: autoBookMode ? 'auto' : 'off',
+    bookModeToastShown: false,
+    lastPage: 1,
     addedAt: Date.now(),
     lastOpened: Date.now(),
   };
@@ -213,6 +201,7 @@ async function backfillTitles() {
 }
 
 async function openPaper(id) {
+  teardownBookMode();
   const paper = await Papers.get(id);
   if (!paper) return;
   await Papers.touch(id);
@@ -237,7 +226,56 @@ async function openPaper(id) {
   redrawHighlights();
   renderThreadList();
   renderLibrary();
-  renderOutline(await getOutline(doc));
+
+  // Backfill outline/chapters for papers added before book mode existed.
+  if (paper.outline === undefined || paper.chapters === undefined) {
+    const outline = await getOutline(doc);
+    const chapters = deriveChapters(outline, doc.numPages);
+    paper.outline = outline;
+    paper.chapters = chapters;
+    if (paper.bookMode === undefined) {
+      paper.bookMode = detectBookMode(chapters, doc.numPages) ? 'auto' : 'off';
+      paper.bookModeToastShown = false;
+    }
+    Papers.put(paper).catch(() => { /* best-effort */ });
+  }
+
+  renderOutline(paper.outline || []);
+  setupBookMode(paper);
+  restoreLastPage(paper);
+  // Cache existing chapter summaries so the chip can offer "View" instead
+  // of regenerating. Best-effort: missing endpoint just leaves it empty.
+  refreshChapterSummaries(paper).catch(() => {});
+  // Reattach to any chapter runs that are still in-flight from a previous
+  // tab/session — the trace.jsonl is the source of truth.
+  reattachActiveRuns(paper).catch(() => {});
+}
+
+// In-memory cache of past chapter summaries per paper.id → array of
+// { chapterId, indexUrl, traceUrl, mtime }.
+const _chapterSummaries = new Map();
+
+async function refreshChapterSummaries(paper) {
+  if (!paper?.id) return;
+  try {
+    const r = await fetch(`/api/chapter_summaries?paperId=${encodeURIComponent(paper.id)}`);
+    if (!r.ok) return;
+    const list = await r.json();
+    _chapterSummaries.set(paper.id, list);
+    // Re-render the chapter context + TOC so the menus and badges update.
+    if (state.paper?.id === paper.id) {
+      renderBookModeChip(paper);
+      renderOutline(paper.outline || []);
+    }
+  } catch {}
+}
+
+function summaryForChapter(paper, chapterId) {
+  const list = _chapterSummaries.get(paper?.id) || [];
+  // chapterId is what we send to the server; the server-side dirName uses
+  // safeId(chapterId), so compare both raw and sanitized forms.
+  const safe = (s) => String(s).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 48);
+  return list.find(s => s.chapterId === chapterId || s.chapterId === safe(chapterId)) || null;
 }
 
 function renderOutline(tree) {
@@ -254,7 +292,7 @@ function renderOutline(tree) {
   treeEl.appendChild(buildOutlineList(tree));
 }
 
-function buildOutlineList(items) {
+function buildOutlineList(items, depth = 0) {
   const ul = document.createElement('ul');
   for (const it of items) {
     const li = document.createElement('li');
@@ -269,10 +307,35 @@ function buildOutlineList(items) {
       page.className = 'toc-page';
       page.textContent = it.pageNum;
       row.appendChild(page);
-      row.addEventListener('click', () => jumpToPage(it.pageNum));
+      row.addEventListener('click', (e) => {
+        // Don't jump when clicking the menu button.
+        if (e.target.closest('.toc-menu-btn')) return;
+        jumpToPage(it.pageNum);
+      });
+    }
+    // Top-level entries that correspond to chapters get an actions menu.
+    if (depth === 0 && it.pageNum != null) {
+      const chap = (state.paper?.chapters || []).find(c => c.startPage === it.pageNum);
+      if (chap) {
+        const menuBtn = document.createElement('button');
+        menuBtn.type = 'button';
+        menuBtn.className = 'toc-menu-btn';
+        menuBtn.title = 'Chapter actions';
+        menuBtn.setAttribute('aria-label', 'Chapter actions');
+        menuBtn.textContent = '⋯';
+        menuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openChapterMenu(menuBtn, chap);
+        });
+        row.appendChild(menuBtn);
+        // Visual badge if a summary already exists.
+        if (summaryForChapter(state.paper, chap.id)) {
+          row.classList.add('has-summary');
+        }
+      }
     }
     li.appendChild(row);
-    if (it.children?.length) li.appendChild(buildOutlineList(it.children));
+    if (it.children?.length) li.appendChild(buildOutlineList(it.children, depth + 1));
     ul.appendChild(li);
   }
   return ul;
@@ -330,7 +393,242 @@ function scrollViewerToThread(t) {
   wrap.scrollTo({ top: target, behavior: 'smooth' });
 }
 
+// ---- Book mode ----
+
+function bookModeActive(paper) {
+  return paper?.chapters?.length > 0 && (paper.bookMode === 'auto' || paper.bookMode === 'on-manual');
+}
+
+// Persist a paper-record field without re-uploading the blob. Best-effort —
+// failures are silent so a flaky write doesn't disrupt reading flow.
+async function patchPaper(paper, patch) {
+  Object.assign(paper, patch);
+  try { await Papers.put({ ...paper, blob: undefined }); } catch { /* swallow */ }
+}
+
+// Debounce a function by `ms`, returning a callable that also has .flush().
+function debounce(fn, ms) {
+  let timer = null;
+  const wrapped = (...args) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; fn(...args); }, ms);
+  };
+  wrapped.flush = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  return wrapped;
+}
+
+function setupBookMode(paper) {
+  renderBookModeChip(paper);
+
+  // One-time toast announcing auto-on, so the user knows what changed.
+  if (bookModeActive(paper) && paper.bookMode === 'auto' && !paper.bookModeToastShown) {
+    showToast(
+      `Book mode on — chat is scoped to the chapter you're reading. Toggle in the header.`,
+      { type: 'info', durationMs: 6000 },
+    );
+    patchPaper(paper, { bookModeToastShown: true });
+  }
+
+  // IntersectionObserver: figure out the topmost visible page-wrap so we can
+  // update state.currentChapter + lastPage as the user scrolls. Threshold 0
+  // is enough — we just need each page to fire when it crosses the viewport.
+  const wrap = document.querySelector('.viewer-wrap');
+  if (!wrap) return;
+  const visible = new Set();
+  const persistLastPage = debounce((page) => {
+    if (state.paper?.id !== paper.id) return;
+    if (page === paper.lastPage) return;
+    patchPaper(paper, { lastPage: page });
+  }, 600);
+
+  const observer = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      const pn = Number(e.target.dataset.page);
+      if (!pn) continue;
+      if (e.isIntersecting) visible.add(pn);
+      else visible.delete(pn);
+    }
+    if (!visible.size) return;
+    const top = Math.min(...visible);
+    if (top === state.topVisiblePage) return;
+    state.topVisiblePage = top;
+    persistLastPage(top);
+    if (bookModeActive(paper)) {
+      const ch = chapterForPage(paper.chapters, top);
+      if (ch?.id !== state.currentChapter?.id) {
+        state.currentChapter = ch;
+        renderBookModeChip(paper);
+      }
+    }
+  }, { root: wrap, threshold: 0 });
+  for (const p of state.pages) observer.observe(p.wrap);
+  state.scrollObserver = observer;
+}
+
+function teardownBookMode() {
+  if (state.scrollObserver) {
+    state.scrollObserver.disconnect();
+    state.scrollObserver = null;
+  }
+  state.currentChapter = null;
+  state.topVisiblePage = 1;
+  hideBookModeChip();
+}
+
+function restoreLastPage(paper) {
+  const target = paper.lastPage;
+  if (!target || target <= 1) return;
+  const page = state.pages.find(p => p.pageNum === target);
+  if (!page) return;
+  ensurePageRendered(page);
+  // 'auto' (no smooth) — restoring shouldn't animate the user across N pages.
+  page.wrap.scrollIntoView({ block: 'start' });
+  state.topVisiblePage = target;
+  if (bookModeActive(paper)) {
+    state.currentChapter = chapterForPage(paper.chapters, target);
+    renderBookModeChip(paper);
+  }
+}
+
+function ensureBookModeChipEl() {
+  // Vestigial — chapter actions live in the menu attached to the chapter
+  // name in the topbar title now. Returned as a hidden node so callers
+  // like teardownBookMode → hideBookModeChip don't break.
+  let chip = $('#book-mode-chip');
+  if (chip) return chip;
+  chip = document.createElement('div');
+  chip.id = 'book-mode-chip';
+  chip.hidden = true;
+  document.body.appendChild(chip);
+  return chip;
+}
+
+function renderBookModeChip(paper) {
+  // Refresh the topbar title; the chip itself is gone.
+  updatePaperTitle();
+}
+
+function toggleBookMode() {
+  const paper = state.paper;
+  if (!paper) return;
+  const active = bookModeActive(paper);
+  const next = active ? 'off-manual' : 'on-manual';
+  patchPaper(paper, { bookMode: next });
+  state.currentChapter = next === 'on-manual'
+    ? chapterForPage(paper.chapters, state.topVisiblePage)
+    : null;
+  renderBookModeChip(paper);
+  showToast(
+    active ? 'Book mode off — full document in context.' : 'Book mode on — current chapter only.',
+    { type: 'info', durationMs: 3000 },
+  );
+}
+
+// Render the central topbar title: paper name + (when book mode is on
+// and a current chapter is detected) the chapter name as a subtitle.
+function updatePaperTitle() {
+  const paper = state.paper;
+  if (!paper) return;
+  const baseTitle = paper.title || paper.name || 'Untitled';
+  paperTitleEl.classList.add('with-chapter');
+  if (bookModeActive(paper) && state.currentChapter) {
+    const c = state.currentChapter;
+    paperTitleEl.innerHTML =
+      `<span class="pt-paper">${escapeHtml(baseTitle)}</span>` +
+      `<span class="pt-sep">›</span>` +
+      `<span class="pt-chapter"><span class="pt-text">${escapeHtml(c.title)}</span></span>` +
+      `<button class="pt-menu-btn" id="pt-menu-btn" type="button" title="Chapter actions" aria-label="Chapter actions" aria-haspopup="menu">⋯</button>`;
+    paperTitleEl.title = `${baseTitle} — ${c.title} (pp. ${c.startPage}-${c.endPage})`;
+    document.getElementById('pt-menu-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openChapterMenu(e.currentTarget);
+    });
+  } else {
+    paperTitleEl.classList.remove('with-chapter');
+    paperTitleEl.textContent = baseTitle;
+    paperTitleEl.title = baseTitle;
+  }
+}
+
+// Popup menu attached to a chapter — opens from the topbar ⋯ button
+// (uses state.currentChapter) or from a TOC chapter entry (caller passes
+// the chapter object explicitly).
+function openChapterMenu(anchor, chapter) {
+  document.getElementById('pt-menu')?.remove();
+  const paper = state.paper;
+  const ch = chapter || state.currentChapter;
+  if (!paper || !ch) return;
+  const existing = summaryForChapter(paper, ch.id);
+
+  const menu = document.createElement('div');
+  menu.id = 'pt-menu';
+  menu.className = 'pt-menu';
+  menu.setAttribute('role', 'menu');
+  const items = [];
+  if (existing) {
+    items.push({ id: 'open',  label: 'Open chapter site', primary: true });
+    items.push({ id: 'regen', label: 'Regenerate' });
+  } else {
+    items.push({ id: 'summarize', label: 'Summarize chapter', primary: true });
+  }
+
+  for (const it of items) {
+    if (it.divider) {
+      const hr = document.createElement('div');
+      hr.className = 'pt-menu-divider';
+      menu.appendChild(hr);
+      continue;
+    }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pt-menu-item' + (it.primary ? ' primary' : '');
+    btn.innerHTML = `<span class="pt-menu-label">${escapeHtml(it.label)}</span>`;
+    btn.addEventListener('click', () => {
+      close();
+      if (it.id === 'open' && existing) openChapterSiteInline(existing.indexUrl, `${paper.name || ''} — ${ch.title}`);
+      else if (it.id === 'summarize') kickoffChapterSummary(ch);
+      else if (it.id === 'regen')     kickoffChapterSummary(ch);
+    });
+    menu.appendChild(btn);
+  }
+
+  document.body.appendChild(menu);
+  // Position below the anchor. If the anchor is on the LEFT half of the
+  // viewport (e.g. the ⋯ button in the Contents TOC sidebar), left-align
+  // the menu so it extends rightward into visible area. Otherwise (e.g.
+  // the topbar ⋯ button), right-align so the menu extends leftward.
+  const r = anchor.getBoundingClientRect();
+  menu.style.top = (r.bottom + 6) + 'px';
+  if (r.left < window.innerWidth / 2) {
+    menu.style.left = Math.max(8, r.left) + 'px';
+    menu.style.right = 'auto';
+  } else {
+    menu.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+    menu.style.left = 'auto';
+  }
+
+  function close() {
+    menu.remove();
+    document.removeEventListener('click', onDocClick, true);
+    document.removeEventListener('keydown', onKey);
+  }
+  function onDocClick(e) { if (!menu.contains(e.target)) close(); }
+  function onKey(e) { if (e.key === 'Escape') close(); }
+  setTimeout(() => {
+    document.addEventListener('click', onDocClick, true);
+    document.addEventListener('keydown', onKey);
+  }, 0);
+}
+
+function hideBookModeChip() {
+  const chip = document.getElementById('book-mode-chip');
+  if (chip) chip.hidden = true;
+}
+
+function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
 function closePaper() {
+  teardownBookMode();
   state.paper = null;
   state.pages = [];
   state.threads = [];
@@ -515,99 +813,6 @@ document.addEventListener('selectionchange', () => {
   }
 });
 
-function fixMathInDom(root) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      let p = node.parentNode;
-      while (p && p !== root) {
-        const tag = p.nodeType === 1 ? p.tagName : '';
-        if (tag === 'CODE' || tag === 'PRE') return NodeFilter.FILTER_REJECT;
-        p = p.parentNode;
-      }
-      return NodeFilter.FILTER_ACCEPT;
-    },
-  });
-  const nodes = [];
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n);
-  for (const n of nodes) {
-    const fixed = autoFixMathSyntax(n.nodeValue);
-    if (fixed !== n.nodeValue) n.nodeValue = fixed;
-  }
-}
-
-// Pre-marked normalizer for LLM math output. Two rules from gpt2md:
-//   - postfix-operator merge:  $z$^2  → $z^2$   /   $z$_k → $z_k$
-//   - whole-line promotion:     $x = y$  alone on a line → $$x = y$$
-// Skip code regions (fenced and inline) so we never rewrite quoted text.
-function preprocessMarkdownMath(md) {
-  if (!md || !md.includes('$')) return md;
-  const re = /```[\s\S]*?```|`[^`\n]+`/g;
-  let out = '', last = 0;
-  for (let m; (m = re.exec(md)); ) {
-    out += applyMathPreFixes(md.slice(last, m.index)) + m[0];
-    last = m.index + m[0].length;
-  }
-  return out + applyMathPreFixes(md.slice(last));
-}
-function applyMathPreFixes(s) {
-  // Postfix-operator merge. Postfix arg must be braced, a \command, or a single
-  // alnum NOT followed by another word char — that lookahead avoids clobbering
-  // markdown italic like _word_.
-  s = s.replace(
-    /\$([^$\n]+)\$([_^])(\{[^{}]+\}|\\[A-Za-z]+|[A-Za-z0-9](?![A-Za-z0-9_]))/g,
-    '$$$1$2$3$$'
-  );
-  // Whole-line math promotion. Up to 3 leading spaces (any more and markdown
-  // treats it as a code block).
-  s = s.replace(/^( {0,3})\$([^$\n]+)\$[ \t]*$/gm, '$1$$$$$2$$$$');
-  return s;
-}
-
-// Apply LaTeX subscript repairs only inside $...$ / $$...$$ regions so we
-// don't touch prose that happens to contain backslashes.
-function autoFixMathSyntax(text) {
-  if (!text || (!text.includes('$') && !text.includes('\\['))) return text;
-  return text.replace(
-    /(\$\$[\s\S]*?\$\$|\$[^\$\n]+\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g,
-    (block) => block
-      // \mathcal{L}{x} → \mathcal{L}_{x}, also for \mathbb / \mathbf / \mathrm / \mathit / \mathfrak
-      .replace(/(\\(?:mathcal|mathbb|mathbf|mathrm|mathit|mathfrak|mathsf|mathtt)\{[^{}]+\})\s*\{/g, '$1_{')
-      // \sum{...} → \sum_{...} (and other big operators / functions)
-      .replace(/\\(sum|prod|int|oint|iint|iiint|coprod|max|min|sup|inf|lim|liminf|limsup|bigcup|bigcap|bigotimes|bigoplus|bigsqcup)\s*\{/g, '\\$1_{')
-  );
-}
-
-const _pendingMath = new WeakSet();
-function renderMathIn(el) {
-  if (window.renderMathInElement) {
-    try {
-      window.renderMathInElement(el, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false },
-          { left: '$', right: '$', display: false },
-        ],
-        throwOnError: false,
-        ignoredTags: ['script', 'style', 'pre', 'code'],
-        // KaTeX defaults to 'htmlAndMathml' which emits BOTH a visible
-        // .katex-html span and a .katex-mathml span (hidden via clip).
-        // If anything in the page CSS interferes with the clip rect, the
-        // mathml leaks through and the user sees the formula twice (once
-        // properly typeset, once spelled out one symbol per line). Force
-        // 'html' only — accessibility tools can still read the alt text.
-        output: 'html',
-        // Inside a narrow markdown table cell, KaTeX can mis-line-wrap a
-        // long expression. trust:true lets users opt-in to \htmlClass etc.
-        // strict:false silences benign warnings.
-        strict: false,
-      });
-    } catch {}
-    return;
-  }
-  // KaTeX hasn't loaded yet — defer until window.load.
-  _pendingMath.add(el);
-}
 window.addEventListener('load', () => {
   if (!window.renderMathInElement) return;
   // Re-render every assistant body in the current DOM (cheap, idempotent).
@@ -950,6 +1155,12 @@ threadForm.addEventListener('submit', async (e) => {
       viewer: viewerCapabilities(),
       python: pythonCapability(),
       signal: controller.signal,
+      chapters: bookModeActive(state.paper) ? state.paper.chapters : null,
+      currentChapter: bookModeActive(state.paper)
+        ? (t.pageNum
+            ? chapterForPage(state.paper.chapters, t.pageNum)
+            : state.currentChapter)
+        : null,
       onDelta: (delta) => {
         segText += delta;
         paintLiveBody(currentBody, segText);
@@ -1161,22 +1372,59 @@ function openArtifactFull(art) {
 }
 
 function showToast(message, opts = {}) {
-  const { type = 'info', durationMs = 3500 } = opts;
+  const { type = 'info', durationMs = 3500, action = null } = opts;
   let host = document.getElementById('toast-host');
   if (!host) {
     host = document.createElement('div');
     host.id = 'toast-host';
     document.body.appendChild(host);
   }
+  // Card-style toast: icon · text · (optional action) · close · progress bar
+  // — matches the side-stack reference. The bottom progress bar shrinks
+  // over `durationMs` so the user can see how much time is left.
+  const icons = { info: 'ℹ', success: '✓', warn: '!', error: '✗' };
   const t = document.createElement('div');
   t.className = `toast toast-${type}`;
-  t.textContent = message;
+  t.innerHTML = `
+    <span class="toast-icon" aria-hidden="true">${icons[type] || icons.info}</span>
+    <span class="toast-msg"></span>
+  `;
+  t.querySelector('.toast-msg').textContent = message;
+  if (action && action.label && typeof action.onClick === 'function') {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'toast-action';
+    btn.textContent = action.label;
+    t.appendChild(btn);
+  }
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'toast-close';
+  closeBtn.setAttribute('aria-label', 'Dismiss');
+  closeBtn.innerHTML = '&times;';
+  t.appendChild(closeBtn);
+  const bar = document.createElement('div');
+  bar.className = 'toast-bar';
+  t.appendChild(bar);
   host.appendChild(t);
-  requestAnimationFrame(() => t.classList.add('show'));
-  setTimeout(() => {
+  requestAnimationFrame(() => {
+    t.classList.add('show');
+    bar.style.transition = `transform ${durationMs}ms linear`;
+    bar.style.transform = 'scaleX(0)';
+  });
+  const dismiss = () => {
+    if (t.classList.contains('toast-out')) return;
     t.classList.remove('show');
+    t.classList.add('toast-out');
     setTimeout(() => t.remove(), 250);
-  }, durationMs);
+  };
+  closeBtn.addEventListener('click', dismiss);
+  if (action) {
+    t.querySelector('.toast-action').addEventListener('click', () => {
+      try { action.onClick(); } finally { dismiss(); }
+    });
+  }
+  setTimeout(dismiss, durationMs);
 }
 
 const confirmAction = (() => {
@@ -1323,6 +1571,10 @@ $('#btn-settings').addEventListener('click', () => {
   settingsClaude.value = m['@claude'] || '';
   settingsGrok.value = m['@grok'] || '';
   settingsGpt.value = m['@gpt'] || '';
+  settingsChapterPlanner.value = m['@chapter.planner'] || '';
+  settingsChapterWriter.value = m['@chapter.writer'] || '';
+  // Default on: auto-open the live preview the moment index.html lands.
+  settingsChapterAutoOpen.checked = localStorage.getItem('paperchat.chsum.autoOpen') !== '0';
   settingsDlg.showModal();
 });
 $('#settings-cancel').addEventListener('click', () => settingsDlg.close());
@@ -1332,8 +1584,1140 @@ settingsForm.addEventListener('submit', () => {
     '@claude': settingsClaude.value.trim() || undefined,
     '@grok': settingsGrok.value.trim() || undefined,
     '@gpt': settingsGpt.value.trim() || undefined,
+    '@chapter.planner': settingsChapterPlanner.value.trim() || undefined,
+    '@chapter.writer': settingsChapterWriter.value.trim() || undefined,
   });
+  localStorage.setItem('paperchat.chsum.autoOpen', settingsChapterAutoOpen.checked ? '1' : '0');
 });
+
+// ---- Chapter summary (interactive HTML chapter site) ----
+async function kickoffChapterSummary(chapter) {
+  const paper = state.paper;
+  if (!paper) return;
+  const ch = chapter || state.currentChapter || chapterForPage(paper.chapters, state.topVisiblePage);
+  if (!ch) {
+    showToast('Open book mode on a chapter first.', { type: 'warn', durationMs: 3000 });
+    return;
+  }
+
+  // A fresh kickoff is a regenerate from the user's POV — wipe the
+  // existing tab (steps, log, tokens, cost) before opening a new one
+  // so progress doesn't accumulate across runs.
+  resetChapterTab(ch.id);
+
+  const panel = openChapterSummaryPanel(paper, ch);
+  panel.log(`Paper: ${paper.name || '(untitled)'}`);
+  panel.log(`Chapter: ${ch.title}  (pp. ${ch.startPage}-${ch.endPage})`);
+  panel.log('Encoding PDF…');
+
+  // Base64-encode the PDF in chunks to avoid stack overflows on big files.
+  const buf = new Uint8Array(await paper.blob.arrayBuffer());
+  let s = '';
+  const chunk = 32_768;
+  for (let i = 0; i < buf.length; i += chunk) {
+    s += String.fromCharCode.apply(null, buf.subarray(i, i + chunk));
+  }
+  const pdfBase64 = btoa(s);
+  panel.log(`PDF: ${(buf.length / 1024 / 1024).toFixed(2)} MB`);
+
+  const models = getModels();
+  const body = {
+    paperId: paper.id,
+    chapterId: ch.id,
+    paperName: paper.name || 'Untitled',
+    chapterTitle: ch.title,
+    startPage: ch.startPage,
+    endPage: ch.endPage,
+    pdfBase64,
+    plannerModel: models['@chapter.planner'],
+    writerModel: models['@chapter.writer'],
+  };
+
+  panel.log('POST /api/chapter_summary');
+  const resp = await fetch('/api/chapter_summary', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    panel.log(`Error: ${resp.status} ${await resp.text()}`);
+    return;
+  }
+  await consumeSseToPanel(resp, panel);
+}
+
+// Reads an SSE stream from a fetch Response and routes each event to a
+// progress panel. Shared by fresh kickoff (POST /api/chapter_summary) and
+// replay/reattach (GET /api/chapter_runs/replay) paths.
+async function consumeSseToPanel(resp, panel) {
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let pending = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    pending += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = pending.indexOf('\n\n')) >= 0) {
+      const frame = pending.slice(0, nl);
+      pending = pending.slice(nl + 2);
+      if (!frame.startsWith('data:')) continue;
+      const payload = frame.slice(5).trim();
+      try { handleChapterSummaryEvent(panel, JSON.parse(payload)); }
+      catch {}
+    }
+  }
+}
+
+// On paper open, reattach progress panels to any chapter runs whose
+// trace.jsonl exists but doesn't have a terminal event yet (page reload
+// during regeneration → don't lose the run).
+async function reattachActiveRuns(paper) {
+  if (!paper?.id) return;
+  let runs;
+  try {
+    const r = await fetch(`/api/chapter_runs/active?paperId=${encodeURIComponent(paper.id)}`);
+    if (!r.ok) return;
+    runs = await r.json();
+  } catch { return; }
+  if (!Array.isArray(runs) || !runs.length) return;
+  // Map dirName "chapter-<paperId>-<chapterId>" → the chapter itself.
+  const safe = (s) => String(s).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 48);
+  const prefix = `chapter-${safe(paper.id)}-`;
+  for (const run of runs) {
+    const chapterIdSafe = run.dirName.slice(prefix.length);
+    const ch = (paper.chapters || []).find(c => safe(c.id) === chapterIdSafe || c.id === chapterIdSafe);
+    if (!ch) continue;
+    const panel = openChapterSummaryPanel(paper, ch);
+    panel.log(`Reattaching to run for "${ch.title}" (status: ${run.status || 'unknown'})…`);
+    panel.log(`(trace.jsonl has ${run.lineCount} lines so far)`);
+
+    // If the run is stale (agent process died with the server), kick off
+    // a SDK resume — it appends to the same trace.jsonl and /replay
+    // below tails it.
+    if (run.status === 'stale') {
+      panel.log('Run is stale — asking the Agent SDK to continue…');
+      fetch(`/api/chapter_runs/resume?dir=${encodeURIComponent(run.dirName)}`, {
+        method: 'POST',
+      }).catch(() => {});
+      // Deliberately fire-and-forget; the trace is the rendezvous point.
+    }
+
+    const resp = await fetch(`/api/chapter_runs/replay?dir=${encodeURIComponent(run.dirName)}`);
+    if (!resp.ok) {
+      panel.log(`Replay failed: ${resp.status}`);
+      continue;
+    }
+    consumeSseToPanel(resp, panel).catch(() => {});
+  }
+}
+
+function handleChapterSummaryEvent(panel, ev) {
+  // 1) Conversation log — rich DOM elements (clickable file paths,
+  // collapsible tool results) instead of flat textContent. This is the
+  // "Claude Code app" view; visible in dev mode.
+  switch (ev.type) {
+    case 'stage':   panel.logStage(ev.message); break;
+    case 'text':    panel.text(ev.content); break;
+    case 'thinking': panel.thinking(ev.content); break;
+    case 'tool_use': panel.logToolUse(ev); break;
+    case 'tool_result': panel.logToolResult(ev); break;
+    case 'usage':   panel.addUsage(ev); break;
+    case 'usage_total': panel.setFinalUsage(ev); break;
+    case 'phase':   panel.logStage(`◆ ${ev.name}`); break;
+    case 'error':   panel.log(`✗ ${ev.message}`); break;
+    case 'done':    panel.logStage(`Done. stopReason=${ev.stopReason} cost=$${(ev.totalCostUsd || 0).toFixed(4)}`);
+                    panel.setCost(ev.totalCostUsd);
+                    break;
+  }
+
+  // 2) Project the event onto a friendly stage for the default UI.
+  switch (ev.type) {
+    case 'stage': {
+      // Server-side setup messages collapse into one "Preparing chapter" step.
+      // The pdftocairo poller streams "Rasterizing pages X-Y… (n/N)" — surface
+      // that count inline so the user sees the rasterizer's progress.
+      const rasterM = ev.message.match(/^Rasterizing pages [\d-]+… \((\d+)\/(\d+)\)/);
+      if (rasterM) {
+        panel.setStep('prep', `Preparing chapter — rasterizing ${rasterM[1]}/${rasterM[2]} pages`, { icon: '📦' });
+      } else if (/^Workdir:/.test(ev.message) || /^Trace:/.test(ev.message)
+       || /Wrote chapter\.pdf/.test(ev.message) || /^Rasteriz/.test(ev.message)
+       || /^Copied _lib/.test(ev.message) || /Rasterized \d+ pages/.test(ev.message)) {
+        panel.setStep('prep', 'Preparing chapter', { icon: '📦' });
+      } else if (/Launching agent/.test(ev.message)) {
+        panel.completeStep('prep');
+        panel.setStep('think', 'Reading the chapter', { icon: '👀' });
+      }
+      break;
+    }
+    case 'phase': {
+      // Agent-emitted phase signal (via `echo <name> > .phase`). The
+      // agent picks its own labels — no fixed taxonomy — so the UI
+      // shows whatever vocabulary the agent finds useful ("vetting
+      // figures", "fixing Bragg's-law SVG", etc.). Each distinct phase
+      // becomes its own step row (id = slug of the label).
+      const raw = String(ev.name || '').trim();
+      if (!raw) break;
+      const id = 'phase:' + raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const label = raw.charAt(0).toUpperCase() + raw.slice(1);
+      panel.setStep(id, label, { icon: '◆' });
+      break;
+    }
+    case 'tool_use': {
+      // Phase steps come from the agent's `.phase` signals (handled
+      // above) — we no longer infer phases from tool_use paths. The
+      // tool_use handler also surfaces side toasts for two events
+      // the user cares about: index.html landing (≈ live preview ready)
+      // and each section file landing (build progress).
+      if (ev.name === 'Task') {
+        const desc = ev.args?.description || ev.args?.subagent_type || 'subagent';
+        panel.addWorker(ev.id, desc);
+      } else if (ev.name === 'Write' || ev.name === 'Edit') {
+        const path = ev.args?.file_path || '';
+        const indexHit = /\/index\.html$/.test(path) || path.endsWith('index.html');
+        const sectionHit = path.match(/sections\/([a-zA-Z0-9_-]+)\.html$/);
+        const chTitle = panel.chapterId
+          ? (state.paper?.chapters || []).find(c => c.id === panel.chapterId)?.title
+          : '';
+        const chLabel = chTitle ? `Ch. ${truncate(chTitle, 36)}` : 'Chapter';
+        // Derive the workdir name the same way the server does, mirroring
+        // the safeId regex (alnum + ._- only, max 48 chars).
+        const safeIdCli = (s) => String(s).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 48);
+        const localDir = state.paper && panel.chapterId
+          ? `chapter-${safeIdCli(state.paper.id)}-${safeIdCli(panel.chapterId)}`
+          : null;
+        if (indexHit && !panel._indexNotified && localDir) {
+          panel._indexNotified = true;
+          const url = `/cc-workdir/${encodeURIComponent(localDir)}/index.html`;
+          const siteTitle = `${state.paper?.name || ''} — ${chTitle || ''}`.trim().replace(/^—\s*/, '');
+          const autoOpen = localStorage.getItem('paperchat.chsum.autoOpen') !== '0';
+          if (autoOpen) {
+            openChapterSiteInline(url, siteTitle, { liveDirName: localDir });
+            showToast(`${chLabel} — live preview opened`, { type: 'success', durationMs: 2800 });
+          } else {
+            showToast(`${chLabel} — skeleton ready`, {
+              type: 'info', durationMs: 8000,
+              action: { label: 'Open', onClick: () => openChapterSiteInline(url, siteTitle, { liveDirName: localDir }) },
+            });
+          }
+        } else if (sectionHit) {
+          showToast(`${chLabel} · wrote ${sectionHit[1]}`, { type: 'info', durationMs: 2400 });
+        }
+      }
+      break;
+    }
+    case 'tool_result': {
+      // If the result is for a Task subagent, mark that worker done.
+      if (ev.id) panel.completeWorker(ev.id, ev.ok);
+      break;
+    }
+    case 'error': {
+      panel.failStep(ev.message);
+      break;
+    }
+    case 'done': {
+      panel.completeAll();
+      panel.setCost(ev.totalCostUsd);  // Reveal the cost element + mirror onto the tab.
+      panel.done(ev.workdir);
+      // Refresh the summaries cache so the chip's "View" affordance shows
+      // up immediately without a reload.
+      if (state.paper) refreshChapterSummaries(state.paper).catch(() => {});
+      // Surface the completion: in-app toast + document.title flash that
+      // survives until the page regains focus.
+      const chTitle = panel.chapterId
+        ? (state.paper?.chapters || []).find(c => c.id === panel.chapterId)?.title
+        : null;
+      const label = chTitle ? `"${truncate(chTitle, 40)}"` : 'chapter';
+      const cost = ev.totalCostUsd ? ` ($${ev.totalCostUsd.toFixed(2)})` : '';
+      const safeDir = encodeURIComponent((ev.workdir || '').split('/').pop());
+      const siteUrl = `/cc-workdir/${safeDir}/index.html`;
+      const siteTitle = `${state.paper?.name || ''} — ${chTitle || ''}`.trim().replace(/^—\s*/, '');
+      showToast(`✓ Generated ${label}${cost}`, {
+        type: 'info',
+        durationMs: 10000,
+        action: { label: 'Open', onClick: () => openChapterSiteInline(siteUrl, siteTitle) },
+      });
+      flashTabTitle(`✓ Chapter ready`);
+      break;
+    }
+  }
+}
+
+function shortToolArgs(name, args) {
+  if (!args) return '';
+  if (name === 'Read' && args.file_path) return args.file_path;
+  if (name === 'Write' && args.file_path) return args.file_path;
+  if (name === 'Edit' && args.file_path) return args.file_path;
+  if (name === 'Bash' && args.command) return truncate(args.command, 120);
+  if (name === 'Glob' && args.pattern) return args.pattern;
+  return truncate(JSON.stringify(args), 120);
+}
+
+// Singleton chapter-summary panel that holds one or more chapter runs as
+// tabs. Each tab maintains its own steps list, log, usage totals, and
+// result link — perfect for batch generating across chapters.
+
+const _chapterTabs = new Map();  // chapter.id → tab api (so reattach/regenerate finds the existing tab)
+
+// Remove an existing tab for a chapter (DOM + registry). Used by
+// kickoffChapterSummary so a regenerate starts with a clean slate
+// instead of accumulating log/usage from the previous run.
+function resetChapterTab(chapterId) {
+  const existing = _chapterTabs.get(chapterId);
+  if (!existing) return;
+  const panel = document.getElementById('chsum-panel');
+  if (panel) {
+    panel.querySelector(`.chsum-tab[data-tab="${existing.tabId}"]`)?.remove();
+    panel.querySelector(`.chsum-body[data-tab="${existing.tabId}"]`)?.remove();
+  }
+  _chapterTabs.delete(chapterId);
+}
+
+function ensureChapterPanel() {
+  let panel = document.getElementById('chsum-panel');
+  if (panel) return panel;
+  const devMode = localStorage.getItem('paperchat.chsum.dev') === '1';
+  const minimized = localStorage.getItem('paperchat.chsum.min') === '1';
+  panel = document.createElement('div');
+  panel.id = 'chsum-panel';
+  panel.classList.toggle('dev', devMode);
+  panel.classList.toggle('minimized', minimized);
+  panel.innerHTML = `
+    <header class="chsum-head">
+      <ul class="chsum-tabs" id="chsum-tabs"></ul>
+      <button class="chsum-dev" type="button" title="Toggle technical log">Details</button>
+      <button class="chsum-min" type="button" title="Minimize (keeps running)" aria-label="Minimize">_</button>
+      <button class="chsum-close" type="button" title="Close all tabs (agent runs keep going server-side)">✕</button>
+    </header>
+    <div class="chsum-bodies" id="chsum-bodies"></div>
+  `;
+  document.body.appendChild(panel);
+  panel.querySelector('.chsum-min').addEventListener('click', () => {
+    panel.classList.toggle('minimized');
+    localStorage.setItem('paperchat.chsum.min', panel.classList.contains('minimized') ? '1' : '0');
+    const btn = panel.querySelector('.chsum-min');
+    btn.textContent = panel.classList.contains('minimized') ? '▢' : '_';
+    btn.title = panel.classList.contains('minimized') ? 'Maximize' : 'Minimize (keeps running)';
+  });
+  // Set the initial label so it matches the restored state.
+  const minBtn = panel.querySelector('.chsum-min');
+  if (minimized) { minBtn.textContent = '▢'; minBtn.title = 'Maximize'; }
+  panel.querySelector('.chsum-close').addEventListener('click', () => {
+    // The agent keeps running server-side regardless; this just hides the
+    // panel and clears the in-memory tab registry. Reopen via the chapter
+    // menu or a fresh kickoff.
+    panel.remove();
+    _chapterTabs.clear();
+  });
+  panel.querySelector('.chsum-dev').addEventListener('click', () => {
+    panel.classList.toggle('dev');
+    localStorage.setItem('paperchat.chsum.dev', panel.classList.contains('dev') ? '1' : '0');
+  });
+  return panel;
+}
+
+function setActiveTab(tabId) {
+  const panel = document.getElementById('chsum-panel');
+  if (!panel) return;
+  for (const t of panel.querySelectorAll('.chsum-tab')) {
+    t.classList.toggle('chsum-tab--active', t.dataset.tab === tabId);
+  }
+  for (const b of panel.querySelectorAll('.chsum-body')) {
+    b.hidden = b.dataset.tab !== tabId;
+  }
+}
+
+function openChapterSummaryPanel(paper, ch) {
+  // If a tab for this chapter already exists, reactivate it and return
+  // its api (regenerate / reattach paths reuse rather than duplicate).
+  if (_chapterTabs.has(ch.id)) {
+    const existing = _chapterTabs.get(ch.id);
+    setActiveTab(existing.tabId);
+    return existing;
+  }
+
+  const panel = ensureChapterPanel();
+  const tabsEl = panel.querySelector('#chsum-tabs');
+  const bodiesEl = panel.querySelector('#chsum-bodies');
+  const tabId = `tab-${Math.random().toString(36).slice(2, 9)}`;
+
+  // Tab bar entry
+  const tab = document.createElement('li');
+  tab.className = 'chsum-tab';
+  tab.dataset.tab = tabId;
+  tab.innerHTML = `
+    <span class="chsum-tab-spin"></span>
+    <span class="chsum-tab-label" title="${escapeHtml(ch.title)}">${escapeHtml(truncate(ch.title, 22))}</span>
+    <span class="chsum-tab-tokens" title="Tokens used so far: input · output"></span>
+    <span class="chsum-tab-cost" title="Anthropic API cost (from SDK total_cost_usd)"></span>
+    <button class="chsum-tab-close" type="button" title="Close tab" aria-label="Close tab">✕</button>
+  `;
+  tabsEl.appendChild(tab);
+  tab.addEventListener('click', (e) => {
+    if (e.target.closest('.chsum-tab-close')) return;
+    setActiveTab(tabId);
+  });
+  tab.querySelector('.chsum-tab-close').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeTab(tabId);
+  });
+
+  // Body for this tab
+  const body = document.createElement('div');
+  body.className = 'chsum-body';
+  body.dataset.tab = tabId;
+  body.innerHTML = `
+    <div class="chsum-meta">
+      <span class="chsum-tokens">0 in · 0 out</span>
+      <span class="chsum-cost" hidden></span>
+      <button class="chsum-live" type="button" title="Open live preview — auto-reloads as the agent writes">👁 Watch live</button>
+      <button class="chsum-files" type="button" title="Browse all artifacts in the workdir">📁 Files</button>
+    </div>
+    <div class="chsum-view chsum-view--conv">
+      <ol class="chsum-steps"></ol>
+      <ul class="chsum-workers" hidden></ul>
+      <pre class="chsum-log"></pre>
+      <div class="chsum-result" hidden></div>
+    </div>
+    <div class="chsum-view chsum-view--files" hidden>
+      <header class="chsum-files-head">
+        <button class="chsum-files-back" type="button" title="Back to conversation">‹ Back</button>
+        <span class="chsum-files-path">Workdir</span>
+        <a class="chsum-files-open-new" target="_blank" rel="noopener" title="Open raw" hidden>⤴</a>
+      </header>
+      <div class="chsum-files-body">Loading…</div>
+    </div>
+  `;
+  bodiesEl.appendChild(body);
+  // Derive the dirName for live preview from the chapter id (mirrors the
+  // server-side safeId). Used by Watch-live + file-path links.
+  const safeIdCli = (s) => String(s).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 48);
+  const dirName = `chapter-${safeIdCli(paper.id)}-${safeIdCli(ch.id)}`;
+  // Absolute workdir prefix the agent may emit; we strip it to render
+  // clickable relative paths in the log.
+  const workdirAbsForLinks = `/Users/eporat/paperchat/cc-workdir/${dirName}`;
+  body.querySelector('.chsum-live').addEventListener('click', () => {
+    const url = `/cc-workdir/${encodeURIComponent(dirName)}/index.html`;
+    openChapterSiteInline(url, `${paper.name || ''} — ${ch.title}`, { liveDirName: dirName });
+  });
+  // In-tab files view — swaps between the conversation log and a file
+  // browser without opening a modal. Click ← Back to return.
+  const convView = body.querySelector('.chsum-view--conv');
+  const filesView = body.querySelector('.chsum-view--files');
+  const filesPath = filesView.querySelector('.chsum-files-path');
+  const filesOpenNew = filesView.querySelector('.chsum-files-open-new');
+  const filesBody = filesView.querySelector('.chsum-files-body');
+
+  function showConv() {
+    convView.hidden = false;
+    filesView.hidden = true;
+  }
+  function showFilesList() {
+    convView.hidden = true;
+    filesView.hidden = false;
+    filesPath.textContent = 'Workdir / ' + dirName;
+    filesOpenNew.hidden = true;
+    filesBody.textContent = 'Loading…';
+    fetch(`/api/chapter_runs/files?dir=${encodeURIComponent(dirName)}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(files => {
+        if (!files.length) { filesBody.textContent = '(no files yet)'; return; }
+        const ul = document.createElement('ul');
+        ul.className = 'chsum-files-list';
+        for (const f of files) {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = '#';
+          a.className = 'chsum-files-link';
+          a.textContent = f.path;
+          a.addEventListener('click', (e) => { e.preventDefault(); showFile(f.path); });
+          const meta = document.createElement('span');
+          meta.className = 'chsum-files-meta';
+          meta.textContent = `${(f.size / 1024).toFixed(1)} KB`;
+          li.appendChild(a); li.appendChild(meta);
+          ul.appendChild(li);
+        }
+        filesBody.innerHTML = '';
+        filesBody.appendChild(ul);
+      })
+      .catch(e => { filesBody.textContent = 'Failed: ' + e.message; });
+  }
+  function showFile(relPath) {
+    convView.hidden = true;
+    filesView.hidden = false;
+    const url = `/cc-workdir/${encodeURIComponent(dirName)}/${relPath.split('/').map(encodeURIComponent).join('/')}`;
+    filesPath.textContent = relPath;
+    filesOpenNew.href = url;
+    filesOpenNew.hidden = false;
+    filesBody.textContent = 'Loading…';
+    const ext = (relPath.split('.').pop() || '').toLowerCase();
+    if (['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
+      filesBody.innerHTML = `<img class="chsum-files-img" src="${url}" />`;
+      return;
+    }
+    if (ext === 'html' || ext === 'htm') {
+      filesBody.innerHTML = `
+        <div class="chsum-files-split">
+          <iframe class="chsum-files-frame" src="${url}"></iframe>
+          <pre class="chsum-files-source">Loading…</pre>
+        </div>`;
+      fetch(url).then(r => r.text()).then(t => {
+        filesBody.querySelector('.chsum-files-source').textContent = t;
+      });
+      return;
+    }
+    fetch(url).then(r => r.text()).then(t => {
+      if (ext === 'json') { try { t = JSON.stringify(JSON.parse(t), null, 2); } catch {} }
+      else if (ext === 'jsonl') {
+        try { t = t.split('\n').filter(Boolean).map(l => JSON.stringify(JSON.parse(l), null, 2)).join('\n---\n'); } catch {}
+      }
+      filesBody.innerHTML = `<pre class="chsum-files-source"></pre>`;
+      filesBody.querySelector('.chsum-files-source').textContent = t;
+    }).catch(e => { filesBody.textContent = 'Failed: ' + e.message; });
+  }
+
+  body.querySelector('.chsum-files').addEventListener('click', showFilesList);
+  filesView.querySelector('.chsum-files-back').addEventListener('click', () => {
+    if (filesPath.textContent.startsWith('Workdir')) showConv();
+    else showFilesList();  // from a file → list
+  });
+
+  const tokensEl = body.querySelector('.chsum-tokens');
+  const costEl = body.querySelector('.chsum-cost');
+  const stepsEl = body.querySelector('.chsum-steps');
+  const workersEl = body.querySelector('.chsum-workers');
+  const logEl = body.querySelector('.chsum-log');
+  const resultEl = body.querySelector('.chsum-result');
+
+  // Auto-follow + manual lock. Standard chat-app behavior: if the user
+  // is at (or near) the bottom of the log, new lines auto-scroll into
+  // view; if they've scrolled up, hold their position and surface a
+  // small "↓ jump to latest" affordance so they can rejoin the tail.
+  let _autoFollow = true;
+  const NEAR_BOTTOM_PX = 24;
+  function isAtBottom() {
+    return logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < NEAR_BOTTOM_PX;
+  }
+  logEl.addEventListener('scroll', () => {
+    _autoFollow = isAtBottom();
+    if (jumpBtn) jumpBtn.hidden = _autoFollow;
+  });
+  // "Jump to latest" pill — appears when the user has scrolled up
+  // and we're no longer auto-following. Click to snap back to the
+  // bottom and resume following.
+  const jumpBtn = document.createElement('button');
+  jumpBtn.type = 'button';
+  jumpBtn.className = 'chsum-jump-btn';
+  jumpBtn.hidden = true;
+  jumpBtn.textContent = '↓ Jump to latest';
+  jumpBtn.addEventListener('click', () => {
+    logEl.scrollTop = logEl.scrollHeight;
+    _autoFollow = true;
+    jumpBtn.hidden = true;
+  });
+  logEl.parentElement?.appendChild(jumpBtn);
+  // Replace the previous "always scroll to bottom" idiom: call this
+  // after every appendChild so each log helper can stay one-liners.
+  function followIfAtBottom() {
+    if (_autoFollow) logEl.scrollTop = logEl.scrollHeight;
+    else if (jumpBtn) jumpBtn.hidden = false;
+  }
+
+  // Track parallel Task subagents (one per section). Each adds a chip
+  // with a spinner; tool_result flips it to ✓/✗.
+  const workersById = new Map();
+  function addWorker(id, desc) {
+    if (!id || workersById.has(id)) return;
+    workersEl.hidden = false;
+    const li = document.createElement('li');
+    li.className = 'chsum-worker';
+    li.dataset.workerId = id;
+    li.innerHTML = `<span class="chsum-worker-spin"></span><span class="chsum-worker-label">${escapeHtml(truncate(desc, 50))}</span>`;
+    workersEl.appendChild(li);
+    workersById.set(id, li);
+  }
+  function completeWorker(id, ok) {
+    const li = workersById.get(id);
+    if (!li) return;
+    li.classList.add(ok === false ? 'chsum-worker--fail' : 'chsum-worker--done');
+    li.querySelector('.chsum-worker-spin').textContent = ok === false ? '✗' : '✓';
+  }
+
+  function closeTab(id) {
+    panel.querySelector(`.chsum-tab[data-tab="${id}"]`)?.remove();
+    panel.querySelector(`.chsum-body[data-tab="${id}"]`)?.remove();
+    // Remove the api from the registry.
+    for (const [k, v] of _chapterTabs.entries()) if (v.tabId === id) _chapterTabs.delete(k);
+    // Activate the next remaining tab, or close the whole panel if none.
+    const remaining = panel.querySelector('.chsum-tab');
+    if (remaining) setActiveTab(remaining.dataset.tab);
+    else panel.remove();
+  }
+
+  // Per-tab running token totals — straight from the API's usage object.
+  // The SDK emits a `usage` event for every partial assistant message,
+  // each with the latest tokens-so-far for that turn. We keep one
+  // canonical entry per msgId and sum across turns, so a partial
+  // report gets overwritten by the final one for the same turn.
+  // (Per Anthropic's SDK type def, the Usage object has no
+  // thinking_tokens field — thinking is rolled into output_tokens.)
+  const usageByMsg = new Map();
+  const usageTotals = { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 };
+  function recomputeUsageTotals() {
+    usageTotals.input = 0;
+    usageTotals.output = 0;
+    usageTotals.cacheCreation = 0;
+    usageTotals.cacheRead = 0;
+    for (const u of usageByMsg.values()) {
+      usageTotals.input         += u.input         || 0;
+      usageTotals.output        += u.output        || 0;
+      usageTotals.cacheCreation += u.cacheCreation || 0;
+      usageTotals.cacheRead     += u.cacheRead     || 0;
+    }
+  }
+  function fmtK(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  }
+  function renderTokens() {
+    // Real input = fresh input + cache_creation (new content added to
+    // context this turn). cache_read is just re-counting cached content
+    // we already saw on a prior turn, so summing it inflates the number
+    // misleadingly.
+    const inSum = usageTotals.input + usageTotals.cacheCreation;
+    tokensEl.textContent =
+      `${inSum.toLocaleString()} in · ${usageTotals.output.toLocaleString()} out`;
+    tokensEl.title =
+      `${usageTotals.input.toLocaleString()} fresh + ${usageTotals.cacheCreation.toLocaleString()} cached this run ` +
+      `(${usageTotals.cacheRead.toLocaleString()} cache reads also; ignored in display since they re-count prior context). ` +
+      'output_tokens already includes any thinking tokens.';
+    const tabTokens = tab.querySelector('.chsum-tab-tokens');
+    if (tabTokens) {
+      tabTokens.textContent = `${fmtK(inSum)}·${fmtK(usageTotals.output)}`;
+    }
+  }
+
+  // Per-tab step state. Each step tracks startedAt + endedAt so we
+  // can show how long every phase took.
+  const steps = new Map();
+  let activeStepId = null;
+  function fmtDur(ms) {
+    if (!ms || ms < 0) return '';
+    const s = ms / 1000;
+    if (s < 60) return s.toFixed(s < 10 ? 1 : 0) + 's';
+    const m = Math.floor(s / 60), rs = Math.round(s - m * 60);
+    return rs ? `${m}m ${rs}s` : `${m}m`;
+  }
+  function stepDur(s) {
+    if (s.status === 'active') return Date.now() - (s.startedAt || Date.now());
+    return (s.endedAt || 0) - (s.startedAt || 0);
+  }
+  function endStep(s) {
+    if (s.endedAt) return;
+    s.endedAt = Date.now();
+  }
+  function renderSteps() {
+    stepsEl.innerHTML = '';
+    for (const s of steps.values()) {
+      const li = document.createElement('li');
+      li.className = `chsum-step chsum-step--${s.status}`;
+      const mark = s.status === 'done' ? '✓'
+                  : s.status === 'fail' ? '✗'
+                  : s.status === 'active' ? '<span class="chsum-spin"></span>'
+                  : '○';
+      const dur = fmtDur(stepDur(s));
+      li.innerHTML = `<span class="chsum-mark">${mark}</span><span class="chsum-icon">${s.icon || ''}</span><span class="chsum-label">${escapeHtml(s.label)}</span>${dur ? `<span class="chsum-dur">${dur}</span>` : ''}`;
+      stepsEl.appendChild(li);
+    }
+  }
+  function setStep(id, label, { icon } = {}) {
+    const now = Date.now();
+    if (steps.has(id)) {
+      const s = steps.get(id);
+      s.label = label;
+      if (icon) s.icon = icon;
+      // Allow re-entering a phase: if the agent has done planning →
+      // reading → planning again, swing back to plan rather than
+      // getting stuck on the prior phase. Don't override a fail.
+      if (s.status !== 'fail') {
+        for (const other of steps.values()) {
+          if (other.id !== id && other.status === 'active') { other.status = 'done'; endStep(other); }
+        }
+        if (s.status === 'done') { s.startedAt = now; s.endedAt = null; }  // re-entering resets the timer
+        s.status = 'active';
+      }
+    } else {
+      for (const s of steps.values()) if (s.status === 'active') { s.status = 'done'; endStep(s); }
+      steps.set(id, { id, label, icon, status: 'active', startedAt: now, endedAt: null });
+    }
+    activeStepId = id;
+    renderSteps();
+    if (!tab.classList.contains('chsum-tab--active')) {
+      tab.classList.add('chsum-tab--update');
+      setTimeout(() => tab.classList.remove('chsum-tab--update'), 1200);
+    }
+  }
+  // Live-tick the active step's duration once a second so the user
+  // can see it grow. Stops automatically when no active step remains.
+  setInterval(() => {
+    let anyActive = false;
+    for (const s of steps.values()) if (s.status === 'active') { anyActive = true; break; }
+    if (anyActive) renderSteps();
+  }, 1000);
+  function completeStep(id) {
+    const s = steps.get(id);
+    if (s) { s.status = 'done'; endStep(s); renderSteps(); }
+  }
+  function completeAll() {
+    for (const s of steps.values()) if (s.status === 'active') { s.status = 'done'; endStep(s); }
+    renderSteps();
+    tab.classList.add('chsum-tab--done');
+  }
+  function failStep(msg) {
+    const s = activeStepId ? steps.get(activeStepId) : null;
+    if (s) { s.status = 'fail'; s.label += ` — ${msg}`; renderSteps(); }
+    tab.classList.add('chsum-tab--fail');
+  }
+
+  const api = {
+    tabId,
+    chapterId: ch.id,
+    log(line) {
+      const div = document.createElement('div');
+      div.className = 'chsum-line';
+      div.textContent = line;
+      logEl.appendChild(div);
+      followIfAtBottom();
+    },
+    logStage(message) {
+      const div = document.createElement('div');
+      div.className = 'chsum-line chsum-line--stage';
+      div.textContent = '■ ' + message;
+      logEl.appendChild(div);
+      followIfAtBottom();
+    },
+    logToolUse(ev) {
+      const div = document.createElement('div');
+      div.className = 'chsum-line chsum-line--tool';
+      div.dataset.toolId = ev.id;
+      const name = document.createElement('span');
+      name.className = 'chsum-tool-name';
+      name.textContent = '→ ' + ev.name;
+      div.appendChild(name);
+      div.appendChild(document.createTextNode('  '));
+      // For file-path tools, render the path as a clickable link that
+      // opens the file in an inline viewer. For Bash, show the command.
+      const path = ev.args?.file_path;
+      const cmd  = ev.args?.command;
+      const pat  = ev.args?.pattern;
+      if (path) {
+        const a = document.createElement('a');
+        a.className = 'chsum-tool-path';
+        a.href = '#';
+        a.textContent = path.replace(workdirAbsForLinks, '').replace(/^\//, '');
+        a.title = 'Open ' + path;
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const rel = path.startsWith('/') ? path.replace(workdirAbsForLinks, '').replace(/^\//, '') : path;
+          showFile(rel);  // in-tab view, not a modal
+        });
+        div.appendChild(a);
+        // Inline thumbnail for images — the agent reads composites,
+        // figures, page rasters, and preview screenshots dozens of
+        // times per chapter. Showing what it actually saw makes the
+        // log much more useful. Click the thumb to zoom (uses the
+        // same overlay as the chapter site's .pc-figure--zoom).
+        const rel = path.startsWith('/')
+          ? path.replace(workdirAbsForLinks, '').replace(/^\//, '')
+          : path;
+        if (/\.(png|jpe?g|gif|webp|svg)$/i.test(rel)) {
+          const imgUrl = `/cc-workdir/${dirName}/${rel.split('/').map(encodeURIComponent).join('/')}`;
+          const wrap = document.createElement('span');
+          wrap.className = 'chsum-tool-thumb';
+          const img = document.createElement('img');
+          img.src = imgUrl;
+          img.loading = 'lazy';
+          img.alt = rel;
+          img.title = 'Click to zoom';
+          img.addEventListener('click', (e) => {
+            e.preventDefault();
+            openImageZoom(imgUrl, rel);
+          });
+          wrap.appendChild(img);
+          div.appendChild(wrap);
+        }
+      } else if (ev.name === 'Task') {
+        const span = document.createElement('span');
+        span.className = 'chsum-tool-args';
+        span.textContent = ev.args?.description || ev.args?.subagent_type || '';
+        div.appendChild(span);
+      } else if (cmd) {
+        const span = document.createElement('span');
+        span.className = 'chsum-tool-cmd';
+        span.textContent = truncate(cmd, 120);
+        div.appendChild(span);
+      } else if (pat) {
+        const span = document.createElement('span');
+        span.className = 'chsum-tool-args';
+        span.textContent = pat;
+        div.appendChild(span);
+      }
+      logEl.appendChild(div);
+      followIfAtBottom();
+    },
+    logToolResult(ev) {
+      const div = document.createElement('div');
+      div.className = 'chsum-line chsum-line--result' + (ev.ok ? ' ok' : ' fail');
+      div.textContent = '  ' + (ev.ok ? '✓' : '✗') + ' ' + truncate(ev.result || '', 160);
+      logEl.appendChild(div);
+      followIfAtBottom();
+    },
+    text(t) {
+      // Streaming assistant text — append to the last text line if there
+      // is one, else create a new one.
+      let last = logEl.lastElementChild;
+      if (!last || !last.classList.contains('chsum-line--text')) {
+        last = document.createElement('div');
+        last.className = 'chsum-line chsum-line--text';
+        logEl.appendChild(last);
+      }
+      last.textContent += t;
+      followIfAtBottom();
+    },
+    thinking(t) {
+      let last = logEl.lastElementChild;
+      if (!last || !last.classList.contains('chsum-line--think')) {
+        last = document.createElement('div');
+        last.className = 'chsum-line chsum-line--think';
+        logEl.appendChild(last);
+      }
+      last.textContent += t;
+      followIfAtBottom();
+    },
+    setStep,
+    completeStep,
+    completeAll,
+    failStep,
+    addWorker,
+    completeWorker,
+    addUsage(ev) {
+      // Skip parent-only usage events once the SDK has emitted the
+      // authoritative aggregate (which includes every subagent). Without
+      // this, late streaming partials would overwrite the real totals.
+      if (this._haveFinalUsage) return;
+      // Replace any prior usage for this message id (partial → final).
+      // Falls back to a synthetic id for very old runs without msgId.
+      const id = ev.msgId || `anon-${usageByMsg.size}`;
+      usageByMsg.set(id, {
+        input: ev.input || 0,
+        output: ev.output || 0,
+        cacheCreation: ev.cacheCreation || 0,
+        cacheRead: ev.cacheRead || 0,
+      });
+      recomputeUsageTotals();
+      renderTokens();
+    },
+    setFinalUsage(ev) {
+      // Authoritative per-model aggregate from the SDK's result message.
+      // Parent agent's per-turn `usage` events only cover the parent's
+      // own work — subagent (section-writer) token output is missing
+      // from those. modelUsage sums parent + every subagent, broken out
+      // per model, so the totals reflect real spend.
+      this._haveFinalUsage = true;
+      const t = ev.totals || {};
+      usageByMsg.clear();
+      usageByMsg.set('final', {
+        input: t.input || 0,
+        output: t.output || 0,
+        cacheCreation: t.cacheCreation || 0,
+        cacheRead: t.cacheRead || 0,
+      });
+      recomputeUsageTotals();
+      renderTokens();
+      if (typeof ev.totalCostUsd === 'number') this.setCost(ev.totalCostUsd);
+    },
+    setCost(usd) {
+      if (typeof usd !== 'number' || !isFinite(usd)) return;
+      costEl.textContent = `$${usd.toFixed(4)}`;
+      costEl.hidden = false;
+      // Mirror onto the tab so the run's cost is visible from the tab bar.
+      const tabCost = tab.querySelector('.chsum-tab-cost');
+      if (tabCost) tabCost.textContent = `$${usd.toFixed(usd < 0.01 ? 4 : 2)}`;
+    },
+    done(workdir) {
+      resultEl.hidden = false;
+      const safe = encodeURIComponent(workdir.split('/').pop());
+      const url = `/cc-workdir/${safe}/index.html`;
+      resultEl.innerHTML = `<button class="chsum-open" type="button">Open chapter site →</button>`;
+      resultEl.querySelector('.chsum-open').addEventListener('click', () => {
+        openChapterSiteInline(url, `${paper.name || ''} — ${ch.title}`);
+      });
+      tab.classList.add('chsum-tab--done');
+      // Make the button discoverable: if the panel is minimized when
+      // the run finishes (user collapsed it during the build), pop it
+      // open so the Open button is unmistakable. Also focus this tab
+      // so the result row is the one in view.
+      const panel = document.getElementById('chsum-panel');
+      if (panel?.classList.contains('minimized')) {
+        panel.classList.remove('minimized');
+        try { localStorage.setItem('paperchat.chsum.min', '0'); } catch {}
+        const btn = panel.querySelector('.chsum-min');
+        if (btn) { btn.textContent = '_'; btn.title = 'Minimize (keeps running)'; }
+      }
+      tab.click();
+      resultEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    },
+  };
+
+  _chapterTabs.set(ch.id, api);
+  setActiveTab(tabId);
+  return api;
+}
+
+// Inline file viewer — opens any file from a chapter workdir in a modal
+// with content tailored to the file type. Used by clickable file paths
+// in the conversation log + the Files browser button.
+function openFileViewer(dirName, relPath) {
+  document.getElementById('file-viewer')?.remove();
+  const url = `/cc-workdir/${encodeURIComponent(dirName)}/${relPath.split('/').map(encodeURIComponent).join('/')}`;
+  const wrap = document.createElement('div');
+  wrap.id = 'file-viewer';
+  wrap.innerHTML = `
+    <header class="fv-head">
+      <button class="fv-back" type="button" title="Close (Esc)">✕</button>
+      <span class="fv-path">${escapeHtml(relPath)}</span>
+      <a class="fv-open-new" href="${url}" target="_blank" rel="noopener" title="Open raw">⤴</a>
+    </header>
+    <div class="fv-body" id="fv-body">Loading…</div>
+  `;
+  document.body.appendChild(wrap);
+  const close = () => { wrap.remove(); document.removeEventListener('keydown', esc); };
+  function esc(e) { if (e.key === 'Escape') close(); }
+  wrap.querySelector('.fv-back').addEventListener('click', close);
+  document.addEventListener('keydown', esc);
+
+  const body = wrap.querySelector('#fv-body');
+  const ext = (relPath.split('.').pop() || '').toLowerCase();
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
+    body.innerHTML = `<img src="${url}" />`;
+    return;
+  }
+  if (ext === 'html' || ext === 'htm') {
+    // Show the raw HTML source AND a rendered preview side-by-side.
+    body.innerHTML = `
+      <div class="fv-split">
+        <iframe class="fv-frame" src="${url}"></iframe>
+        <pre class="fv-source">Loading…</pre>
+      </div>
+    `;
+    fetch(url).then(r => r.text()).then(t => {
+      const pre = body.querySelector('.fv-source');
+      pre.textContent = t;
+    });
+    return;
+  }
+  // Default: fetch as text + display in a <pre>; pretty-print JSON.
+  fetch(url).then(r => r.text()).then(t => {
+    if (ext === 'json' || ext === 'jsonl') {
+      try {
+        if (ext === 'json') { t = JSON.stringify(JSON.parse(t), null, 2); }
+        else { t = t.split('\n').filter(Boolean).map(l => JSON.stringify(JSON.parse(l), null, 2)).join('\n---\n'); }
+      } catch {}
+    }
+    body.innerHTML = `<pre class="fv-source">${escapeHtml(t)}</pre>`;
+  }).catch(e => { body.textContent = 'Failed: ' + e.message; });
+}
+
+// File browser for a chapter workdir. Lists every artifact (sections,
+// plan.json, figures, trace, etc.) with click-to-view.
+async function openWorkdirFiles(dirName, displayTitle) {
+  document.getElementById('file-viewer')?.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'file-viewer';
+  wrap.innerHTML = `
+    <header class="fv-head">
+      <button class="fv-back" type="button" title="Close (Esc)">✕</button>
+      <span class="fv-path">${escapeHtml(displayTitle || 'Files')} — workdir</span>
+    </header>
+    <div class="fv-body fv-list-body" id="fv-body">Loading…</div>
+  `;
+  document.body.appendChild(wrap);
+  const close = () => { wrap.remove(); document.removeEventListener('keydown', esc); };
+  function esc(e) { if (e.key === 'Escape') close(); }
+  wrap.querySelector('.fv-back').addEventListener('click', close);
+  document.addEventListener('keydown', esc);
+
+  const body = wrap.querySelector('#fv-body');
+  try {
+    const r = await fetch(`/api/chapter_runs/files?dir=${encodeURIComponent(dirName)}`);
+    if (!r.ok) { body.textContent = 'Listing failed: ' + r.status; return; }
+    const files = await r.json();
+    if (!files.length) { body.textContent = '(no files yet)'; return; }
+    const ul = document.createElement('ul');
+    ul.className = 'fv-list';
+    for (const f of files) {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '#';
+      a.className = 'fv-list-link';
+      a.textContent = f.path;
+      a.addEventListener('click', (e) => { e.preventDefault(); openFileViewer(dirName, f.path); });
+      const meta = document.createElement('span');
+      meta.className = 'fv-list-meta';
+      meta.textContent = `${(f.size / 1024).toFixed(1)} KB`;
+      li.appendChild(a);
+      li.appendChild(meta);
+      ul.appendChild(li);
+    }
+    body.innerHTML = '';
+    body.appendChild(ul);
+  } catch (e) {
+    body.textContent = 'Failed: ' + e.message;
+  }
+}
+
+// Flash the browser tab title to alert the user when a chapter run
+// finishes while paperchat is in a background tab. Restores when the
+// tab regains focus or after 60s.
+let _titleFlashTimer = null;
+function flashTabTitle(prefix) {
+  // Don't flash if the page is already visible.
+  if (document.visibilityState === 'visible') return;
+  const original = document.title;
+  document.title = `${prefix} — ${original}`;
+  const restore = () => {
+    if (_titleFlashTimer) { clearTimeout(_titleFlashTimer); _titleFlashTimer = null; }
+    document.title = original;
+    document.removeEventListener('visibilitychange', onVis);
+  };
+  function onVis() { if (document.visibilityState === 'visible') restore(); }
+  document.addEventListener('visibilitychange', onVis);
+  _titleFlashTimer = setTimeout(restore, 60_000);
+}
+
+// Inline SPA-style viewer for a generated chapter site. Opens the URL in
+// an iframe overlay with a back button instead of a new tab so the user
+// stays inside paperchat.
+//
+// When `liveDirName` is provided, the viewer polls the server for
+// index.html mtime every 1s and reloads the iframe on change — useful
+// while the agent is still generating the site.
+// Full-screen zoom overlay for inline thumbnails in the chapter-summary
+// log. Click anywhere or press Esc to close. Mirrors the chapter-site
+// lightbox idiom so the interaction is consistent across surfaces.
+function openImageZoom(url, alt) {
+  document.getElementById('chsum-img-zoom')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'chsum-img-zoom';
+  overlay.className = 'chsum-img-zoom';
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = alt || '';
+  overlay.appendChild(img);
+  const close = () => {
+    overlay.remove();
+    document.removeEventListener('keydown', esc);
+  };
+  function esc(e) { if (e.key === 'Escape') close(); }
+  overlay.addEventListener('click', close);
+  document.addEventListener('keydown', esc);
+  document.body.appendChild(overlay);
+}
+
+// One-time MutationObserver: whenever #chapter-viewer is removed from
+// the DOM by ANY path (close button, Esc, opening a new viewer that
+// swaps it out, openPaper switching the underlying paper, etc.), the
+// sessionStorage persistence is cleared. Without this, the entry can
+// outlive its viewer and refresh teleports the user back into a
+// chapter site they had already left.
+if (!window._chsiteWatchInstalled) {
+  window._chsiteWatchInstalled = true;
+  new MutationObserver((muts) => {
+    let removed = false, added = false;
+    for (const m of muts) {
+      for (const node of m.removedNodes) if (node && node.id === 'chapter-viewer') removed = true;
+      for (const node of m.addedNodes)   if (node && node.id === 'chapter-viewer') added = true;
+    }
+    // Only clear when removed-without-replacement. Swap (remove + add
+    // in same batch) is openChapterSiteInline reopening with a new
+    // URL — sessionStorage already has the new entry by then.
+    if (removed && !added) {
+      try { sessionStorage.removeItem('paperchat.chsite'); } catch {}
+    }
+  }).observe(document.body, { childList: true });
+}
+
+function openChapterSiteInline(url, title, opts = {}) {
+  document.getElementById('chapter-viewer')?.remove();
+  const liveDirName = opts.liveDirName || null;
+  // Persist so a page refresh restores the chapter viewer instead of
+  // dumping the user back into the underlying PDF viewer. sessionStorage
+  // (not localStorage) — we want this scoped to the current tab, and
+  // gone when the tab closes. The MutationObserver above clears it
+  // automatically the moment the viewer leaves the DOM.
+  try {
+    sessionStorage.setItem('paperchat.chsite', JSON.stringify({ url, title, liveDirName }));
+  } catch {}
+  const wrap = document.createElement('div');
+  wrap.id = 'chapter-viewer';
+  // In live mode the iframe starts blank with a "waiting" placeholder.
+  // We only point it at the chapter URL once we've observed the file
+  // exists (mtime > 0) — otherwise an early click yields a 404 that
+  // sticks until manual reload.
+  const initialSrc = liveDirName ? 'about:blank' : url;
+  wrap.innerHTML = `
+    <header class="cv-head">
+      <button class="cv-back" type="button" title="Back to paper">← Back</button>
+      <span class="cv-title">${escapeHtml(title || 'Chapter site')}</span>
+      ${liveDirName ? '<span class="cv-live" title="Live preview — auto-reloads on each save"><span class="cv-live-dot"></span>LIVE</span>' : ''}
+      <a class="cv-open-new" href="${url}" target="_blank" rel="noopener" title="Open in new tab">⤴</a>
+    </header>
+    ${liveDirName ? '<div class="cv-waiting">⠋ Waiting for the agent\'s first write of index.html…</div>' : ''}
+    <iframe class="cv-frame" src="${initialSrc}"${liveDirName ? ' hidden' : ''}></iframe>
+  `;
+  document.body.appendChild(wrap);
+  const iframe = wrap.querySelector('.cv-frame');
+  const waitingEl = wrap.querySelector('.cv-waiting');
+
+  let pollTimer = null;
+  let lastMtime = 0;
+  if (liveDirName) {
+    const poll = async () => {
+      try {
+        const r = await fetch(`/api/chapter_runs/index_mtime?dir=${encodeURIComponent(liveDirName)}`);
+        if (!r.ok) return;
+        const { mtime } = await r.json();
+        if (mtime > 0 && mtime !== lastMtime) {
+          // First non-zero mtime → reveal the iframe and load the page.
+          // Subsequent changes → cache-bust to force a fresh load.
+          iframe.src = url + (url.includes('?') ? '&' : '?') + 't=' + mtime;
+          if (lastMtime === 0) {
+            iframe.hidden = false;
+            if (waitingEl) waitingEl.remove();
+          }
+          lastMtime = mtime;
+        }
+      } catch {}
+    };
+    poll();
+    pollTimer = setInterval(poll, 1000);
+  }
+
+  const close = () => {
+    wrap.remove();
+    if (pollTimer) clearInterval(pollTimer);
+    document.removeEventListener('keydown', esc);
+    try { sessionStorage.removeItem('paperchat.chsite'); } catch {}
+  };
+  function esc(e) { if (e.key === 'Escape') close(); }
+  wrap.querySelector('.cv-back').addEventListener('click', close);
+  document.addEventListener('keydown', esc);
+}
+
+function chTitleFromPanel(panel) {
+  // not used yet — placeholder for richer titling
+  return document.querySelector('#chsum-panel .chsum-sub')?.textContent || '';
+}
 
 // ---- Upload + drop ----
 
@@ -1561,6 +2945,17 @@ window.addEventListener('drop', async (e) => {
   // Open the most-recent paper if any
   const all = await Papers.list();
   if (all.length) await openPaper(all[0].id);
+  // Restore the chapter-viewer overlay if the user was on one before
+  // the refresh. The actual run state (steps, log, live preview) is
+  // already restored by reattachActiveRuns; this just brings back the
+  // overlay surface so the user lands where they left off.
+  try {
+    const saved = sessionStorage.getItem('paperchat.chsite');
+    if (saved) {
+      const { url, title, liveDirName } = JSON.parse(saved);
+      if (url) openChapterSiteInline(url, title || '', liveDirName ? { liveDirName } : {});
+    }
+  } catch {}
   // One-shot: extract titles for any papers that don't have one (background)
   backfillTitles();
 })();

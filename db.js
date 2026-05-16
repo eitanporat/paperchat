@@ -1,126 +1,65 @@
-// Tiny IndexedDB wrapper. Three stores: papers, threads, messages.
-const DB_NAME = 'paperchat';
-const LEGACY_DB_NAMES = ['fermat-clone'];
-const DB_VERSION = 1;
+// HTTP-backed store. Talks to the dev-server's /api/{papers,threads,messages}
+// endpoints so papers, threads and messages are persisted on disk under
+// ~/.paperchat/ (configurable via PAPERCHAT_DATA). Same exported surface as the
+// previous IndexedDB version so app.js doesn't have to change.
 
-let _db = null;
+const LEGACY_DB_NAMES = ['paperchat', 'fermat-clone'];
 
-export function openDb() {
-  if (_db) return Promise.resolve(_db);
-  return openInternal().then(async (db) => {
-    _db = db;
-    await maybeMigrateLegacy(db);
-    return db;
-  });
+async function jsonOrNull(r) {
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.status === 204 ? null : r.json();
 }
 
-function openInternal(name = DB_NAME) {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(name, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('papers')) {
-        const papers = db.createObjectStore('papers', { keyPath: 'id' });
-        papers.createIndex('lastOpened', 'lastOpened');
-      }
-      if (!db.objectStoreNames.contains('threads')) {
-        const threads = db.createObjectStore('threads', { keyPath: 'id' });
-        threads.createIndex('paperId', 'paperId');
-      }
-      if (!db.objectStoreNames.contains('messages')) {
-        const messages = db.createObjectStore('messages', { keyPath: 'id' });
-        messages.createIndex('threadId', 'threadId');
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+async function okOrThrow(r) {
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
 }
 
-// One-shot copy of papers/threads/messages from any legacy DB whose name we
-// used to use (e.g. an older project name) into the current DB. Runs only when
-// the new DB is empty so it never clobbers fresh data.
-async function maybeMigrateLegacy(newDb) {
-  const tx = newDb.transaction('papers', 'readonly');
-  const count = await new Promise((res, rej) => {
-    const r = tx.objectStore('papers').count();
-    r.onsuccess = () => res(r.result);
-    r.onerror = () => rej(r.error);
-  });
-  if (count > 0) return;
-
-  for (const legacyName of LEGACY_DB_NAMES) {
-    const legacyExists = await dbExists(legacyName);
-    if (!legacyExists) continue;
-    let legacy;
-    try { legacy = await openInternal(legacyName); }
-    catch { continue; }
-    const stores = ['papers', 'threads', 'messages'];
-    const data = {};
-    for (const s of stores) {
-      if (!legacy.objectStoreNames.contains(s)) continue;
-      data[s] = await new Promise((res, rej) => {
-        const r = legacy.transaction(s, 'readonly').objectStore(s).getAll();
-        r.onsuccess = () => res(r.result);
-        r.onerror = () => rej(r.error);
-      });
-    }
-    legacy.close();
-    if (!data.papers?.length) continue;
-    console.log(`[paperchat] migrating ${data.papers.length} papers + ${data.threads?.length || 0} threads from legacy "${legacyName}" DB`);
-    for (const s of stores) {
-      if (!data[s]?.length) continue;
-      const wt = newDb.transaction(s, 'readwrite').objectStore(s);
-      for (const item of data[s]) await new Promise((res, rej) => {
-        const r = wt.put(item);
-        r.onsuccess = () => res();
-        r.onerror = () => rej(r.error);
-      });
-    }
-  }
-}
-
-async function dbExists(name) {
-  if (typeof indexedDB.databases === 'function') {
-    const list = await indexedDB.databases().catch(() => []);
-    return list.some(d => d.name === name);
-  }
-  // Older Firefox: open and check if it's a fresh DB. Skip migration on those.
-  return false;
-}
-
-function tx(store, mode = 'readonly') {
-  return openDb().then(db => db.transaction(store, mode).objectStore(store));
-}
-
-function awaitReq(req) {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
+// ---- Papers ------------------------------------------------------------
 export const Papers = {
   async list() {
-    const store = await tx('papers');
-    const all = await awaitReq(store.getAll());
+    await ensureMigrated();
+    const r = await fetch('/api/papers');
+    if (!r.ok) throw new Error(`list papers: ${r.status}`);
+    const all = await r.json();
     return all.sort((a, b) => (b.lastOpened || 0) - (a.lastOpened || 0));
   },
   async get(id) {
-    const store = await tx('papers');
-    return awaitReq(store.get(id));
+    await ensureMigrated();
+    const meta = await jsonOrNull(await fetch(`/api/papers/${encodeURIComponent(id)}`));
+    if (!meta) return null;
+    // Load the PDF blob alongside metadata so callers can pass paper.blob
+    // straight to pdf.js, matching the old IndexedDB shape.
+    const br = await fetch(`/api/papers/${encodeURIComponent(id)}/blob`);
+    if (br.ok) meta.blob = await br.blob();
+    return meta;
   },
   async put(paper) {
-    const store = await tx('papers', 'readwrite');
-    await awaitReq(store.put(paper));
+    await ensureMigrated();
+    const { blob, ...meta } = paper;
+    await okOrThrow(await fetch(`/api/papers/${encodeURIComponent(paper.id)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(meta),
+    }));
+    // Upload the PDF only if we have one in memory AND the server doesn't
+    // already have it on disk. The id is a content hash so a blob, once
+    // stored, never needs re-uploading even on touch/title-backfill puts.
+    if (blob) {
+      const head = await fetch(`/api/papers/${encodeURIComponent(paper.id)}/blob`, { method: 'HEAD' });
+      if (!head.ok) {
+        await okOrThrow(await fetch(`/api/papers/${encodeURIComponent(paper.id)}/blob`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/pdf' },
+          body: blob,
+        }));
+      }
+    }
     return paper;
   },
   async delete(id) {
-    const store = await tx('papers', 'readwrite');
-    await awaitReq(store.delete(id));
-    // cascade
-    const ts = await Threads.byPaper(id);
-    for (const t of ts) await Threads.delete(t.id);
+    await ensureMigrated();
+    await okOrThrow(await fetch(`/api/papers/${encodeURIComponent(id)}`, { method: 'DELETE' }));
   },
   async touch(id) {
     const p = await this.get(id);
@@ -130,45 +69,55 @@ export const Papers = {
   },
 };
 
+// ---- Threads -----------------------------------------------------------
 export const Threads = {
   async byPaper(paperId) {
-    const store = await tx('threads');
-    const idx = store.index('paperId');
-    const all = await awaitReq(idx.getAll(paperId));
+    await ensureMigrated();
+    const r = await fetch(`/api/threads?paperId=${encodeURIComponent(paperId)}`);
+    if (!r.ok) throw new Error(`list threads: ${r.status}`);
+    const all = await r.json();
     return all.sort((a, b) => a.createdAt - b.createdAt);
   },
   async get(id) {
-    const store = await tx('threads');
-    return awaitReq(store.get(id));
+    await ensureMigrated();
+    return jsonOrNull(await fetch(`/api/threads/${encodeURIComponent(id)}`));
   },
   async put(thread) {
-    const store = await tx('threads', 'readwrite');
-    await awaitReq(store.put(thread));
+    await ensureMigrated();
+    await okOrThrow(await fetch(`/api/threads/${encodeURIComponent(thread.id)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(thread),
+    }));
     return thread;
   },
   async delete(id) {
-    const store = await tx('threads', 'readwrite');
-    await awaitReq(store.delete(id));
-    const msgs = await Messages.byThread(id);
-    for (const m of msgs) await Messages.delete(m.id);
+    await ensureMigrated();
+    await okOrThrow(await fetch(`/api/threads/${encodeURIComponent(id)}`, { method: 'DELETE' }));
   },
 };
 
+// ---- Messages ----------------------------------------------------------
 export const Messages = {
   async byThread(threadId) {
-    const store = await tx('messages');
-    const idx = store.index('threadId');
-    const all = await awaitReq(idx.getAll(threadId));
+    await ensureMigrated();
+    const r = await fetch(`/api/messages?threadId=${encodeURIComponent(threadId)}`);
+    if (!r.ok) throw new Error(`list messages: ${r.status}`);
+    const all = await r.json();
     return all.sort((a, b) => a.createdAt - b.createdAt);
   },
   async put(msg) {
-    const store = await tx('messages', 'readwrite');
-    await awaitReq(store.put(msg));
+    await ensureMigrated();
+    await okOrThrow(await fetch(`/api/messages/${encodeURIComponent(msg.id)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(msg),
+    }));
     return msg;
   },
   async delete(id) {
-    const store = await tx('messages', 'readwrite');
-    await awaitReq(store.delete(id));
+    await ensureMigrated();
+    await okOrThrow(await fetch(`/api/messages/${encodeURIComponent(id)}`, { method: 'DELETE' }));
   },
 };
 
@@ -180,4 +129,87 @@ export async function hashBlob(blob) {
   const buf = await blob.arrayBuffer();
   const hash = await crypto.subtle.digest('SHA-256', buf);
   return [...new Uint8Array(hash)].slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ---- One-time IndexedDB → server migration -----------------------------
+// Runs lazily the first time any store method is called. If the server has
+// no papers yet AND any of the legacy IDB databases exist locally, copy
+// their contents over via the HTTP API.
+
+let _migratePromise = null;
+function ensureMigrated() {
+  if (!_migratePromise) _migratePromise = migrateLegacyIfNeeded();
+  return _migratePromise;
+}
+
+async function migrateLegacyIfNeeded() {
+  if (typeof indexedDB === 'undefined') return;
+  // If the server already has papers, do nothing.
+  try {
+    const r = await fetch('/api/papers');
+    if (r.ok) {
+      const all = await r.json();
+      if (all.length > 0) return;
+    }
+  } catch { return; }
+
+  let migrated = 0;
+  for (const name of LEGACY_DB_NAMES) {
+    if (!(await idbExists(name))) continue;
+    let db;
+    try { db = await idbOpen(name); } catch { continue; }
+    const papers = await idbGetAll(db, 'papers').catch(() => []);
+    const threads = await idbGetAll(db, 'threads').catch(() => []);
+    const messages = await idbGetAll(db, 'messages').catch(() => []);
+    db.close();
+    if (!papers.length && !threads.length && !messages.length) continue;
+    console.log(`[paperchat] migrating ${papers.length} papers + ${threads.length} threads + ${messages.length} messages from legacy IDB "${name}"`);
+    for (const p of papers) await uploadPaper(p);
+    for (const t of threads) await fetch(`/api/threads/${encodeURIComponent(t.id)}`, {
+      method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(t),
+    });
+    for (const m of messages) await fetch(`/api/messages/${encodeURIComponent(m.id)}`, {
+      method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(m),
+    });
+    migrated += papers.length;
+  }
+  if (migrated) console.log(`[paperchat] migration complete — ${migrated} papers now on disk`);
+}
+
+async function uploadPaper(p) {
+  const { blob, ...meta } = p;
+  await fetch(`/api/papers/${encodeURIComponent(p.id)}`, {
+    method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(meta),
+  });
+  if (blob) {
+    await fetch(`/api/papers/${encodeURIComponent(p.id)}/blob`, {
+      method: 'PUT', headers: { 'content-type': 'application/pdf' }, body: blob,
+    });
+  }
+}
+
+function idbExists(name) {
+  if (typeof indexedDB.databases !== 'function') return Promise.resolve(false);
+  return indexedDB.databases().then(
+    list => list.some(d => d.name === name),
+    () => false,
+  );
+}
+
+function idbOpen(name) {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(name);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+    req.onblocked = () => rej(new Error('blocked'));
+  });
+}
+
+function idbGetAll(db, store) {
+  return new Promise((res, rej) => {
+    if (!db.objectStoreNames.contains(store)) return res([]);
+    const r = db.transaction(store, 'readonly').objectStore(store).getAll();
+    r.onsuccess = () => res(r.result || []);
+    r.onerror = () => rej(r.error);
+  });
 }

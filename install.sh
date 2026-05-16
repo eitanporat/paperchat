@@ -54,6 +54,36 @@ ensure_brew_pkg() {
   esac
 }
 
+# Install a set of brew packages all-at-once if any are missing.
+# Names use brew's tap/formula notation; coursier/formulas/coursier is a tap.
+ensure_brew_pkgs_bundle() {
+  local desc="$1"; shift
+  local missing=()
+  for p in "$@"; do
+    # Strip "tap/" prefix for the list-check; brew list takes the formula name.
+    local fname="${p##*/}"
+    if ! brew list --formula "$fname" >/dev/null 2>&1 \
+       && ! brew list --cask "$fname" >/dev/null 2>&1; then
+      missing+=("$p")
+    fi
+  done
+  if [ ${#missing[@]} -eq 0 ]; then
+    ok "$desc already installed"
+    return 0
+  fi
+  if ! command -v brew >/dev/null 2>&1; then
+    warn "Homebrew not found; skipping $desc (need: ${missing[*]})"
+    return 0
+  fi
+  echo
+  info "$desc — missing: ${missing[*]}"
+  ask "Install with Homebrew now? [Y/n] " "y"
+  case "${REPLY:-y}" in
+    [Yy]*|"") step "brew install ${missing[*]}" && brew install "${missing[@]}" ;;
+    *) warn "Skipping. Chapter-summary will fall back to slower paths or fail." ;;
+  esac
+}
+
 if ! command -v git >/dev/null 2>&1; then
   ensure_brew_pkg git "Install with: 'brew install git' (macOS) or 'apt install git' (Linux)."
 fi
@@ -90,6 +120,12 @@ step "Installing dependencies (npm install)"
 ( cd "$INSTALL_DIR" && npm install --silent --no-audit --no-fund )
 
 ok "Installed in $INSTALL_DIR"
+
+# ---- chapter-summary helper tools (optional) ----------------------------
+# Used by the chapter-summary agent if the user installs them; the agent
+# can shell out to pdftocairo to rasterize chapter pages.
+ensure_brew_pkgs_bundle "PDF + image tools (poppler, imagemagick)" \
+  poppler imagemagick
 
 # ---- optional OpenRouter setup ------------------------------------------
 ENVF="$INSTALL_DIR/.env.local"

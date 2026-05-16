@@ -1,0 +1,174 @@
+<!-- ====================================================================
+     pc-* components — interactive figures as web components
+
+     Every component below is a custom element registered by _lib/pc.js.
+     You write ONE tag with a JSON `data` attribute. The component
+     handles SVG geometry, theming, animation, and click wiring.
+
+     Do NOT write inline SVG + IIFE scripts for these patterns — use
+     the component. It's already debugged. For chapter-specific
+     interactive concepts that NO generic component captures, build
+     a custom figure (encouraged — see the bottom of this file).
+     ==================================================================== -->
+
+
+<!-- pc-chain — process or derivation: A → B → C → D with click-for-detail.
+     Use for: function composition, derivation flow, supply chain, pipeline. -->
+<pc-chain data='[
+  {"label": "atoms",   "sub": "n atoms/cell", "detail": "FCC=4, BCC=2, SC=1, HCP=6"},
+  {"label": "weight",  "sub": "n × A (g/mol)", "detail": "A is atomic weight; divide by NA to get grams per cell."},
+  {"label": "volume",  "sub": "÷ Vc (cm³)",    "detail": "Vc = a³ for cubic; a relates to atomic radius R via geometry."},
+  {"label": "density", "sub": "= ρ (g/cm³)",   "detail": "Theoretical density. Compare to measured value to detect defects."}
+]'></pc-chain>
+
+
+<!-- pc-stepped — walk through one step at a time (prev / next buttons).
+     Use for: derivations, proofs, multi-step procedures, learning a recipe. -->
+<pc-stepped data='[
+  {"title": "Step 1", "body": "Identify the head coordinates of your direction vector."},
+  {"title": "Step 2", "body": "Subtract the tail coordinates to get raw u, v, w."},
+  {"title": "Step 3", "body": "Clear fractions by multiplying through; reduce to smallest integers."},
+  {"title": "Step 4", "body": "Enclose in [uvw]. Negative indices get an overbar."}
+]'></pc-stepped>
+
+
+<!-- pc-timeline — events on a horizontal time axis; click for context.
+     Use for: history, evolution of an idea, project milestones. -->
+<pc-timeline data='[
+  {"when": "Stone",   "label": "Stone Age",    "detail": "Chipped flint, ground stone — durability + tool-shaping."},
+  {"when": "Bronze",  "label": "Bronze Age",   "detail": "Cu-Sn alloy: harder than copper, easier to cast than iron."},
+  {"when": "Iron",    "label": "Iron Age",     "detail": "Smelting tech unlocks weapons and ploughs at scale."},
+  {"when": "Silicon", "label": "Silicon Age",  "detail": "Doped semiconductors run modern compute."}
+]'></pc-timeline>
+
+
+<!-- pc-grid — N-way comparison cards in a responsive grid.
+     Use for: taxonomies, classification, comparing options. -->
+<pc-grid data='[
+  {"eyebrow": "Cubic",       "title": "a = b = c",       "body": "α = β = γ = 90°. Example: Cu (FCC), W (BCC)."},
+  {"eyebrow": "Tetragonal",  "title": "a = b ≠ c",       "body": "α = β = γ = 90°. Example: white Sn, TiO₂."},
+  {"eyebrow": "Hexagonal",   "title": "a = b ≠ c",       "body": "α = β = 90°, γ = 120°. Example: Mg, Zn."},
+  {"eyebrow": "Triclinic",   "title": "a ≠ b ≠ c",       "body": "α ≠ β ≠ γ ≠ 90°. Lowest symmetry."}
+]'></pc-grid>
+
+
+<!-- pc-toggle — A/B switch with each state's body.
+     Use for: before/after, this vs that, two configurations.
+     Body strings may contain inline HTML (KaTeX delimiters work). -->
+<pc-toggle data='{
+  "a": {"label": "α-Fe (BCC)",  "body": "<p>BCC iron. 8 corner atoms + 1 body-center = 2 atoms/cell. Stable below 912°C. Softer, magnetic.</p>"},
+  "b": {"label": "γ-Fe (FCC)",  "body": "<p>FCC iron (austenite). 8 corners + 6 face-centers = 4 atoms/cell. 912–1394°C. Harder, non-magnetic.</p>"}
+}'></pc-toggle>
+
+
+<!-- pc-slider — parametric exploration. `formula` is a JS expression in `x`
+     returning a number or HTML string. Use for: how X changes Y. -->
+<pc-slider data='{
+  "label": "T (°C)",
+  "min": -273,
+  "max": 1500,
+  "step": 1,
+  "value": 25,
+  "unit": "°C",
+  "formula": "x < 912 ? \"α-Fe (BCC, softer, magnetic)\" : x < 1394 ? \"γ-Fe (FCC, harder, non-magnetic)\" : \"δ-Fe (BCC, near melt)\""
+}'></pc-slider>
+
+
+<!-- pc-plot — line / bar / scatter chart from JSON data.
+     kind: "line" | "bar" | "scatter".  series: [{name, points: [[x,y], …]}].
+     Use for: empirical relationships, time series, distributions. -->
+<pc-plot data='{
+  "kind": "line",
+  "title": "Cooling curve of pure iron",
+  "xLabel": "time (s)",
+  "yLabel": "T (°C)",
+  "series": [
+    {"name": "Fe", "points": [[0, 1538], [60, 1394], [120, 1100], [180, 912], [240, 700], [300, 500]]}
+  ]
+}'></pc-plot>
+
+
+<!-- pc-annotated — image with numbered hotspots that reveal labels on click.
+     x,y are percentages (0–100) of the image dimensions.
+     Use for: anatomy, schematics, system diagrams, micrographs. -->
+<pc-annotated data='{
+  "src": "figures/img-073-001.jpg",
+  "alt": "FCC unit cell",
+  "hotspots": [
+    {"x": 18, "y": 22, "label": "Corner atom", "body": "Shared by 8 adjacent cells (1/8 contribution each)."},
+    {"x": 50, "y": 50, "label": "Face-center atom", "body": "Shared by 2 cells (1/2 contribution)."},
+    {"x": 80, "y": 80, "label": "Lattice parameter a", "body": "Cube edge length; a = 2√2 R for FCC."}
+  ]
+}'></pc-annotated>
+
+
+<!-- pc-equation — KaTeX equation + clickable symbol legend.
+     Use for: any formula where symbol meanings matter. -->
+<pc-equation data='{
+  "tex": "\\rho = \\frac{n A}{V_C N_A}",
+  "terms": {
+    "ρ": "Density (g/cm³).",
+    "n": "Number of atoms per unit cell.",
+    "A": "Atomic weight (g/mol).",
+    "V_C": "Volume of unit cell (cm³).",
+    "N_A": "Avogadro''s number (6.022 × 10²³ atoms/mol)."
+  }
+}'></pc-equation>
+
+
+<!-- pc-tree — hierarchical content as nested collapsible cards.
+     Use for: taxonomies, classification systems, decision trees, org charts.
+     Each node has a `label` and optional `body` (longer description, inline
+     HTML ok). Branches with children are <details>; leaves are flat cards.
+     Handles arbitrary text length — long labels and bodies wrap naturally. -->
+<pc-tree data='{
+  "root": {
+    "label": "Engineering materials",
+    "body": "Four classes by primary bonding + structure.",
+    "children": [
+      {"label": "Metals", "body": "Metallic bonding → ductile, conductive.",
+       "children": [{"label": "Ferrous (Fe-based steels)"}, {"label": "Non-ferrous (Al, Cu, Ti)"}]},
+      {"label": "Ceramics", "body": "Ionic / covalent bonds → hard, brittle, refractory.",
+       "children": [{"label": "Oxides (Al₂O₃, ZrO₂)"}, {"label": "Glasses (silicates)"}]},
+      {"label": "Polymers", "body": "Long C-C chains; secondary bonds between chains.",
+       "children": [{"label": "Thermoplastic (melts on reheat)"}, {"label": "Thermoset (cross-linked, permanent)"}]},
+      {"label": "Composites", "body": "Two or more classes combined for engineered properties (CFRP, concrete)."}
+    ]
+  }
+}'></pc-tree>
+
+
+<!-- ====================================================================
+     Custom interactive figures — encouraged when the concept calls for it
+
+     The pc-* library above covers common patterns. When a chapter has
+     a uniquely visual concept (electron shells, wave interference,
+     phase diagrams, Fourier series, vector fields, lever systems, …),
+     build a bespoke interactive figure that does the concept justice.
+     A chapter-specific custom figure often teaches better than any
+     generic component could.
+
+     Wrap your custom figure as a one-off web component in the section
+     file — it encapsulates the figure, isolates failures, and reads
+     cleaner than inline SVG + IIFE:
+
+       <atom-shells data='{"Z": 6, "shells": [2, 4]}'></atom-shells>
+       <script>
+         class AtomShells extends HTMLElement {
+           connectedCallback() {
+             const d = JSON.parse(this.getAttribute('data') || '{}');
+             this.innerHTML = `<figure class="pc-fig-interactive pc-rise">…</figure>`;
+             // wire click/drag/slider interactivity here
+           }
+         }
+         customElements.define('atom-shells', AtomShells);
+       </script>
+
+     Picking between pc-* and custom: if the concept has STRUCTURE the
+     user can manipulate (an angle, a parameter, a position, a state),
+     and that structure is the lesson, build custom. If the figure is
+     a comparison or a sequence or a process, a pc-* probably fits.
+
+     Either way, the agent should NEVER re-implement what a pc-*
+     component already does — that's wasted effort and bug-prone.
+     ==================================================================== -->

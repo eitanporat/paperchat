@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{TITLE}}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <link rel="stylesheet" href="./pc.css" />
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" defer></script>
+  <script type="module" src="./pc.js"></script>
+</head>
+<body>
+
+<nav class="pc-nav">
+  <span class="pc-nav-title">{{CHAPTER_TITLE}}</span>
+  <div class="pc-nav-pages">
+    <!-- one <a href="#page-id">Label</a> per page -->
+  </div>
+  <button class="pc-skip-toggle" type="button">Hide skipped</button>
+</nav>
+
+<!-- One <section class="pc-page" id="..."> per concept page.
+     pc.js hash-routes between them when there are 2+. -->
+<section class="pc-page" id="page-1">
+  <div class="pc-prose">
+    <h1>{{PAGE_TITLE}}</h1>
+    <!-- content -->
+  </div>
+</section>
+
+</body>
+</html>

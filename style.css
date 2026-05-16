@@ -50,7 +50,130 @@ button:hover { background: var(--accent-soft); }
   z-index: 10;
 }
 .brand { font-weight: 700; }
-.paper-title { flex: 1; color: var(--muted); font-style: italic; }
+.paper-title { flex: 1; color: var(--muted); font-style: italic; min-width: 0; overflow: hidden; }
+
+/* When book mode is active, show: <paper name> › <chapter title> with the
+   chapter as the prominent piece. Long chapter titles ellipsize by default
+   and marquee-scroll on hover; the title attribute provides a tooltip. */
+.paper-title.with-chapter {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-style: normal;
+}
+.paper-title .pt-paper {
+  color: var(--muted);
+  font-style: italic;
+  flex-shrink: 1;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.paper-title .pt-sep {
+  color: var(--muted);
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+/* Two-layer marquee: outer .pt-chapter clips at max-width, inner
+   .pt-text holds the full text and translates on hover. A gradient fade
+   hints at clipped overflow when not hovering. */
+.paper-title .pt-chapter {
+  color: var(--ink);
+  font-weight: 500;
+  display: inline-block;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  vertical-align: bottom;
+  font-size: 14px;
+}
+.paper-title .pt-text {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+}
+/* Fade gradient hint removed — relied on a fixed-width container. The
+   native title attribute provides the full text on hover. */
+
+/* Tiny ⋯ button next to the chapter title — opens the chapter menu. */
+.paper-title .pt-menu-btn {
+  margin-left: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.paper-title .pt-menu-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--border);
+}
+.paper-title .pt-menu-btn[aria-expanded="true"] {
+  background: var(--accent);
+  color: var(--paper);
+  border-color: var(--accent);
+}
+
+/* Dropdown menu attached to the chapter name. */
+.pt-menu {
+  position: fixed;
+  z-index: 1500;
+  min-width: 240px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  padding: 6px;
+  font-size: 13px;
+  animation: pt-menu-in 100ms ease-out;
+}
+@keyframes pt-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pt-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+.pt-menu-item:hover { background: var(--accent-soft); color: var(--accent); }
+.pt-menu-item.primary { color: var(--accent); font-weight: 600; }
+.pt-menu-item.primary:hover { background: var(--accent); color: var(--paper); }
+.pt-menu-item .pt-menu-icon {
+  width: 18px;
+  display: inline-flex;
+  justify-content: center;
+  font-size: 14px;
+}
+.pt-menu-item.checked .pt-menu-icon::after {
+  content: ' ✓';
+  color: var(--accent);
+  font-weight: 600;
+}
+.pt-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 4px;
+}
 .topbar-actions { display: flex; gap: 8px; align-items: center; }
 
 .zoom-controls {
@@ -85,6 +208,716 @@ button:hover { background: var(--accent-soft); }
   align-self: center;
 }
 .zoom-controls #zoom-label:hover { color: var(--accent); background: var(--accent-soft); }
+
+.book-mode-chip {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 380px;
+  overflow: hidden;
+  background: var(--paper);
+}
+.book-mode-chip.active { border-color: var(--accent); color: var(--ink); }
+.book-mode-chip > * { border: 0; }
+.book-mode-chip > * + * { border-left: 1px solid var(--border); }
+
+/* Icon-only toggle. Filled when active. */
+.book-mode-chip .bm-toggle {
+  background: transparent;
+  padding: 4px 8px;
+  font-size: 14px;
+  line-height: 1.1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  filter: grayscale(0.5);
+  opacity: 0.7;
+}
+.book-mode-chip.active .bm-toggle { filter: none; opacity: 1; }
+.book-mode-chip .bm-toggle:hover { background: var(--accent-soft); }
+
+.book-mode-chip .bm-current {
+  padding: 0 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 500;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.book-mode-chip .bm-action {
+  background: transparent;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+.book-mode-chip .bm-action:hover { background: var(--accent-soft); }
+.book-mode-chip .bm-action.primary {
+  background: var(--accent);
+  color: var(--paper);
+  font-weight: 600;
+}
+.book-mode-chip .bm-action.primary:hover { filter: brightness(1.05); }
+
+.book-mode-chip .bm-regen {
+  background: transparent;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.book-mode-chip .bm-regen:hover { background: var(--accent-soft); color: var(--accent); }
+
+/* Chapter-summary streaming panel — floats bottom-right, scrolling log of
+   agent stages, tool calls, and streamed text. Replaced on each kickoff. */
+#chsum-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(560px, 95vw);
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  z-index: 1100;
+  overflow: hidden;
+}
+#chsum-panel .chsum-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+#chsum-panel .chsum-tabs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+#chsum-panel .chsum-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  min-width: 180px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--bg);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  position: relative;
+  top: 1px;
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+#chsum-panel .chsum-tab:hover { background: var(--accent-soft); color: var(--ink); }
+#chsum-panel .chsum-tab--active {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 500;
+  border-color: var(--accent);
+  border-bottom-color: var(--paper);
+}
+#chsum-panel .chsum-tab--done { color: var(--accent); }
+#chsum-panel .chsum-tab--fail { color: #b00f1e; }
+#chsum-panel .chsum-tab--update:not(.chsum-tab--active) {
+  animation: chsum-tab-pulse 1s ease-out 1;
+}
+@keyframes chsum-tab-pulse {
+  0%, 100% { background: var(--bg); }
+  50%      { background: var(--accent-soft); }
+}
+#chsum-panel .chsum-tab-spin {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: chsum-tab-spin 1.4s ease-in-out infinite;
+}
+#chsum-panel .chsum-tab--done .chsum-tab-spin,
+#chsum-panel .chsum-tab--fail .chsum-tab-spin { display: none; }
+@keyframes chsum-tab-spin {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+#chsum-panel .chsum-tab-label {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#chsum-panel .chsum-tab-tokens,
+#chsum-panel .chsum-tab-cost {
+  font: 10px ui-monospace, monospace;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+#chsum-panel .chsum-tab-cost {
+  color: var(--accent);
+  font-weight: 600;
+}
+#chsum-panel .chsum-tab-close {
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 2px;
+  opacity: 0.7;
+}
+#chsum-panel .chsum-tab-close:hover { opacity: 1; background: var(--accent-soft); color: var(--ink); }
+
+#chsum-panel .chsum-close,
+#chsum-panel .chsum-min {
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 2px 6px;
+  line-height: 1;
+}
+#chsum-panel .chsum-min { font-weight: 700; padding-bottom: 6px; }
+#chsum-panel .chsum-close:hover,
+#chsum-panel .chsum-min:hover { color: var(--ink); }
+
+/* Minimized state — only the header (tabs + buttons) shows; body hides.
+   Override the panel's fixed 70vh height so it collapses to just the
+   head row instead of leaving an empty stretch under the tabs. */
+#chsum-panel.minimized .chsum-bodies { display: none; }
+#chsum-panel.minimized { height: auto; max-height: none; }
+
+/* Per-tab body container — only the active body is visible. */
+#chsum-panel .chsum-bodies { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+#chsum-panel .chsum-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#chsum-panel .chsum-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 0;
+}
+/* Action buttons in the meta row — same shape so they line up. */
+#chsum-panel .chsum-live,
+#chsum-panel .chsum-files {
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 12px;
+  min-width: 110px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.4;
+}
+#chsum-panel .chsum-live:hover,
+#chsum-panel .chsum-files:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#chsum-panel .chsum-dev {
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--muted);
+}
+#chsum-panel .chsum-dev:hover { background: var(--accent-soft); color: var(--ink); }
+#chsum-panel.dev .chsum-dev { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+/* Tokens + cost status pills — match the .chsum-live / .chsum-files
+   button shape so the whole meta row reads as one consistent strip. */
+#chsum-panel .chsum-tokens,
+#chsum-panel .chsum-cost {
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 12px;
+  min-width: 110px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--paper);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.4;
+  display: inline-block;
+}
+#chsum-panel .chsum-tokens { color: var(--muted); }
+#chsum-panel .chsum-cost {
+  color: var(--accent);
+  font-weight: 600;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Friendly progress steps (default view). */
+#chsum-panel .chsum-steps {
+  list-style: none;
+  margin: 0;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+#chsum-panel .chsum-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+#chsum-panel .chsum-step--active { color: var(--ink); font-weight: 500; }
+#chsum-panel .chsum-step--done { color: var(--ink); }
+#chsum-panel .chsum-step--fail { color: #b00f1e; }
+/* Stage duration suffix — small tabular-number tag pinned to the right. */
+#chsum-panel .chsum-step .chsum-label { flex: 1; }
+#chsum-panel .chsum-dur {
+  font: 11px ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  margin-left: auto;
+  padding-left: 8px;
+}
+#chsum-panel .chsum-step--active .chsum-dur { color: var(--accent); }
+#chsum-panel .chsum-mark {
+  display: inline-flex;
+  width: 18px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+#chsum-panel .chsum-step--done .chsum-mark { color: var(--accent); }
+#chsum-panel .chsum-step--fail .chsum-mark { color: #b00f1e; }
+#chsum-panel .chsum-icon { font-size: 14px; line-height: 1; }
+#chsum-panel .chsum-label { flex: 1; min-width: 0; }
+/* Parallel-worker chips — one per Task subagent (one per section).
+   Active workers spin; tool_result flips them to ✓ (or ✗ if failed). */
+#chsum-panel .chsum-workers {
+  list-style: none;
+  margin: 0;
+  padding: 8px 18px 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+#chsum-panel .chsum-worker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 7px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+#chsum-panel .chsum-worker--done {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#chsum-panel .chsum-worker--fail {
+  background: #fdecee;
+  border-color: #b00f1e;
+  color: #b00f1e;
+}
+#chsum-panel .chsum-worker-spin {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: chsum-spin 0.8s linear infinite;
+}
+#chsum-panel .chsum-worker--done .chsum-worker-spin,
+#chsum-panel .chsum-worker--fail .chsum-worker-spin {
+  width: auto; height: auto;
+  border: 0;
+  animation: none;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#chsum-panel .chsum-spin {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: chsum-spin 0.8s linear infinite;
+}
+@keyframes chsum-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Technical log — hidden unless .dev is on. */
+#chsum-panel .chsum-log {
+  margin: 0;
+  padding: 10px 12px;
+  flex: 1;
+  overflow-y: auto;
+  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink);
+  background: var(--paper);
+  border-top: 1px solid var(--border);
+  display: none;
+}
+#chsum-panel .chsum-line { padding: 2px 0; white-space: pre-wrap; word-break: break-word; }
+#chsum-panel .chsum-line--stage { color: var(--accent); font-weight: 600; margin-top: 4px; }
+#chsum-panel .chsum-line--tool  { color: var(--ink); padding-left: 4px; }
+#chsum-panel .chsum-tool-name   { color: var(--accent); font-weight: 600; }
+#chsum-panel .chsum-tool-path {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+#chsum-panel .chsum-tool-path:hover { background: var(--accent-soft); }
+/* Inline thumbnail when the agent Reads an image. Click → full-screen
+   zoom (chsum-img-zoom overlay). The wrapper keeps the thumb on the
+   same line as the path link by default; if there's no room, it
+   wraps below the path. */
+#chsum-panel .chsum-tool-thumb {
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+#chsum-panel .chsum-tool-thumb img {
+  display: block;
+  max-height: 56px;
+  max-width: 120px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: zoom-in;
+  background: #fff;
+}
+#chsum-panel .chsum-tool-thumb img:hover { border-color: var(--accent); }
+/* "Jump to latest" pill — shown when the user has scrolled up in the
+   conversation log and we've paused auto-following so new lines don't
+   yank the view away. Floats just above the bottom of the scroll
+   container; click → snap to bottom + resume following. */
+#chsum-panel .chsum-jump-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 14px;
+  background: var(--accent);
+  color: var(--paper);
+  border: 0;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  z-index: 5;
+}
+#chsum-panel .chsum-jump-btn:hover { filter: brightness(1.05); }
+#chsum-panel .chsum-view { position: relative; }
+.chsum-img-zoom {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  cursor: zoom-out;
+  padding: 20px;
+}
+.chsum-img-zoom img {
+  max-width: 95vw;
+  max-height: 95vh;
+  object-fit: contain;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+#chsum-panel .chsum-tool-cmd, #chsum-panel .chsum-tool-args { color: var(--muted); }
+#chsum-panel .chsum-line--result { padding-left: 6px; opacity: 0.85; }
+#chsum-panel .chsum-line--result.fail { color: #b00f1e; }
+#chsum-panel .chsum-line--text { color: var(--ink); padding: 4px 0; }
+#chsum-panel .chsum-line--think { color: var(--muted); font-style: italic; padding: 2px 0; }
+#chsum-panel.dev .chsum-log { display: block; min-height: 200px; }
+#chsum-panel.dev .chsum-steps { padding: 10px 14px 6px; }
+#chsum-panel .chsum-think { color: var(--muted); font-style: italic; opacity: 0.85; }
+#chsum-panel .chsum-result {
+  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+  font-size: 12px;
+  background: var(--accent-soft);
+}
+#chsum-panel .chsum-result code {
+  font: 11px ui-monospace, monospace;
+  color: var(--ink);
+}
+#chsum-panel .chsum-result a {
+  color: var(--accent);
+  font-weight: 600;
+}
+#chsum-panel .chsum-open {
+  display: inline-block;
+  padding: 6px 12px;
+  background: var(--accent);
+  color: var(--paper);
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 600;
+}
+#chsum-panel .chsum-open {
+  border: 0;
+  cursor: pointer;
+}
+#chsum-panel .chsum-open:hover { filter: brightness(1.05); }
+
+/* SPA-style inline viewer for generated chapter sites — opens over the
+   paper viewer with a Back button instead of a new tab. */
+#chapter-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+#chapter-viewer .cv-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--paper);
+}
+#chapter-viewer .cv-back {
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+}
+#chapter-viewer .cv-back:hover { background: var(--accent-soft); }
+#chapter-viewer .cv-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 13px;
+}
+#chapter-viewer .cv-open-new {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 4px 8px;
+}
+#chapter-viewer .cv-open-new:hover { color: var(--accent); }
+#chapter-viewer .cv-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: var(--bg);
+}
+
+/* In-tab files view — swaps with the conversation log inside the
+   chsum-body, no modal overlay. Click "📁 Files" to enter, ‹ Back to
+   return to the conversation. */
+#chsum-panel .chsum-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#chsum-panel .chsum-view--files { background: var(--paper); }
+#chsum-panel .chsum-files-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 12px;
+}
+#chsum-panel .chsum-files-back {
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 3px 10px;
+  font: inherit; font-size: 11px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--ink);
+}
+#chsum-panel .chsum-files-back:hover { background: var(--accent-soft); }
+#chsum-panel .chsum-files-path {
+  flex: 1; min-width: 0;
+  font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#chsum-panel .chsum-files-open-new {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 3px 6px;
+}
+#chsum-panel .chsum-files-open-new:hover { color: var(--accent); }
+#chsum-panel .chsum-files-body {
+  flex: 1; overflow: auto;
+  padding: 0;
+}
+#chsum-panel .chsum-files-list { list-style: none; margin: 0; padding: 10px 14px; }
+#chsum-panel .chsum-files-list li {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--border);
+}
+#chsum-panel .chsum-files-link {
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink);
+  text-decoration: none;
+  flex: 1;
+}
+#chsum-panel .chsum-files-link:hover { color: var(--accent); text-decoration: underline; }
+#chsum-panel .chsum-files-meta { color: var(--muted); font: 10px ui-monospace, monospace; flex-shrink: 0; }
+#chsum-panel .chsum-files-source {
+  margin: 0;
+  padding: 10px 14px;
+  font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+  background: var(--paper);
+}
+#chsum-panel .chsum-files-img { max-width: 100%; max-height: 100%; display: block; margin: 12px auto; }
+#chsum-panel .chsum-files-split { display: flex; height: 100%; }
+#chsum-panel .chsum-files-frame {
+  flex: 1; border: 0; border-right: 1px solid var(--border); background: var(--bg);
+}
+#chsum-panel .chsum-files-split .chsum-files-source { flex: 1; overflow: auto; }
+#file-viewer .fv-back {
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+}
+#file-viewer .fv-path {
+  flex: 1;
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#file-viewer .fv-open-new {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 8px;
+}
+#file-viewer .fv-open-new:hover { color: var(--accent); }
+#file-viewer .fv-body {
+  flex: 1; overflow: auto;
+  padding: 0;
+  background: var(--paper);
+}
+#file-viewer .fv-source {
+  margin: 0;
+  padding: 12px 16px;
+  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--paper);
+  color: var(--ink);
+}
+#file-viewer .fv-split { display: flex; height: 100%; }
+#file-viewer .fv-split .fv-frame {
+  flex: 1; border: 0; border-right: 1px solid var(--border); background: var(--bg);
+}
+#file-viewer .fv-split .fv-source {
+  flex: 1; overflow: auto;
+}
+#file-viewer .fv-body img { max-width: 100%; max-height: 90vh; display: block; margin: 16px auto; }
+#file-viewer .fv-list-body { padding: 16px 22px; }
+#file-viewer .fv-list { list-style: none; margin: 0; padding: 0; }
+#file-viewer .fv-list li {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--border);
+}
+#file-viewer .fv-list-link {
+  font: 13px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink);
+  text-decoration: none;
+  flex: 1;
+}
+#file-viewer .fv-list-link:hover { color: var(--accent); text-decoration: underline; }
+#file-viewer .fv-list-meta { color: var(--muted); font: 11px ui-monospace, monospace; flex-shrink: 0; }
+#chapter-viewer .cv-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 4px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+}
+#chapter-viewer .cv-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: cv-live-pulse 1.2s ease-in-out infinite;
+}
+@keyframes cv-live-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+#chapter-viewer .cv-waiting {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--bg);
+}
 
 .layout {
   display: grid;
@@ -264,6 +1097,41 @@ button:hover { background: var(--accent-soft); }
   white-space: nowrap;
 }
 .contents-tree .toc-page { color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+/* Chapter-actions menu button in the Contents TOC — small, hover-reveal,
+   only present on top-level chapter entries. */
+.contents-tree .toc-menu-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 6px;
+  margin-left: 2px;
+  cursor: pointer;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: opacity 120ms ease-out, background 120ms ease-out, color 120ms ease-out;
+}
+.contents-tree .toc-item:hover .toc-menu-btn { opacity: 1; }
+.contents-tree .toc-item.has-summary .toc-menu-btn { opacity: 1; color: var(--accent); }
+.contents-tree .toc-menu-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+/* A summary exists → tiny indicator dot on the chapter row. */
+.contents-tree .toc-item.has-summary .toc-title::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: 6px;
+  vertical-align: middle;
+  opacity: 0.7;
+}
 
 .lib-item {
   padding: 6px 8px;
@@ -542,6 +1410,11 @@ button:hover { background: var(--accent-soft); }
    * not be `visible` for resize to take effect. */
   resize: both;
   overflow: hidden;
+}
+/* display rules apply only when the dialog is open — otherwise they override
+   the UA's `dialog:not([open]) { display: none }` and the dialog stays
+   visible after .close(). */
+.thread-dialog[open] {
   display: flex;
   flex-direction: column;
 }
@@ -853,6 +1726,15 @@ button:hover { background: var(--accent-soft); }
   width: min(420px, 90vw);
 }
 #settings-dialog h2 { margin-top: 0; }
+#settings-dialog .settings-group {
+  margin: 18px 0 -4px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
 #settings-dialog label {
   display: block;
   margin: 10px 0;
@@ -878,29 +1760,92 @@ button:hover { background: var(--accent-soft); }
 #toast-host {
   position: fixed;
   right: 16px;
-  bottom: 16px;
-  z-index: 1000;
+  top: 64px;
+  z-index: 2000;
   display: flex;
-  flex-direction: column-reverse;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
   pointer-events: none;
+  width: 340px;
+  max-width: calc(100vw - 32px);
 }
+/* Card-style side toasts — white card, colored icon, message, optional
+   action button, close (×), and a thin color-coded progress bar at the
+   bottom that shrinks over `durationMs`. Mirrors the reference shared
+   by the user. Stacks vertically on the right. */
 .toast {
-  background: var(--ink);
-  color: #faf8f3;
-  padding: 8px 14px;
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 10px 36px 12px 12px;
   border-radius: 6px;
   font-size: 13px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transform: translateX(20px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
   pointer-events: auto;
-  max-width: 360px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 10px;
 }
-.toast.show { opacity: 1; transform: translateY(0); }
-.toast-error { background: #b03020; }
-.toast-success { background: var(--gpt); }
+.toast.show     { opacity: 1; transform: translateX(0); }
+.toast.toast-out { opacity: 0; transform: translateX(20px); }
+.toast-icon {
+  width: 22px; height: 22px; line-height: 22px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+}
+.toast-success .toast-icon { background: #2e9d4f; }
+.toast-error   .toast-icon { background: #b03020; }
+.toast-warn    .toast-icon { background: #d68f00; }
+.toast-info    .toast-icon { background: var(--accent); }
+.toast .toast-msg { min-width: 0; line-height: 1.35; word-wrap: break-word; }
+.toast-action {
+  appearance: none;
+  border: 0;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.toast-action:hover { background: var(--accent); color: var(--paper); }
+.toast-close {
+  position: absolute;
+  top: 6px; right: 8px;
+  appearance: none;
+  border: 0; background: transparent;
+  font-size: 18px; line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.toast-close:hover { color: var(--ink); }
+.toast-bar {
+  position: absolute;
+  left: 0; bottom: 0; height: 3px;
+  width: 100%;
+  background: var(--accent);
+  transform: scaleX(1);
+  transform-origin: left center;
+  pointer-events: none;
+}
+.toast-success .toast-bar { background: #2e9d4f; }
+.toast-error   .toast-bar { background: #b03020; }
+.toast-warn    .toast-bar { background: #d68f00; }
 
 .confirm-dialog {
   border: 1px solid var(--border);

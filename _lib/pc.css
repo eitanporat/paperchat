@@ -1,0 +1,479 @@
+/* Chapter-site primitives. Styled after evjang.com/autogo:
+   warm cream paper, Fraunces serif at weight 400, JetBrains Mono eyebrows,
+   dual OKLCH accents (blue/net + orange/search).
+
+   Generated pages must compose with these classes — no .card. Vocabulary:
+     .pc-prose            prose container (typography baseline)
+     .pc-eyebrow          mono uppercase label (used for section eyebrows,
+                          figure labels, callout titles, skip reasons)
+     .pc-figure           figure block (image + caption)
+     .pc-figure--zoom     opt-in to click-to-enlarge
+     .pc-fig-interactive  host element for JS/SVG figures
+     .pc-callout          aside / definition / note
+     .pc-callout--alt     orange accent variant (use sparingly)
+     .pc-skip             collapsible low-importance block
+     .pc-nav              chapter table of contents (in-site nav)
+     .pc-page             a single concept page wrapper
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* Agent compatibility shim — section-writers frequently emit invalid
+   SVG like `<rect fill="var(--accent-soft)" />`. SVG presentation
+   attributes don't parse `var(...)`, so without this they'd render as
+   solid black. CSS attribute selectors match the literal attribute
+   string, and CSS — unlike SVG attrs — DOES resolve var(). The brief
+   tells agents to use `style="..."` instead, but this safety net keeps
+   chapters from looking broken when they slip up. */
+svg [fill="var(--accent)"]      { fill: var(--accent); }
+svg [fill="var(--accent-alt)"]  { fill: var(--accent-alt); }
+svg [fill="var(--accent-soft)"] { fill: var(--accent-soft); }
+svg [fill="var(--ink)"]         { fill: var(--ink); }
+svg [fill="var(--ink-soft)"]    { fill: var(--ink-soft); }
+svg [fill="var(--paper)"]       { fill: var(--paper); }
+svg [fill="var(--border)"]      { fill: var(--border); }
+svg [fill="var(--bg)"]          { fill: var(--bg); }
+svg [stroke="var(--accent)"]      { stroke: var(--accent); }
+svg [stroke="var(--accent-alt)"]  { stroke: var(--accent-alt); }
+svg [stroke="var(--accent-soft)"] { stroke: var(--accent-soft); }
+svg [stroke="var(--ink)"]         { stroke: var(--ink); }
+svg [stroke="var(--ink-soft)"]    { stroke: var(--ink-soft); }
+svg [stroke="var(--paper)"]       { stroke: var(--paper); }
+svg [stroke="var(--border)"]      { stroke: var(--border); }
+svg [stroke="var(--bg)"]          { stroke: var(--bg); }
+svg [font-family="var(--mono)"]   { font-family: var(--mono); }
+svg [font-family="var(--serif)"]  { font-family: var(--serif); }
+svg [font-family="var(--sans)"]   { font-family: var(--sans); }
+
+:root {
+  --bg: #f6f1e7;
+  --bg-soft: #eee6d4;
+  --paper: #fbf6ea;
+  --ink: #1f1a14;
+  --ink-soft: #6a5d4a;
+  --border: #d9cdb0;
+  /* Dual accent palette: blue for primary callouts / nav, orange for
+     contrasts ("alt" callouts, interactive figures, warnings). */
+  --accent: oklch(58% 0.12 245);
+  --accent-soft: oklch(92% 0.04 245);
+  --accent-alt: oklch(55% 0.16 35);
+  --accent-alt-soft: oklch(95% 0.04 35);
+
+  --serif: 'Fraunces', Georgia, "Iowan Old Style", serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.65 var(--serif);
+  font-variation-settings: "opsz" 14;
+}
+
+/* Body gets the sidebar gutter so prose can re-center via auto margins
+   instead of being pinned to the left edge of the post-sidebar area. */
+body { padding-left: 200px; }
+@media (max-width: 800px) {
+  body { padding-left: 0; }
+}
+.pc-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 64px 32px 96px;
+}
+
+/* --- Eyebrow utility ------------------------------------------------ */
+/* The autogo signature: mono uppercase label used above sections and
+   inside callouts/skip blocks. */
+.pc-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/* --- Prose ---------------------------------------------------------- */
+.pc-prose h1,
+.pc-prose h2,
+.pc-prose h3 {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.012em;
+  font-variation-settings: "opsz" 96;
+  color: var(--ink);
+}
+.pc-prose h1 { font-size: 2.4rem; line-height: 1.15; margin: 0 0 0.4em; }
+.pc-prose h2 { font-size: 1.55rem; line-height: 1.2; margin: 2.2em 0 0.5em; }
+.pc-prose h3 {
+  font-size: 1.0rem;
+  line-height: 1.3;
+  margin: 1.6em 0 0.3em;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.pc-prose p  { margin: 0 0 1em; }
+.pc-prose em { font-style: italic; }
+.pc-prose strong { font-weight: 600; }
+.pc-prose a  {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.pc-prose a:hover { text-decoration-color: var(--accent); }
+.pc-prose code {
+  font: 0.9em/1.4 var(--mono);
+  background: var(--bg-soft);
+  padding: 0.05em 0.4em;
+  border-radius: 3px;
+  color: var(--ink);
+}
+.pc-prose pre {
+  background: #1f1a14;
+  color: #f6f1e7;
+  padding: 14px 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font: 0.88em/1.55 var(--mono);
+}
+.pc-prose pre code { background: none; color: inherit; padding: 0; }
+.pc-prose blockquote {
+  margin: 1em 0;
+  padding: 0.1em 0 0.1em 16px;
+  border-left: 2px solid var(--accent);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* sub/sup compressed like autogo */
+.pc-prose sub, .pc-prose sup { font-size: 0.7em; }
+
+/* --- Figures -------------------------------------------------------- */
+.pc-figure {
+  margin: 1.8em 0;
+  text-align: center;
+}
+.pc-figure img,
+.pc-figure svg,
+.pc-figure canvas {
+  max-width: 100%;
+  height: auto;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.pc-figure figcaption {
+  margin-top: 0.7em;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+.pc-figure figcaption strong {
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ink);
+  margin-right: 0.5em;
+  font-weight: 500;
+}
+.pc-figure--zoom img { cursor: zoom-in; }
+
+.pc-fig-interactive {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 16px;
+  margin: 1.8em 0;
+}
+
+/* --- Callouts ------------------------------------------------------- */
+.pc-callout {
+  margin: 1.4em 0;
+  padding: 14px 18px;
+  background: var(--accent-soft);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+.pc-callout > :first-child { margin-top: 0; }
+.pc-callout > :last-child  { margin-bottom: 0; }
+.pc-callout-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--accent);
+  margin-bottom: 0.4em;
+}
+.pc-callout--alt {
+  background: var(--accent-alt-soft);
+  border-left-color: var(--accent-alt);
+}
+.pc-callout--alt .pc-callout-title { color: var(--accent-alt); }
+
+/* --- Skip blocks ---------------------------------------------------- */
+.pc-skip {
+  margin: 1.4em 0;
+  padding: 8px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+}
+.pc-skip > summary {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+  list-style: none;
+  padding: 4px 0;
+}
+.pc-skip > summary::before {
+  content: "▸ ";
+  color: var(--accent);
+}
+.pc-skip[open] > summary::before { content: "▾ "; }
+.pc-skip[open] {
+  background: var(--paper);
+  color: var(--ink);
+  padding-bottom: 12px;
+}
+.pc-skip-reason {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-right: 0.5em;
+}
+body.pc-skip-hide .pc-skip { display: none; }
+
+/* --- Left-side sticky section nav (autogo SectionSidebar idiom) ------
+   The chapter site is infinite-scroll: all .pc-page sections stacked
+   vertically. This nav is a fixed strip on the left that auto-highlights
+   the active section as the user scrolls. */
+.pc-nav {
+  position: fixed;
+  left: 16px;
+  top: 24px;
+  bottom: 24px;
+  width: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+  z-index: 10;
+  overflow-y: auto;
+}
+@media (max-width: 800px) {
+  .pc-nav { position: static; flex-direction: row; flex-wrap: wrap; width: auto; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+}
+
+.pc-nav .pc-nav-title {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink-soft);
+  padding: 4px 8px 8px;
+  border-bottom: 1px dotted var(--border);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pc-nav .pc-nav-pages { display: flex; flex-direction: column; gap: 2px; }
+.pc-nav a {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  opacity: 0.6;
+  transition: all 70ms ease-out;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pc-nav a:hover { background: rgba(31, 26, 20, 0.06); opacity: 1; }
+.pc-nav a.pc-done    { opacity: 0.5; }
+.pc-nav a[aria-current="page"] {
+  background: var(--ink);
+  color: var(--bg);
+  opacity: 1;
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+.pc-nav .pc-skip-toggle {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  align-self: flex-start;
+  margin-top: 8px;
+}
+.pc-nav .pc-skip-toggle:hover { background: rgba(31, 26, 20, 0.06); color: var(--ink); }
+
+/* Each section gets a top margin so scrollIntoView places it nicely
+   below the optional fixed-top spacing (we don't have a top bar but a
+   little breathing room helps when jumping). */
+section.pc-page { scroll-margin-top: 24px; min-height: 60vh; }
+.pc-nav .pc-skip-toggle[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+/* --- Anchored headings --------------------------------------------- */
+.pc-prose h2,
+.pc-prose h3 { position: relative; }
+.pc-anchor {
+  position: absolute;
+  left: -22px;
+  top: 0.1em;
+  opacity: 0;
+  transition: opacity 0.1s;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-weight: normal;
+}
+.pc-prose h2:hover .pc-anchor,
+.pc-prose h3:hover .pc-anchor { opacity: 1; }
+
+/* --- Zoom lightbox ------------------------------------------------- */
+.pc-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 4, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: zoom-out;
+}
+.pc-zoom-overlay img {
+  max-width: 95vw;
+  max-height: 95vh;
+  background: var(--paper);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* KaTeX defense-in-depth */
+.katex .katex-mathml {
+  position: absolute !important;
+  clip: rect(1px, 1px, 1px, 1px) !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+.katex-display { overflow-x: auto; overflow-y: hidden; }
+
+/* Visible focus indicator (autogo-style). */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* --- Animation primitives (autogo-style) ---------------------------- */
+/* Defaults: 70ms ease-out (autogo's transition baseline). Entrance
+   animations are subtle — small Y shift + opacity. Honor reduced-motion. */
+
+@keyframes pcFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pcRise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pcDrawIn {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Apply to any element to fade-up when it enters the viewport (wired by
+   pc.js IntersectionObserver). Initial state is transparent; the
+   .pc-revealed class flipped by pc.js plays the animation. */
+.pc-fade-in {
+  opacity: 0;
+  transform: translateY(8px);
+  will-change: opacity, transform;
+}
+.pc-fade-in.pc-revealed {
+  animation: pcFadeIn 180ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.pc-rise {
+  opacity: 0;
+  transform: translateY(16px);
+  will-change: opacity, transform;
+}
+.pc-rise.pc-revealed {
+  animation: pcRise 240ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+/* Stagger children: each child gets a sequential delay (40ms steps).
+   Up to 16 children — autogo never needs more in one batch. */
+.pc-stagger > .pc-fade-in,
+.pc-stagger > .pc-rise {
+  animation-delay: calc(var(--pc-i, 0) * 40ms);
+}
+
+/* SVG path that draws itself in: pc.js measures path length and sets
+   stroke-dasharray; the .pc-revealed class plays pcDrawIn. */
+.pc-draw {
+  stroke-dasharray: var(--pc-len, 1000);
+  stroke-dashoffset: var(--pc-len, 1000);
+}
+.pc-draw.pc-revealed {
+  animation: pcDrawIn 600ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+/* Page transitions (hash-routed): fade-out the leaving page, fade-up the
+   entering one. Default transition is autogo's 140ms baseline. */
+section.pc-page {
+  transition: opacity 70ms ease-out;
+}
+section.pc-page.pc-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+section.pc-page.pc-entering {
+  animation: pcFadeIn 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Smooth color / state transitions on interactive bits. */
+.pc-callout, .pc-figure, .pc-fig-interactive, .pc-skip,
+.pc-nav a, .pc-nav .pc-skip-toggle {
+  transition: background 70ms ease-out, color 70ms ease-out, border-color 70ms ease-out;
+}
+
+/* Reduced-motion: kill everything, snap to final state. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .pc-fade-in, .pc-rise { opacity: 1; transform: none; }
+  .pc-draw { stroke-dashoffset: 0 !important; }
+}

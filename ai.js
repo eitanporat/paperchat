@@ -9,6 +9,12 @@ const DEFAULT_MODELS = {
   '@grok': 'x-ai/grok-4.3',
   '@gpt': 'openai/gpt-5.5',
   '@code': 'claude-code',  // local agent SDK, model is internal
+  // Chapter-summary feature. The values here are Claude Agent SDK model
+  // identifiers passed through to /api/claude_code (not OpenRouter slugs).
+  // The planner runs the multi-pass plan; the writer does section
+  // summaries, page generation, coverage/brevity sweeps.
+  '@chapter.planner': 'claude-opus-4-7',
+  '@chapter.writer': 'claude-sonnet-4-6',
 };
 
 export const MENTIONS = ['@claude', '@grok', '@gpt', '@code'];
@@ -147,23 +153,57 @@ const TOOLS = [
   },
 ];
 
-function buildPaperContext({ paperTitle, paperPagesText, thread }) {
+const CONTEXT_CHAR_BUDGET = 40000;
+
+function joinPagesText(paperPagesText, startPage, endPage) {
+  // 1-indexed inclusive page range → "=== Page N ===\n…" blocks.
+  const out = [];
+  for (let p = startPage; p <= endPage; p++) {
+    const text = paperPagesText[p - 1];
+    if (text != null) out.push(`=== Page ${p} ===\n${text}`);
+  }
+  return out.join('\n\n');
+}
+
+function buildPaperContext({ paperTitle, paperPagesText, thread, chapters, currentChapter }) {
   const totalPages = paperPagesText.length;
-  const fullText = paperPagesText.map((t, i) => `=== Page ${i + 1} ===\n${t}`).join('\n\n');
-  const trimmed = fullText.length > 40000
-    ? fullText.slice(0, 40000) + `\n\n[truncated — paper has ${totalPages} pages]`
-    : fullText;
   const anchor = thread.pageNum
     ? `The user has selected a passage on page ${thread.pageNum} and started this thread:\n"""\n${thread.quote}\n"""\n\n`
     : `This thread is about the whole paper — no specific passage was selected.\n\n`;
+
+  // Book mode: outline as a map, current chapter as the actual text body.
+  if (chapters?.length && currentChapter) {
+    const outlineLines = chapters.map(c =>
+      `  ${c.startPage}-${c.endPage}: ${c.title}`
+    ).join('\n');
+    const chapterText = joinPagesText(paperPagesText, currentChapter.startPage, currentChapter.endPage);
+    const trimmed = chapterText.length > CONTEXT_CHAR_BUDGET
+      ? chapterText.slice(0, CONTEXT_CHAR_BUDGET) + `\n\n[chapter truncated at ${CONTEXT_CHAR_BUDGET} chars — use get_page_text for later pages]`
+      : chapterText;
+    return `BOOK: "${paperTitle}" (${totalPages} pages, ${chapters.length} chapters)
+
+OUTLINE (page ranges):
+${outlineLines}
+
+${anchor}CURRENT CHAPTER — "${currentChapter.title}" (pp. ${currentChapter.startPage}-${currentChapter.endPage}):
+${trimmed}
+
+(Only the current chapter's text is shown above. Use get_page_text(page) or find_in_paper(query) to read other chapters when the user's question requires it.)`;
+  }
+
+  // Paper mode: full text truncated at the budget (legacy behavior).
+  const fullText = joinPagesText(paperPagesText, 1, totalPages);
+  const trimmed = fullText.length > CONTEXT_CHAR_BUDGET
+    ? fullText.slice(0, CONTEXT_CHAR_BUDGET) + `\n\n[truncated — paper has ${totalPages} pages]`
+    : fullText;
   return `PAPER: "${paperTitle}" (${totalPages} pages)
 
 ${anchor}PAPER TEXT:
 ${trimmed}`;
 }
 
-function buildSystemPrompt({ paperTitle, paperPagesText, thread }) {
-  const ctx = buildPaperContext({ paperTitle, paperPagesText, thread });
+function buildSystemPrompt({ paperTitle, paperPagesText, thread, chapters, currentChapter }) {
+  const ctx = buildPaperContext({ paperTitle, paperPagesText, thread, chapters, currentChapter });
   return `You are an expert reader helping a user understand a paper through threaded discussion.
 
 ${ctx}
@@ -300,17 +340,17 @@ async function streamOnce(key, model, messages, onDelta, signal) {
 // Streaming variant of chat(). Calls onDelta(text) for each text fragment and
 // onToolCall({ name, args, ok, error, result }) once a tool call resolves.
 // `viewer` and `python` are optional capability adapters provided by app.js.
-export async function streamChat({ paperTitle, paperPagesText, thread, history, mention, onDelta, onToolCall, viewer, python, signal }) {
+export async function streamChat({ paperTitle, paperPagesText, thread, history, mention, onDelta, onToolCall, viewer, python, signal, chapters, currentChapter }) {
   // @code routes to the local Claude Agent SDK via /api/claude_code (SSE).
   if (mention === '@code') {
-    const systemPrompt = buildCodeSystemPrompt({ paperTitle, paperPagesText, thread });
+    const systemPrompt = buildCodeSystemPrompt({ paperTitle, paperPagesText, thread, chapters, currentChapter });
     return await streamClaudeCode({ systemPrompt, history, thread, onDelta, onToolCall, signal });
   }
 
   const key = getKey();
   if (!key) throw new Error('Set your OpenRouter API key in settings or in .env (OPENROUTER_API_KEY).');
 
-  const systemPrompt = buildSystemPrompt({ paperTitle, paperPagesText, thread });
+  const systemPrompt = buildSystemPrompt({ paperTitle, paperPagesText, thread, chapters, currentChapter });
   const messages = [{ role: 'system', content: systemPrompt }, ...history];
   const model = modelFor(mention);
 
@@ -479,8 +519,8 @@ export async function extractPaperTitle(firstPageText) {
 // (Read/Edit/Bash/Grep/WebFetch/WebSearch) — DO NOT advertise the OpenRouter-
 // path tools (run_python, find_in_paper, etc.) here, or the agent will try to
 // call tools that don't exist.
-function buildCodeSystemPrompt({ paperTitle, paperPagesText, thread }) {
-  const ctx = buildPaperContext({ paperTitle, paperPagesText, thread });
+function buildCodeSystemPrompt({ paperTitle, paperPagesText, thread, chapters, currentChapter }) {
+  const ctx = buildPaperContext({ paperTitle, paperPagesText, thread, chapters, currentChapter });
   return `You are an expert reader helping a user understand a paper through threaded discussion. You have Claude Code's filesystem and shell tools (Read, Write, Edit, Bash, Grep, Glob, WebFetch, WebSearch) available in a sandboxed working directory. Use them to write/run code that verifies claims in the paper, fetch external resources, or otherwise help the user explore.
 
 ## Filesystem rules — strict
