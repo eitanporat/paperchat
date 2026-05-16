@@ -250,15 +250,14 @@ function emitFinalUsage(send, msg) {
 }
 
 async function handleChapterSummary(req, res) {
-  let apiKey = await readMacKeychain('Claude Code');
-  if (!apiKey) {
-    const env = await readEnvFiles();
-    apiKey = env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY || '';
-  }
-  if (!apiKey) {
-    res.writeHead(400);
-    return res.end('No Anthropic credentials. Sign in to `claude` CLI or set ANTHROPIC_API_KEY.');
-  }
+  // Load BOTH Anthropic and OpenRouter credentials up front; the right
+  // one is selected later based on plannerModel slug. Slugs with `/`
+  // (e.g. "moonshotai/kimi-k2.6") route through OpenRouter via Vercel
+  // AI SDK; plain "claude-*" slugs route through Claude Agent SDK.
+  const env = await readEnvFiles();
+  let anthropicKey = await readMacKeychain('Claude Code');
+  if (!anthropicKey) anthropicKey = env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY || '';
+  const openrouterKey = env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '';
 
   let payload;
   try { payload = await readJsonBody(req, 200 * 1024 * 1024); }
@@ -275,6 +274,18 @@ async function handleChapterSummary(req, res) {
       || !Number.isInteger(startPage) || !Number.isInteger(endPage) || endPage < startPage) {
     res.writeHead(400);
     return res.end('paperId, chapterId, startPage, endPage, pdfBase64 required');
+  }
+
+  // Pick provider based on the planner model slug. OpenRouter slugs
+  // always contain "/" (e.g. "moonshotai/kimi-k2.6"); Anthropic slugs
+  // are bare ("claude-opus-4-7"). Each provider needs its own key.
+  const useOpenRouter = String(plannerModel).includes('/');
+  const apiKey = useOpenRouter ? openrouterKey : anthropicKey;
+  if (!apiKey) {
+    res.writeHead(400);
+    return res.end(useOpenRouter
+      ? `No OpenRouter credentials. Set OPENROUTER_API_KEY in .env (selected model: ${plannerModel}).`
+      : `No Anthropic credentials. Sign in to \`claude\` CLI or set ANTHROPIC_API_KEY (selected model: ${plannerModel}).`);
   }
 
   res.writeHead(200, {
@@ -530,13 +541,13 @@ Then write index.html using the _lib/pc.css vocabulary and the autogo aesthetic.
   });
 
   const prevKey = process.env.ANTHROPIC_API_KEY;
-  process.env.ANTHROPIC_API_KEY = apiKey;
+  if (!useOpenRouter) process.env.ANTHROPIC_API_KEY = apiKey;
   // Register our abort controller for this dirName so a subsequent
   // regenerate can cancel us cleanly.
   const abortController = new AbortController();
   _activeRuns.set(dirName, abortController);
   try {
-    send({ type: 'stage', message: 'Launching agent…' });
+    send({ type: 'stage', message: `Launching agent (${useOpenRouter ? 'OpenRouter' : 'Anthropic'} → ${plannerModel})…` });
     // Compose the section-writer's system prompt by inlining the brief
     // + design.md + components.html. This is the cache-sharing win:
     //   - The full ~25 KB prefix is identical across every Task
@@ -556,6 +567,22 @@ Then write index.html using the _lib/pc.css vocabulary and the autogo aesthetic.
       designMd && '\n\n---\n\n# design.md (already loaded — DO NOT Read it, the content is here)\n\n' + designMd,
       componentsHtml && '\n\n---\n\n# components.html (already loaded — DO NOT Read it, the content is here)\n\n' + componentsHtml,
     ].filter(Boolean).join('');
+
+    // ROUTE: OpenRouter models use Vercel AI SDK; Anthropic uses Claude
+    // Agent SDK. The setup phase above (rasterize/compose/figures/_lib
+    // copy/crop/params/composedBrief) is shared; only the agent loop
+    // differs.
+    if (useOpenRouter) {
+      const { runChapterAgentOpenRouter } = await import('./chapter-summary-openrouter.mjs');
+      await runChapterAgentOpenRouter({
+        workdir, systemPrompt, userPrompt, plannerModel, writerModel,
+        composedSectionWriterPrompt: composedBrief,
+        apiKey, send,
+        abortSignal: abortController.signal,
+      });
+      return;  // skip the Anthropic path below
+    }
+
     const iter = query({
       prompt: userPrompt,
       options: {
