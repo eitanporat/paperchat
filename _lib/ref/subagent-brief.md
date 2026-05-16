@@ -133,11 +133,11 @@ Rules:
 - Don't repeat phrasing from the section body; the cards should be
   fresh quiz prompts the reader hasn't seen verbatim.
 
-## Source-page citation — mandatory
+## Source-page citation
 
-Every section must surface which pages of the original book it
-summarizes, AND must be clickable to jump the reader back to that
-page in the PDF viewer. Use the `.pc-source` class right under the
+Every section should surface which pages of the original book it
+summarizes so the reader can flip back; clicking jumps the PDF
+viewer to that page. Use the `.pc-source` class right under the
 `.pc-eyebrow`:
 
     <div class="pc-source pc-fade-in" data-page="40">pp. 40–42</div>

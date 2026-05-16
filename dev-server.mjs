@@ -1245,26 +1245,30 @@ brief already covers those.
 \`sections/<id>.html\` is a pure fragment: NO \`<html>\`, NO \`<head>\`, NO
 outer \`<section>\` wrapper. Top-level is \`<div class="pc-prose pc-stagger">\`.
 
-# Hard rules
+# Guidelines (apply judgment based on the material)
 
-- **Animations are mandatory.** Every \`.pc-page\` \`pc-stagger\`s its
-  children; every heading \`pc-rise\`s; every paragraph/figure
-  \`pc-fade-in\` or \`pc-rise\`. Every interactive figure has at least
-  one user-driven animation. A diagram that's just 4 static boxes with
-  → between them isn't interactive — make it an \`<svg>\` with clickable
-  nodes that animate state.
+- **Default to animating reveals.** Most \`.pc-page\`s want
+  \`pc-stagger\` on the children, \`pc-rise\` on headings, and
+  \`pc-fade-in\` / \`pc-rise\` on paragraphs and figures so the page
+  isn't a wall of static content. Interactive figures should usually
+  have at least one user-driven action (click, drag, hover, slider).
+  A "diagram" that's 4 static boxes with → between them is a missed
+  opportunity — prefer an \`<svg>\` with clickable nodes that animate
+  state when the concept warrants it.
 - Teach, don't summarize-into-bullets. Always shorter than the book;
-  beyond that, the subagent decides length by what the concept needs.
-  Define every term on first use, build any formula step by step,
-  and include a worked example or named case where it would teach
-  (skip where it would feel forced). Wrap optional depth in
-  \`<details class="pc-skip">\`.
-- NEVER embed a full \`pages/page-*.png\` as a chapter figure — those are
-  your reference, not artifacts.
-- NEVER redeclare a \`.pc-*\` selector in your own \`<style>\` — pc.css owns them.
-- NEVER use \`.card\` or invent ad-hoc colors. Stick to design.md.
-- NEVER use HTML entities (\`&#9658;\`) inside CSS \`content\`. Use literal
-  Unicode (\`"▸ "\`) or hex escapes (\`"\\25BA "\`).
+  beyond that, decide length by what the concept needs. Define every
+  term on first use, build any formula step by step, and include a
+  worked example or named case where it would teach (skip where it
+  would feel forced). Wrap optional depth in \`<details class="pc-skip">\`.
+- These are correctness rules — they're not stylistic:
+  - Don't embed a full \`pages/page-*.png\` as a chapter figure — those
+    are your reference rasters, not artifacts.
+  - Don't redeclare a \`.pc-*\` selector in your own \`<style>\` —
+    pc.css owns them; you'd silently break other sections.
+  - Don't put HTML entities (\`&#9658;\`) inside CSS \`content\` — use
+    literal Unicode (\`"▸ "\`) or hex escapes (\`"\\25BA "\`).
+- Stick to design.md's vocabulary (use \`var(--accent)\` etc., don't
+  invent ad-hoc colors or reach for \`.card\`).
 - Skip \`TodoWrite\` — plan.json IS the work breakdown.
 
 When recreating figures: teach the concept, not pixel-perfect. Interactivity
