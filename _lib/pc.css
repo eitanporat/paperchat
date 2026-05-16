@@ -98,6 +98,21 @@ body { padding-left: 200px; }
   color: var(--ink-soft);
 }
 
+/* Source-page citation for each section — appears under the eyebrow
+   or beside it. Same monospace as eyebrows but smaller and dimmer,
+   so the reader can find their place in the original book without
+   the citation competing with the heading. */
+.pc-source {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted, var(--ink-soft));
+  opacity: 0.75;
+  margin-top: -0.15rem;
+}
+.pc-source::before { content: "↳ "; opacity: 0.6; }
+
 /* --- Prose ---------------------------------------------------------- */
 .pc-prose h1,
 .pc-prose h2,

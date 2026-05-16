@@ -19,6 +19,7 @@ parent injects this into a `<section class="pc-page">` placeholder.
 ```html
 <div class="pc-prose pc-stagger">
   <div class="pc-eyebrow pc-fade-in">Section 2.3</div>
+  <div class="pc-source pc-fade-in">pp. 40–42</div>
   <p class="pc-fade-in">
     Opening paragraph orients the reader: what is this idea, why does the chapter introduce it here, what do they already need to know.
   </p>
@@ -65,6 +66,7 @@ don't go figure-shopping yourself.
 
     .pc-prose          prose container (you start with this)
     .pc-eyebrow        mono uppercase label above headings
+    .pc-source         source-page citation (e.g. "pp. 40–42")
     .pc-figure         figure wrapper
     .pc-figure--zoom   click-to-enlarge
     .pc-fig-interactive  host for an interactive figure
@@ -73,6 +75,19 @@ don't go figure-shopping yourself.
     .pc-skip           collapsible details block
 
 No `.card`. No ad-hoc colors. Use `var(--accent)`, `var(--ink-soft)` etc.
+
+## Source-page citation — mandatory
+
+Every section must surface which pages of the original book it
+summarizes, so the reader can flip back for full depth. Use the
+`.pc-source` class right under the `.pc-eyebrow`:
+
+    <div class="pc-source pc-fade-in">pp. 40–42</div>
+
+Single page → `p. 41`. Range → `pp. 40–42` (en-dash, not hyphen).
+Discontiguous → `pp. 38, 41–42`. Match what the planner gave you in
+`source_pages`. Don't bury this in a callout or footnote — it's a
+top-of-section citation.
 
 ## Animation classes — apply liberally
 
