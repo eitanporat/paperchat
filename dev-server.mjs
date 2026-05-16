@@ -794,6 +794,15 @@ async function handleListActiveRuns(req, res, url) {
     if (isTerminal) continue;
     const stale = (nowMs - st.mtimeMs) > STALE_THRESHOLD_MS;
     const chapterId = name.slice(prefix.length);
+    // Also surface the plannerModel from params.json so the client
+    // can decide whether to attempt a stale-resume (Claude path
+    // only; OpenRouter chapters skip the resume POST since the
+    // Claude SDK can't continue an OpenRouter session).
+    let plannerModel = '';
+    try {
+      const params = JSON.parse(await readFile(join(ccDir, name, 'params.json'), 'utf8'));
+      plannerModel = params.plannerModel || '';
+    } catch {}
     out.push({
       chapterId,
       dirName: name,
@@ -801,6 +810,7 @@ async function handleListActiveRuns(req, res, url) {
       lastEventAtMs: lastEv?.t || 0,
       traceMtime: st.mtimeMs,
       status: stale ? 'stale' : 'live',
+      plannerModel,
     });
   }
   sendJson(res, 200, out);

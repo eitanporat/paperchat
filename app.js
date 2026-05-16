@@ -1730,13 +1730,20 @@ async function reattachActiveRuns(paper) {
 
     // If the run is stale (agent process died with the server), kick off
     // a SDK resume — it appends to the same trace.jsonl and /replay
-    // below tails it.
-    if (run.status === 'stale') {
+    // below tails it. Skip this for OpenRouter chapters: Claude Agent
+    // SDK can't continue a non-Anthropic session, and the resume
+    // endpoint would emit a confusing "not implemented" error into
+    // the trace. For OpenRouter, replay-only — user clicks Regenerate
+    // to start fresh if they want to complete the chapter.
+    const isOpenRouter = String(run.plannerModel || '').includes('/');
+    if (run.status === 'stale' && !isOpenRouter) {
       panel.log('Run is stale — asking the Agent SDK to continue…');
       fetch(`/api/chapter_runs/resume?dir=${encodeURIComponent(run.dirName)}`, {
         method: 'POST',
       }).catch(() => {});
       // Deliberately fire-and-forget; the trace is the rendezvous point.
+    } else if (run.status === 'stale' && isOpenRouter) {
+      panel.log('Stale OpenRouter run — showing past trace only. Click Regenerate to restart.');
     }
 
     const resp = await fetch(`/api/chapter_runs/replay?dir=${encodeURIComponent(run.dirName)}`);
