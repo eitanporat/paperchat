@@ -20,7 +20,7 @@ parent injects this into a `<section class="pc-page">` placeholder.
 <div class="pc-prose pc-stagger">
   <div class="pc-eyebrow pc-fade-in">Section 2.3</div>
   <p class="pc-fade-in">
-    Opening sentence. Be concrete and terse. Drop into the concept fast.
+    Opening paragraph orients the reader: what is this idea, why does the chapter introduce it here, what do they already need to know.
   </p>
 
   <p class="pc-fade-in">
@@ -226,20 +226,70 @@ when the chapter's concept deserves it.
   use the actual Unicode codepoint (`ℓ`, `ψ`, `λ`) — they're already
   in the right font.
 
-## Brevity — be ruthless
+## Audience + length
 
-This site is for someone learning the chapter FAST. ~200–400 words per
-section, max. Cut anything not load-bearing. Wrap less-essential
-material in `<details class="pc-skip">`.
+Write for someone meeting this material for the FIRST TIME, not a
+review reader. The job is to actually teach the concept — to make it
+click — not just to list facts.
+
+**Length scales with the source.** Aim for roughly half to two-thirds
+of the source section's word count. A 4-page textbook section that's
+~2000 words → ~1000–1300 words. A short 1-page section → ~250–400
+words. Always shorter than the book (it's a summary), but long enough
+to define every term, develop any formula step by step, and include
+at least one worked example. If the section in the source is a stub,
+your summary is a stub; if the source is dense and elaborate, your
+summary still earns its space — just compress, don't re-pad.
+
+The planner's per-Task prompt will give you a `target_words` figure
+calibrated to the source. Treat it as a guide, not a hard cap — go
+30% over if the worked example needs the room, but don't pad to hit
+a number that the source doesn't justify.
+
+Mandatory structure for every section:
+
+1. **One-paragraph orientation.** What is this idea? Why does the
+   chapter introduce it here? What does the reader already need to
+   know to follow it? (One or two anchors back to earlier sections.)
+2. **The core development.** Define each term as you introduce it.
+   Build any formula up step by step (don't drop it whole); say what
+   each variable means and what it does to the result. State
+   assumptions explicitly.
+3. **At least one worked example.** A concrete, numerical (or
+   concrete narrative) case that you walk through end-to-end with
+   real values. "FCC copper, R = 0.128 nm, A = 63.5 g/mol →
+   ρ ≈ 8.94 g/cm³" beats any amount of abstract prose. If the
+   concept is qualitative (e.g., "ionic vs covalent bonding"), the
+   example is a specific named instance with the properties spelled
+   out (NaCl: cubic, brittle, melts at 801 °C, dissolves in water —
+   contrast with SiC: covalent network, hard, melts at 2730 °C, inert).
+4. **Why-it-matters callout (`pc-callout`).** One- or two-sentence
+   pull-quote that names the consequence. "Atomic packing factor
+   distinguishes structures that look similar geometrically but
+   behave totally differently mechanically" — not "APF is important."
+5. **Optionally: a contrast or edge case in `<details class="pc-skip">`.**
+   Cases where the rule breaks (polymorphism, allotropy, glasses vs
+   crystals). The reader can choose to dig in.
+
+Examples are the most undervalued element. **Default to including a
+worked numerical example or a named specific case for every concept
+that has one.** The original textbook almost always has one — adapt
+it; don't skip it just to save words.
 
 ## What "done" looks like
 
-A small HTML fragment that:
-- Is ~6 top-level elements max
-- Animations classes on every child
-- Uses one interactive figure ONLY if the concept needs it
-- Reads cleanly in 60 seconds
-- Throws no console errors
+A pedagogical fragment that:
+- Has the 5 structural blocks above (orientation → development →
+  worked example → callout → optional skip).
+- Defines every technical term on first use.
+- Walks through any formula with at least one numeric instantiation.
+- Wraps content in `<div class="pc-prose pc-stagger">`; uses
+  animation classes on every visible child (`.pc-fade-in` /
+  `.pc-rise` / `.pc-draw`).
+- Uses one interactive figure when the concept has manipulable
+  structure (parameter, state, position); skip the figure for purely
+  textual ideas.
+- Throws no console errors.
 
 Don't ask the parent for clarification. Don't write anything outside the
 file. When done, just exit.
