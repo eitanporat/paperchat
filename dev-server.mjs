@@ -566,8 +566,10 @@ Then write index.html using the _lib/pc.css vocabulary and the autogo aesthetic.
         includePartialMessages: true,
         settingSources: [],
         skills: [],
-        // Default model is the writer; agent can override per-call.
-        model: writerModel,
+        // The TOP-LEVEL agent is the planner — runs as plannerModel
+        // (Opus by default). Subagents (section-writer) run as
+        // writerModel (Sonnet); see agents.section-writer.model below.
+        model: plannerModel,
         // The planner's job is to FAN OUT, not to author content. Cap
         // thinking so it doesn't draft full HTML in its head — we saw
         // 6+ min of pure thinking and 30K thinking-chars (≈10K tokens)
@@ -812,7 +814,12 @@ async function handleResumeRun(req, res, url) {
         includePartialMessages: true,
         settingSources: [],
         skills: [],
-        model: params.writerModel || 'claude-sonnet-4-6',
+        // Resume the planner — Opus by default, mirroring the fresh-
+        // run config above. Section-writer subagents (which we don't
+        // re-register here; the SDK's continue:true preserves the
+        // original session's agent definitions) keep running as
+        // writerModel as before.
+        model: params.plannerModel || 'claude-opus-4-7',
         // Same anti-overthinking guardrails as the fresh-run config —
         // resumes were observed spending minutes in pure thinking,
         // drafting content in the model's head instead of dispatching.
