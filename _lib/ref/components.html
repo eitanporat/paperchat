@@ -2,14 +2,42 @@
      pc-* components — interactive figures as web components
 
      Every component below is a custom element registered by _lib/pc.js.
-     You write ONE tag with a JSON `data` attribute. The component
-     handles SVG geometry, theming, animation, and click wiring.
+     You write ONE tag with JSON content. The component handles SVG
+     geometry, theming, animation, and click wiring.
+
+     Two equivalent ways to pass the data, pick by content:
+
+       (a) `data='[...]'` attribute. Short, quote-free payloads only.
+           Breaks if your JSON contains apostrophes (Hund's, Avogadro's).
+
+       (b) `<script type="application/json">[...]</script>` child.
+           ALWAYS safe — no HTML attribute quoting; any prose is fine.
+           Use this whenever the payload has apostrophes or long body
+           text. Example:
+
+             <pc-stepped>
+               <script type="application/json">
+                 [{"title": "Hund's rule", "body": "..."}]
+               </script>
+             </pc-stepped>
 
      Do NOT write inline SVG + IIFE scripts for these patterns — use
      the component. It's already debugged. For chapter-specific
      interactive concepts that NO generic component captures, build
      a custom figure (encouraged — see the bottom of this file).
      ==================================================================== -->
+
+
+<!-- pc-stepped — same component, JSON-as-script example (recommended
+     for any payload with apostrophes or longer prose). -->
+<pc-stepped>
+  <script type="application/json">
+    [
+      {"title": "Hund's rule", "body": "Electrons fill empty orbitals before pairing up — they prefer to stay apart when possible."},
+      {"title": "Pauli exclusion", "body": "No two electrons in the same atom share all four quantum numbers; this caps any orbital at two electrons with opposite spin."}
+    ]
+  </script>
+</pc-stepped>
 
 
 <!-- pc-chain — process or derivation: A → B → C → D with click-for-detail.

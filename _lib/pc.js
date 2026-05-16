@@ -302,8 +302,15 @@ window.pcSite = {
 // ====================================================================
 
 function _pcData(el, fallback = null) {
-  const raw = el.getAttribute('data');
-  if (!raw) return fallback;
+  // Prefer a child <script type="application/json"> payload over the
+  // `data` attribute when present. Script content bypasses HTML
+  // attribute quoting entirely, so JSON strings can contain
+  // apostrophes and double-quotes without escaping — this is the
+  // recommended form for any payload with prose. Falls back to the
+  // `data` attribute for the short / quote-free case.
+  const script = el.querySelector(':scope > script[type="application/json"]');
+  const raw = script ? script.textContent : el.getAttribute('data');
+  if (!raw || !raw.trim()) return fallback;
   try { return JSON.parse(raw); }
   catch (e) { console.warn(el.tagName + ' bad JSON:', e.message); return fallback; }
 }

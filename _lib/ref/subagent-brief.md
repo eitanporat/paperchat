@@ -156,6 +156,27 @@ Minimum usage — pick the closest component, fill in the JSON:
       ...
     ]'></pc-chain>
 
+### JSON-with-prose: use the `<script type="application/json">` form
+
+The `data='...'` attribute breaks when the JSON contains apostrophes
+(`don't`, `Hund's rule`, `Avogadro's number`) because the apostrophe
+closes the HTML attribute. The components also accept a child
+`<script type="application/json">` payload, which has NO quoting
+issues — neither single nor double quotes need escaping. **Default
+to this form for any payload that contains prose.**
+
+    <pc-stepped>
+      <script type="application/json">
+        [
+          {"title": "Hund's rule", "body": "Electrons fill empty orbitals before pairing — Hund's rule says..."},
+          {"title": "Pauli exclusion", "body": "No two electrons share all four quantum numbers."}
+        ]
+      </script>
+    </pc-stepped>
+
+Use `data='[...]'` only for short, apostrophe-free payloads where
+the inline form genuinely reads better.
+
 Pick the closest match for the cognitive primitive ("compare", "walk
 through", "explore parameter", …) — not for the subject. A chemistry
 "derivation chain" and a calculus "function composition" both want
