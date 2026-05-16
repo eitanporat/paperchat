@@ -230,14 +230,27 @@ Minimum usage — pick the closest component, fill in the JSON:
       ...
     ]'></pc-chain>
 
-### JSON-with-prose: use the `<script type="application/json">` form
+### JSON payload: default to `<script type="application/json">`
 
-The `data='...'` attribute breaks when the JSON contains apostrophes
-(`don't`, `Hund's rule`, `Avogadro's number`) because the apostrophe
-closes the HTML attribute. The components also accept a child
-`<script type="application/json">` payload, which has NO quoting
-issues — neither single nor double quotes need escaping. **Default
-to this form for any payload that contains prose.**
+The `data='...'` attribute is fragile. Two failure modes that have
+broken real chapters:
+
+  1. **Apostrophes inside JSON strings** (`Hund's rule`, `don't`,
+     `Avogadro's number`) close the HTML attribute → JSON gets
+     truncated → component shows its empty-data placeholder.
+  2. **Mistyping `"` as `'`** (e.g. ending a string with `})()'`
+     instead of `})()"`) — this happens most often in `pc-slider`'s
+     `formula` field, which mixes JS code with JSON quoting and is
+     easy to slip on. JSON parser sees an unterminated string and
+     trips on the next newline.
+
+Every `pc-*` component also accepts a child
+`<script type="application/json">` payload. Script content bypasses
+HTML attribute quoting entirely — neither single nor double quotes
+need escaping, and a missing closing quote fails noisily rather than
+silently consuming the rest of the file. **Default to this form for
+ANY payload longer than a few values, ANY payload with prose, and
+ALWAYS for `pc-slider` formulas.**
 
     <pc-stepped>
       <script type="application/json">
@@ -248,8 +261,9 @@ to this form for any payload that contains prose.**
       </script>
     </pc-stepped>
 
-Use `data='[...]'` only for short, apostrophe-free payloads where
-the inline form genuinely reads better.
+Use `data='[...]'` only for very short, apostrophe-free payloads
+where the inline form genuinely reads better (a 3-cell `pc-grid`
+with one-word labels, say).
 
 Pick the closest match for the cognitive primitive ("compare", "walk
 through", "explore parameter", …) — not for the subject. A chemistry
