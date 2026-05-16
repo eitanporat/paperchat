@@ -1686,6 +1686,13 @@ async function openPastRun(paper, ch) {
   const dirName = `chapter-${safe(paper.id)}-${safe(ch.id)}`;
   resetChapterTab(ch.id);
   const panel = openChapterSummaryPanel(paper, ch);
+  // Suppress the side-effects that a LIVE run produces: don't
+  // auto-open the chapter site iframe on the index.html write, and
+  // don't fire the completion toast / button-pop on the done event.
+  // The user explicitly asked for the trace; they're not building
+  // anything, they're inspecting history.
+  panel._replaying = true;
+  panel._indexNotified = true;  // skips the index.html auto-open + toast
   panel.log(`Replaying past run for "${ch.title}"…`);
   let resp;
   try {
@@ -1768,14 +1775,14 @@ function handleChapterSummaryEvent(panel, ev) {
       // that count inline so the user sees the rasterizer's progress.
       const rasterM = ev.message.match(/^Rasterizing pages [\d-]+… \((\d+)\/(\d+)\)/);
       if (rasterM) {
-        panel.setStep('prep', `Preparing chapter — rasterizing ${rasterM[1]}/${rasterM[2]} pages`, { icon: '📦' });
+        panel.setStep('prep', `Preparing chapter — rasterizing ${rasterM[1]}/${rasterM[2]} pages`, { icon: '📦', at: ev.t });
       } else if (/^Workdir:/.test(ev.message) || /^Trace:/.test(ev.message)
        || /Wrote chapter\.pdf/.test(ev.message) || /^Rasteriz/.test(ev.message)
        || /^Copied _lib/.test(ev.message) || /Rasterized \d+ pages/.test(ev.message)) {
-        panel.setStep('prep', 'Preparing chapter', { icon: '📦' });
+        panel.setStep('prep', 'Preparing chapter', { icon: '📦', at: ev.t });
       } else if (/Launching agent/.test(ev.message)) {
-        panel.completeStep('prep');
-        panel.setStep('think', 'Reading the chapter', { icon: '👀' });
+        panel.completeStep('prep', ev.t);
+        panel.setStep('think', 'Reading the chapter', { icon: '👀', at: ev.t });
       }
       break;
     }
@@ -1789,7 +1796,7 @@ function handleChapterSummaryEvent(panel, ev) {
       if (!raw) break;
       const id = 'phase:' + raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const label = raw.charAt(0).toUpperCase() + raw.slice(1);
-      panel.setStep(id, label, { icon: '◆' });
+      panel.setStep(id, label, { icon: '◆', at: ev.t });
       break;
     }
     case 'tool_use': {
@@ -1802,6 +1809,10 @@ function handleChapterSummaryEvent(panel, ev) {
         const desc = ev.args?.description || ev.args?.subagent_type || 'subagent';
         panel.addWorker(ev.id, desc);
       } else if (ev.name === 'Write' || ev.name === 'Edit') {
+        // Replays inspect history — they should NOT auto-open the
+        // live preview or fire section-write toasts. The user's
+        // explicit intent was "show me the trace."
+        if (panel._replaying) break;
         const path = ev.args?.file_path || '';
         const indexHit = /\/index\.html$/.test(path) || path.endsWith('index.html');
         const sectionHit = path.match(/sections\/([a-zA-Z0-9_-]+)\.html$/);
@@ -1845,14 +1856,14 @@ function handleChapterSummaryEvent(panel, ev) {
       break;
     }
     case 'done': {
-      panel.completeAll();
+      panel.completeAll(ev.t);
       panel.setCost(ev.totalCostUsd);  // Reveal the cost element + mirror onto the tab.
       panel.done(ev.workdir);
-      // Refresh the summaries cache so the chip's "View" affordance shows
-      // up immediately without a reload.
+      // On replay, the run already finished historically — no need to
+      // refresh summaries, fire a "Generated" toast, or flash the tab
+      // title. The trace is the deliverable.
+      if (panel._replaying) break;
       if (state.paper) refreshChapterSummaries(state.paper).catch(() => {});
-      // Surface the completion: in-app toast + document.title flash that
-      // survives until the page regains focus.
       const chTitle = panel.chapterId
         ? (state.paper?.chapters || []).find(c => c.id === panel.chapterId)?.title
         : null;
@@ -2238,12 +2249,18 @@ function openChapterSummaryPanel(paper, ch) {
     return rs ? `${m}m ${rs}s` : `${m}m`;
   }
   function stepDur(s) {
-    if (s.status === 'active') return Date.now() - (s.startedAt || Date.now());
+    // For an active step: use the latest known event-clock value
+    // (so replay durations match the original wall-clock, and live
+    // durations grow as long as new events keep arriving).
+    if (s.status === 'active') {
+      const now = api._latestEventT || Date.now();
+      return now - (s.startedAt || now);
+    }
     return (s.endedAt || 0) - (s.startedAt || 0);
   }
   function endStep(s) {
     if (s.endedAt) return;
-    s.endedAt = Date.now();
+    s.endedAt = api._latestEventT || Date.now();
   }
   function renderSteps() {
     stepsEl.innerHTML = '';
@@ -2259,8 +2276,14 @@ function openChapterSummaryPanel(paper, ch) {
       stepsEl.appendChild(li);
     }
   }
-  function setStep(id, label, { icon } = {}) {
-    const now = Date.now();
+  // Use the event-stream timestamp (`ev.t`, ms since run-start) when
+  // available so REPLAYED durations show the real historical gaps
+  // instead of the near-zero gaps caused by replay racing through the
+  // SSE stream at memory speed. Falls back to Date.now() for callers
+  // that don't have an event timestamp (boot stages, etc.).
+  function setStep(id, label, { icon, at } = {}) {
+    const now = (typeof at === 'number') ? at : Date.now();
+    api._latestEventT = now;
     if (steps.has(id)) {
       const s = steps.get(id);
       s.label = label;
@@ -2270,13 +2293,13 @@ function openChapterSummaryPanel(paper, ch) {
       // getting stuck on the prior phase. Don't override a fail.
       if (s.status !== 'fail') {
         for (const other of steps.values()) {
-          if (other.id !== id && other.status === 'active') { other.status = 'done'; endStep(other); }
+          if (other.id !== id && other.status === 'active') { other.status = 'done'; endStepAt(other, now); }
         }
         if (s.status === 'done') { s.startedAt = now; s.endedAt = null; }  // re-entering resets the timer
         s.status = 'active';
       }
     } else {
-      for (const s of steps.values()) if (s.status === 'active') { s.status = 'done'; endStep(s); }
+      for (const s of steps.values()) if (s.status === 'active') { s.status = 'done'; endStepAt(s, now); }
       steps.set(id, { id, label, icon, status: 'active', startedAt: now, endedAt: null });
     }
     activeStepId = id;
@@ -2286,6 +2309,10 @@ function openChapterSummaryPanel(paper, ch) {
       setTimeout(() => tab.classList.remove('chsum-tab--update'), 1200);
     }
   }
+  function endStepAt(s, t) {
+    if (s.endedAt) return;
+    s.endedAt = t;
+  }
   // Live-tick the active step's duration once a second so the user
   // can see it grow. Stops automatically when no active step remains.
   setInterval(() => {
@@ -2293,11 +2320,13 @@ function openChapterSummaryPanel(paper, ch) {
     for (const s of steps.values()) if (s.status === 'active') { anyActive = true; break; }
     if (anyActive) renderSteps();
   }, 1000);
-  function completeStep(id) {
+  function completeStep(id, at) {
+    if (typeof at === 'number') api._latestEventT = at;
     const s = steps.get(id);
     if (s) { s.status = 'done'; endStep(s); renderSteps(); }
   }
-  function completeAll() {
+  function completeAll(at) {
+    if (typeof at === 'number') api._latestEventT = at;
     for (const s of steps.values()) if (s.status === 'active') { s.status = 'done'; endStep(s); }
     renderSteps();
     tab.classList.add('chsum-tab--done');
@@ -2482,10 +2511,10 @@ function openChapterSummaryPanel(paper, ch) {
         openChapterSiteInline(url, `${paper.name || ''} — ${ch.title}`);
       });
       tab.classList.add('chsum-tab--done');
-      // Make the button discoverable: if the panel is minimized when
-      // the run finishes (user collapsed it during the build), pop it
-      // open so the Open button is unmistakable. Also focus this tab
-      // so the result row is the one in view.
+      // Skip the "pop minimized + scroll into view + focus tab"
+      // attention-grabbing on replay — the user opened the panel
+      // deliberately to read history, they don't need it grabbed.
+      if (api._replaying) return;
       const panel = document.getElementById('chsum-panel');
       if (panel?.classList.contains('minimized')) {
         panel.classList.remove('minimized');
