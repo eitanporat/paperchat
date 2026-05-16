@@ -223,14 +223,19 @@ export async function runChapterAgentOpenRouter({
     },
   });
 
-  // Consume the text stream + forward EACH chunk to the SSE as it
-  // arrives. Without this the UI sees long silences while a single
-  // step (e.g. writing plan.json with a 5-KB JSON output) finishes
-  // emitting — could be 30-60s with no visible progress. onStepFinish
-  // only fires after the whole step completes; the textStream is the
-  // only place we can get token-level granularity.
-  for await (const chunk of result.textStream) {
-    if (chunk) send({ type: 'text', content: chunk });
+  // Consume fullStream + forward every delta to SSE as it arrives.
+  // textStream-only missed the reasoning deltas (Kimi K2.6 emits a
+  // LOT of reasoning before producing text or tool calls, sometimes
+  // 1-3 minutes of pure reasoning tokens); the UI looked frozen.
+  // fullStream gives us text + reasoning + tool calls + everything.
+  for await (const part of result.fullStream) {
+    if (part.type === 'text-delta' && part.text) {
+      send({ type: 'text', content: part.text });
+    } else if (part.type === 'reasoning-delta' && part.text) {
+      send({ type: 'thinking', content: part.text });
+    }
+    // tool-call / tool-result deltas are surfaced via onStepFinish
+    // (with full args + results); we don't re-emit them here.
   }
   const totalUsage = await result.totalUsage;
   const finishReason = await result.finishReason;
