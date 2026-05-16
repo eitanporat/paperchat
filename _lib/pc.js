@@ -749,6 +749,71 @@ class PcTerm extends HTMLElement {
   }
 }
 
+// --- pc-anki ----------------------------------------------------------
+// Anki-style review card deck. Use at the END of every section so the
+// reader can self-test the concepts before moving on. Each card has
+// a question and an answer; question is visible by default, answer is
+// hidden behind a click. Numbered, with an "Expand all" / "Collapse
+// all" toggle. KaTeX in q/a is fine.
+//
+// Style cribbed from flashcards.dwarkesh.com: accent left-border on
+// expanded answer, soft hover, monospace numbering, no "flip"
+// animation — just expand/collapse, which is more compact and
+// keyboard-friendly than 3D card flips.
+class PcAnki extends HTMLElement {
+  connectedCallback() {
+    const cards = _pcData(this, []);
+    if (!Array.isArray(cards) || !cards.length) { this.innerHTML = '<em>pc-anki: empty data</em>'; return; }
+    const items = cards.map((c, i) => `
+      <li class="pc-anki-card" data-i="${i}">
+        <button type="button" class="pc-anki-q" aria-expanded="false">
+          <span class="pc-anki-num">${String(i + 1).padStart(2, '0')}</span>
+          <span class="pc-anki-q-text">${c.q || ''}</span>
+          <span class="pc-anki-chev" aria-hidden="true">▸</span>
+        </button>
+        <div class="pc-anki-a" hidden>
+          <div class="pc-anki-a-inner">${c.a || ''}</div>
+        </div>
+      </li>`).join('');
+    this.innerHTML = `
+      <figure class="pc-fig-interactive pc-rise pc-anki">
+        <div class="pc-anki-head">
+          <div class="pc-eyebrow">Review · ${cards.length} card${cards.length === 1 ? '' : 's'}</div>
+          <button type="button" class="pc-anki-toggle">Expand all</button>
+        </div>
+        <ul class="pc-anki-list">${items}</ul>
+      </figure>`;
+    if (window.pcMath) window.pcMath.renderMathIn(this);
+    const list = this.querySelector('.pc-anki-list');
+    const expandBtn = this.querySelector('.pc-anki-toggle');
+    const allCards = list.querySelectorAll('.pc-anki-card');
+    function setOpen(card, open) {
+      const a = card.querySelector('.pc-anki-a');
+      const q = card.querySelector('.pc-anki-q');
+      a.hidden = !open;
+      q.setAttribute('aria-expanded', open ? 'true' : 'false');
+      card.classList.toggle('pc-anki-open', open);
+    }
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest('.pc-anki-q');
+      if (!btn) return;
+      const card = btn.parentElement;
+      const open = card.classList.contains('pc-anki-open');
+      setOpen(card, !open);
+      refreshToggle();
+    });
+    expandBtn.addEventListener('click', () => {
+      const anyClosed = [...allCards].some(c => !c.classList.contains('pc-anki-open'));
+      for (const c of allCards) setOpen(c, anyClosed);
+      refreshToggle();
+    });
+    function refreshToggle() {
+      const anyClosed = [...allCards].some(c => !c.classList.contains('pc-anki-open'));
+      expandBtn.textContent = anyClosed ? 'Expand all' : 'Collapse all';
+    }
+  }
+}
+
 customElements.define('pc-chain',     PcChain);
 customElements.define('pc-stepped',   PcStepped);
 customElements.define('pc-timeline',  PcTimeline);
@@ -760,3 +825,4 @@ customElements.define('pc-annotated', PcAnnotated);
 customElements.define('pc-equation',  PcEquation);
 customElements.define('pc-tree',      PcTree);
 customElements.define('pc-term',      PcTerm);
+customElements.define('pc-anki',      PcAnki);

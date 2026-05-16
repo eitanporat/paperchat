@@ -179,6 +179,26 @@
 }'></pc-tree>
 
 
+<!-- pc-anki — Anki-style review-card deck. Put at the END of every
+     section so the reader can self-test before moving on. Each card
+     is a Q (visible) with an A hidden behind a click. KaTeX in q or
+     a is fine. Recommended 6–12 cards per section. -->
+<pc-anki>
+  <script type="application/json">
+    [
+      {"q": "What is the smallest repeating 3D building block of a crystal called?",
+       "a": "The <strong>unit cell</strong>. Its geometry fully describes the whole crystal."},
+      {"q": "How many atoms per cell in FCC, BCC, and SC?",
+       "a": "FCC = 4 (8 corners × 1/8 + 6 faces × 1/2), BCC = 2 (8 corners × 1/8 + 1 body-center), SC = 1."},
+      {"q": "What's the atomic packing factor (APF) of FCC?",
+       "a": "$0.74$ — the maximum possible for hard-sphere packing. Same as HCP; both differ from BCC ($0.68$)."},
+      {"q": "Write the formula for theoretical density from unit-cell geometry.",
+       "a": "$\\rho = \\dfrac{n A}{V_C N_A}$ where $n$ = atoms/cell, $A$ = atomic weight, $V_C$ = cell volume, $N_A$ = Avogadro's number."}
+    ]
+  </script>
+</pc-anki>
+
+
 <!-- ====================================================================
      Custom interactive figures — encouraged when the concept calls for it
 

@@ -100,6 +100,39 @@ Don't wrap the same term every time it appears — once on first use
 is the rule. If you've used `pc-term` for "unit cell" in the
 orientation paragraph, just say "unit cell" in later paragraphs.
 
+## Review cards at the end of every section
+
+Every section should end with a `<pc-anki>` deck of review cards so
+the reader can self-test the key concepts before moving on. You
+decide how many — short sections might warrant just a few cards,
+dense ones more. The right count is "enough to cover the
+load-bearing ideas, not so many that you're padding."
+
+Place AFTER the callout, BEFORE any optional `<details class="pc-skip">`:
+
+    <pc-anki>
+      <script type="application/json">
+        [
+          {"q": "What is X?", "a": "X is …"},
+          {"q": "When does Y happen?", "a": "Y happens when … because …"},
+          {"q": "Compute Z for FCC copper.", "a": "$\\rho = nA / (V_C N_A)$; with $n=4, A=63.5, …$ → $\\rho \\approx 8.94$ g/cm³"}
+        ]
+      </script>
+    </pc-anki>
+
+Rules:
+- Each card is ONE testable fact, definition, formula, or worked
+  example — not "tell me everything about X."
+- Mix card types: definitions, comparisons ("difference between X
+  and Y"), computations ("predict Z for these values"), reasoning
+  ("why does W happen?"), and trap-spotters ("what's wrong with
+  saying X?").
+- KaTeX in `q` or `a` is fine — use `$...$` delimiters.
+- Use the `<script type="application/json">` form (not the `data=…`
+  attr) — answers often have apostrophes and longer prose.
+- Don't repeat phrasing from the section body; the cards should be
+  fresh quiz prompts the reader hasn't seen verbatim.
+
 ## Source-page citation — mandatory
 
 Every section must surface which pages of the original book it
@@ -188,6 +221,7 @@ a real working example of each.
     pc-equation   KaTeX equation + clickable symbol legend
     pc-tree       hierarchical content as nested collapsible cards
     pc-term       inline term with hover/focus tooltip definition
+    pc-anki       Anki-style review-card deck (END of every section)
 
 Minimum usage — pick the closest component, fill in the JSON:
 

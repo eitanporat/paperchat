@@ -537,11 +537,25 @@ Then write index.html using the _lib/pc.css vocabulary and the autogo aesthetic.
   _activeRuns.set(dirName, abortController);
   try {
     send({ type: 'stage', message: 'Launching agent…' });
-    // Load the subagent brief so we can pass it as the section-writer's
-    // system prompt — that's the cleanest way to share global rules
-    // (vocabulary, image paths, JS pitfalls, brevity) across subagents.
-    let subagentBrief = '';
-    try { subagentBrief = await readFile(join(workdir, '_lib/ref/subagent-brief.md'), 'utf8'); } catch {}
+    // Compose the section-writer's system prompt by inlining the brief
+    // + design.md + components.html. This is the cache-sharing win:
+    //   - The full ~25 KB prefix is identical across every Task
+    //     invocation in this chapter, so Anthropic's prompt cache
+    //     reuses it after the first subagent's first call.
+    //   - Subagents never need to Read design.md or components.html
+    //     — the content is already in their system prompt, saving
+    //     ~3 tool calls per subagent + faster startup.
+    // The parent agent still reads the on-disk versions during plan
+    // mode; the inlined copies don't conflict.
+    let subagentBrief = '', designMd = '', componentsHtml = '';
+    try { subagentBrief   = await readFile(join(workdir, '_lib/ref/subagent-brief.md'), 'utf8'); } catch {}
+    try { designMd        = await readFile(join(workdir, '_lib/ref/design.md'),         'utf8'); } catch {}
+    try { componentsHtml  = await readFile(join(workdir, '_lib/ref/components.html'),   'utf8'); } catch {}
+    const composedBrief = [
+      subagentBrief || 'Write a paperchat chapter section as an HTML fragment to sections/<id>.html.',
+      designMd && '\n\n---\n\n# design.md (already loaded — DO NOT Read it, the content is here)\n\n' + designMd,
+      componentsHtml && '\n\n---\n\n# components.html (already loaded — DO NOT Read it, the content is here)\n\n' + componentsHtml,
+    ].filter(Boolean).join('');
     const iter = query({
       prompt: userPrompt,
       options: {
@@ -569,7 +583,7 @@ Then write index.html using the _lib/pc.css vocabulary and the autogo aesthetic.
         agents: {
           'section-writer': {
             description: 'Writes one HTML fragment to sections/<id>.html for one concept page of a paperchat chapter site. Use one of these per planned section, dispatched in parallel.',
-            prompt: subagentBrief || 'Write a paperchat chapter section as an HTML fragment to sections/<id>.html. Use only the .pc-* class vocabulary. Image paths are relative to index.html (use figures/, not ../figures/).',
+            prompt: composedBrief,
             tools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
             model: writerModel,
             // Subagents do the actual authoring — let them think

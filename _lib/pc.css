@@ -132,6 +132,60 @@ body { padding-left: 200px; }
   letter-spacing: 0.08em;
 }
 
+/* --- pc-anki: Anki-style review-card deck ------------------------- */
+.pc-anki { margin: 1.4em 0; }
+.pc-anki-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; margin-bottom: .5rem;
+}
+.pc-anki-toggle {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--accent);
+  padding: 4px 8px; border-radius: 3px;
+}
+.pc-anki-toggle:hover { background: var(--accent-soft); }
+.pc-anki-list {
+  list-style: none; margin: 0; padding: 0;
+  border-top: 1px solid var(--border);
+}
+.pc-anki-card {
+  border-bottom: 1px solid var(--border);
+}
+.pc-anki-q {
+  appearance: none; width: 100%; cursor: pointer;
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 10px; text-align: left;
+  background: transparent; border: 0;
+  font: inherit; color: var(--ink);
+  line-height: 1.45;
+  transition: background 0.12s ease;
+}
+.pc-anki-q:hover { background: var(--accent-soft); }
+.pc-anki-num {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  color: var(--muted); flex: 0 0 28px; padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.pc-anki-q-text { flex: 1; }
+.pc-anki-chev {
+  flex: 0 0 16px; color: var(--accent); font-size: 12px;
+  transition: transform 0.18s ease; padding-top: 2px;
+}
+.pc-anki-open .pc-anki-chev { transform: rotate(90deg); }
+.pc-anki-a {
+  padding: 0 10px 14px 52px;  /* aligned with the question text (gap+num) */
+}
+.pc-anki-a-inner {
+  border-left: 2px solid var(--accent);
+  padding: 4px 14px;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.pc-anki-a-inner p:first-child { margin-top: 0; }
+.pc-anki-a-inner p:last-child  { margin-bottom: 0; }
+
 /* --- pc-term: inline term with hover/focus tooltip ---------------- */
 .pc-term {
   position: relative;
