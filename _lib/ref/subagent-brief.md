@@ -232,57 +232,56 @@ Write for someone meeting this material for the FIRST TIME, not a
 review reader. The job is to actually teach the concept — to make it
 click — not just to list facts.
 
-**Length scales with the source.** Aim for roughly half to two-thirds
-of the source section's word count. A 4-page textbook section that's
-~2000 words → ~1000–1300 words. A short 1-page section → ~250–400
-words. Always shorter than the book (it's a summary), but long enough
-to define every term, develop any formula step by step, and include
-at least one worked example. If the section in the source is a stub,
-your summary is a stub; if the source is dense and elaborate, your
-summary still earns its space — just compress, don't re-pad.
+**Shortness matters.** The site exists because reading the original
+chapter takes too long; a bloated summary wastes the reason for the
+summary. Always shorter than the book.
 
-The planner's per-Task prompt will give you a `target_words` figure
-calibrated to the source. Treat it as a guide, not a hard cap — go
-30% over if the worked example needs the room, but don't pad to hit
-a number that the source doesn't justify.
+No word target. You decide the length by what the concept needs:
+short enough that nothing is filler, long enough that every term is
+defined on first use, every formula is built step by step, and at
+least one worked example lands. If you find yourself padding to
+sound thorough, cut. If you find yourself dropping definitions to
+sound terse, expand. Trust your judgment per section — what's
+right for a one-paragraph aside in the book is different from what's
+right for a multi-page derivation.
 
-Mandatory structure for every section:
+Structural backbone for every section:
 
-1. **One-paragraph orientation.** What is this idea? Why does the
-   chapter introduce it here? What does the reader already need to
-   know to follow it? (One or two anchors back to earlier sections.)
+1. **Orientation.** What is this idea? Why does the chapter introduce
+   it here? What does the reader already need to know to follow it?
+   (Brief anchors back to earlier sections when relevant.)
 2. **The core development.** Define each term as you introduce it.
    Build any formula up step by step (don't drop it whole); say what
    each variable means and what it does to the result. State
    assumptions explicitly.
-3. **At least one worked example.** A concrete, numerical (or
-   concrete narrative) case that you walk through end-to-end with
-   real values. "FCC copper, R = 0.128 nm, A = 63.5 g/mol →
-   ρ ≈ 8.94 g/cm³" beats any amount of abstract prose. If the
-   concept is qualitative (e.g., "ionic vs covalent bonding"), the
-   example is a specific named instance with the properties spelled
-   out (NaCl: cubic, brittle, melts at 801 °C, dissolves in water —
-   contrast with SiC: covalent network, hard, melts at 2730 °C, inert).
+3. **A worked example or named case — when it helps.** Highly
+   recommended for quantitative concepts ("FCC copper, R = 0.128 nm,
+   A = 63.5 g/mol → ρ ≈ 8.94 g/cm³"), comparative concepts (a named
+   specific instance with concrete properties), and anything the
+   reader will need to recognize in practice. Skip it when the
+   section is an overview, a definition, a historical aside, or
+   anything where a concrete example would feel forced. Your call.
 4. **Why-it-matters callout (`pc-callout`).** One- or two-sentence
-   pull-quote that names the consequence. "Atomic packing factor
-   distinguishes structures that look similar geometrically but
-   behave totally differently mechanically" — not "APF is important."
+   pull-quote that names the consequence — "APF distinguishes
+   structures that look similar geometrically but behave totally
+   differently mechanically," not "APF is important."
 5. **Optionally: a contrast or edge case in `<details class="pc-skip">`.**
    Cases where the rule breaks (polymorphism, allotropy, glasses vs
    crystals). The reader can choose to dig in.
 
-Examples are the most undervalued element. **Default to including a
-worked numerical example or a named specific case for every concept
-that has one.** The original textbook almost always has one — adapt
-it; don't skip it just to save words.
+Worked examples are powerful when the concept has one to give, but
+forcing one onto a section that doesn't need it is worse than
+leaving it out. Use judgment.
 
 ## What "done" looks like
 
 A pedagogical fragment that:
-- Has the 5 structural blocks above (orientation → development →
-  worked example → callout → optional skip).
+- Follows the structural backbone (orient → develop → optional
+  example → callout → optional skip), adapting as the concept needs.
 - Defines every technical term on first use.
-- Walks through any formula with at least one numeric instantiation.
+- Walks through any formula step by step.
+- Includes a worked example or named case where it would teach;
+  skips it where it would feel forced.
 - Wraps content in `<div class="pc-prose pc-stagger">`; uses
   animation classes on every visible child (`.pc-fade-in` /
   `.pc-rise` / `.pc-draw`).

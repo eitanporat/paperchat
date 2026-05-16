@@ -1097,20 +1097,18 @@ Schema:
         {"role": "recreate", "kind": "chain",  "label": "..."}
       ],
       "concepts": ["Bohr model", "wave-mechanical model", "quantum numbers"],
-      "worked_example": "Hydrogen atom: predict the n=2 → n=1 transition wavelength using E_n = -13.6/n² eV → ΔE = 10.2 eV → λ = hc/ΔE ≈ 121.6 nm (Lyman α, observed).",
-      "source_word_count_estimate": 1800,
-      "target_words": 1000
+      "worked_example": "Hydrogen atom: predict the n=2 → n=1 transition wavelength using E_n = -13.6/n² eV → ΔE = 10.2 eV → λ = hc/ΔE ≈ 121.6 nm (Lyman α, observed)."
     }
   ]
 }
 \`\`\`
 
-The \`worked_example\` is the most important field. Every section MUST
-have one — a numerical case for quantitative concepts, a named
-specific instance with concrete properties for qualitative ones. The
-textbook itself almost always has one; lift it (don't skip it). The
-target audience meets this material for the first time, and abstract
-prose without examples doesn't teach.
+\`worked_example\` is optional but RECOMMENDED for quantitative or
+named-case concepts. Omit it for sections that are overviews,
+definitions, or historical asides where a forced example would feel
+out of place. Lift from the textbook when it has one; don't invent
+contrived ones. The subagent decides target length itself per
+section — no target_words field.
 
 ## 3) Write index.html (skeleton, NOT monolithic)
 
@@ -1174,13 +1172,15 @@ the FIRST TIME; ~250 words is too short to actually teach anything):
 > Concept: <3–5 specific bullets — definitions, formulas, claims —
 > NOT a topic label>.
 >
-> Worked example to include: <a concrete, numerical (or named-case)
+> Worked example (RECOMMENDED if it fits — skip for overviews,
+> definitions, historical asides): <a concrete, numerical or named-case
 > example walked through end-to-end. For quantitative concepts give
 > real numbers and the result. For qualitative concepts give a named
 > instance with its actual properties. E.g. \"FCC copper, R = 0.128 nm,
 > A = 63.5 g/mol → ρ ≈ 8.94 g/cm³\" or \"NaCl: cubic, brittle, melts at
-> 801 °C, dissolves in water\". The textbook almost always has one —
-> use it.>
+> 801 °C, dissolves in water\". Use the textbook's example if it has
+> one; don't invent contrived ones. Omit this line entirely if no
+> example would teach.>
 >
 > Source: PDF pages <list>.
 >
@@ -1198,15 +1198,14 @@ the FIRST TIME; ~250 words is too short to actually teach anything):
 > structure the user should manipulate to grok it (electron shells,
 > wave interference, phase cursor, draggable system, …).
 >
-> Target length: <N> words (specify a figure calibrated to the source —
-> roughly half to two-thirds of how long this material runs in the
-> textbook itself. A 1-page source ≈ 250–400 words; a 4-page source ≈
-> 1000–1300 words. Always shorter than the book, but long enough to
-> teach.). The section must walk the reader from 'never heard of this'
-> to 'I could now explain this to a friend' — define every term on
-> first use, build any formula step by step, then ground it with the
-> worked example above. End with a callout: '<the exact pull-quote,
-> written by you>'."
+> Length: as short as possible while still teaching the concept. No
+> word target — the subagent decides per section. Always shorter than
+> the source; if the source is a stub, the summary is a stub. The
+> section must walk the reader from 'never heard of this' to 'I could
+> now explain this to a friend' — define every term on first use,
+> build any formula step by step, then ground it with the worked
+> example above. End with a callout: '<the exact pull-quote, written
+> by you>'."
 
 Strict: no \`"Working directory:"\` line, no absolute paths (\`/Users/...\`)
 in the Task prompt — the subagent's cwd is set and absolute paths
@@ -1232,11 +1231,12 @@ outer \`<section>\` wrapper. Top-level is \`<div class="pc-prose pc-stagger">\`.
   one user-driven animation. A diagram that's just 4 static boxes with
   → between them isn't interactive — make it an \`<svg>\` with clickable
   nodes that animate state.
-- Teach, don't summarize-into-bullets. Length scales with the source
-  (~½ to ⅔ of source length, always shorter than the book). Define
-  every term on first use, build any formula step by step, include a
-  worked numerical example or named specific case. Wrap optional
-  depth in \`<details class="pc-skip">\`.
+- Teach, don't summarize-into-bullets. Always shorter than the book;
+  beyond that, the subagent decides length by what the concept needs.
+  Define every term on first use, build any formula step by step,
+  and include a worked example or named case where it would teach
+  (skip where it would feel forced). Wrap optional depth in
+  \`<details class="pc-skip">\`.
 - NEVER embed a full \`pages/page-*.png\` as a chapter figure — those are
   your reference, not artifacts.
 - NEVER redeclare a \`.pc-*\` selector in your own \`<style>\` — pc.css owns them.
