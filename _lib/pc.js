@@ -687,6 +687,61 @@ class PcTree extends HTMLElement {
   }
 }
 
+// --- pc-term ----------------------------------------------------------
+// Inline term with a hover/focus tooltip showing its definition. Use
+// for technical terms on first (or important) appearance:
+//
+//   The smallest repeating unit is the <pc-term def="The minimum
+//   3D building block whose translation tiles the whole crystal.">
+//   unit cell</pc-term>.
+//
+// The definition may contain inline HTML (including KaTeX delimiters);
+// it's rendered via pcMath after the tooltip mounts.
+// Mobile: tap toggles. Keyboard: focusable, Enter / Space toggle.
+class PcTerm extends HTMLElement {
+  connectedCallback() {
+    if (this._wired) return;
+    this._wired = true;
+    const def = this.getAttribute('def') || '';
+    // Preserve the original term text as the trigger; build the
+    // tooltip alongside it. Use display:inline so it flows with prose.
+    const text = this.textContent;
+    this.textContent = '';
+    this.classList.add('pc-term');
+    this.setAttribute('tabindex', '0');
+    this.setAttribute('role', 'button');
+    this.setAttribute('aria-label', `${text} — definition`);
+    const trigger = document.createElement('span');
+    trigger.className = 'pc-term-trigger';
+    trigger.textContent = text;
+    const tip = document.createElement('span');
+    tip.className = 'pc-term-tip';
+    tip.setAttribute('role', 'tooltip');
+    tip.innerHTML = def;
+    this.appendChild(trigger);
+    this.appendChild(tip);
+    if (window.pcMath) window.pcMath.renderMathIn(tip);
+    // Tap-to-toggle on touch / click; hover handled by CSS :hover.
+    let open = false;
+    const setOpen = (v) => {
+      open = v;
+      this.classList.toggle('pc-term-open', v);
+    };
+    this.addEventListener('click', (e) => {
+      // Don't intercept clicks on links inside the definition.
+      if (e.target.closest('a')) return;
+      e.preventDefault();
+      setOpen(!open);
+    });
+    this.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(!open); }
+      if (e.key === 'Escape') setOpen(false);
+    });
+    // Dismiss when focus leaves.
+    this.addEventListener('blur', () => setOpen(false));
+  }
+}
+
 customElements.define('pc-chain',     PcChain);
 customElements.define('pc-stepped',   PcStepped);
 customElements.define('pc-timeline',  PcTimeline);
@@ -697,3 +752,4 @@ customElements.define('pc-plot',      PcPlot);
 customElements.define('pc-annotated', PcAnnotated);
 customElements.define('pc-equation',  PcEquation);
 customElements.define('pc-tree',      PcTree);
+customElements.define('pc-term',      PcTerm);

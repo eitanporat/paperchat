@@ -116,6 +116,19 @@
 }'></pc-equation>
 
 
+<!-- pc-term — inline term with a hover/focus tooltip showing its
+     definition. Use for technical terms on first (or important) use:
+     the trigger gets a dashed underline; on hover/click the
+     definition pops up. Definition may contain inline HTML, including
+     KaTeX math (`$...$`). On touch devices, tap to open. -->
+<p class="pc-fade-in">
+  The smallest repeating 3D building block is the
+  <pc-term def="The minimum 3D building block whose translation along the lattice vectors tiles the whole crystal.">unit cell</pc-term>,
+  characterised by its
+  <pc-term def="Three edge lengths $a$, $b$, $c$ and three interaxial angles $\alpha$, $\beta$, $\gamma$.">lattice parameters</pc-term>.
+</p>
+
+
 <!-- pc-tree — hierarchical content as nested collapsible cards.
      Use for: taxonomies, classification systems, decision trees, org charts.
      Each node has a `label` and optional `body` (longer description, inline

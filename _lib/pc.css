@@ -132,6 +132,65 @@ body { padding-left: 200px; }
   letter-spacing: 0.08em;
 }
 
+/* --- pc-term: inline term with hover/focus tooltip ---------------- */
+.pc-term {
+  position: relative;
+  display: inline;
+  cursor: help;
+  outline: none;
+}
+.pc-term-trigger {
+  border-bottom: 1px dashed var(--accent);
+  padding-bottom: 1px;
+}
+.pc-term:hover .pc-term-trigger,
+.pc-term:focus .pc-term-trigger,
+.pc-term.pc-term-open .pc-term-trigger {
+  background: var(--accent-soft);
+}
+.pc-term-tip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  display: block;
+  width: max-content;
+  max-width: min(360px, 80vw);
+  padding: 10px 12px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-2px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+  pointer-events: none;
+  white-space: normal;
+}
+.pc-term-tip::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: -5px;
+  width: 10px; height: 10px;
+  background: var(--ink);
+  transform: rotate(45deg);
+}
+.pc-term:hover .pc-term-tip,
+.pc-term:focus .pc-term-tip,
+.pc-term.pc-term-open .pc-term-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 /* --- Prose ---------------------------------------------------------- */
 .pc-prose h1,
 .pc-prose h2,

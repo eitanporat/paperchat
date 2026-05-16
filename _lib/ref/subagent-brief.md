@@ -76,6 +76,30 @@ don't go figure-shopping yourself.
 
 No `.card`. No ad-hoc colors. Use `var(--accent)`, `var(--ink-soft)` etc.
 
+## Defining terms inline — use pc-term
+
+Every technical term should be defined on its FIRST appearance. The
+nicest way: wrap it in `<pc-term def="…">…</pc-term>` so the
+definition shows on hover/focus without breaking the prose flow.
+
+    The smallest repeating 3D building block is the
+    <pc-term def="The minimum 3D block whose translation tiles the
+    whole crystal.">unit cell</pc-term>.
+
+Use it for:
+- Every technical term on first appearance.
+- Acronyms (PSP, APF, BCC) — `<pc-term def="Atomic packing factor —
+  the fraction of unit-cell volume occupied by atom hard spheres.">APF</pc-term>`.
+- Re-uses where the reader might have forgotten the meaning.
+
+The `def` attribute is plain HTML and may contain inline KaTeX
+(`$x^2$`). Keep definitions short — 1–2 sentences. For deeper
+context, link to the section or leave it in the body prose.
+
+Don't wrap the same term every time it appears — once on first use
+is the rule. If you've used `pc-term` for "unit cell" in the
+orientation paragraph, just say "unit cell" in later paragraphs.
+
 ## Source-page citation — mandatory
 
 Every section must surface which pages of the original book it
@@ -122,7 +146,8 @@ a real working example of each.
     pc-plot       line / bar / scatter from {series:[{points:[[x,y],…]}]}
     pc-annotated  image + numbered hotspots that reveal labels
     pc-equation   KaTeX equation + clickable symbol legend
-    pc-tree       hierarchical node-link (taxonomy, decision tree, …)
+    pc-tree       hierarchical content as nested collapsible cards
+    pc-term       inline term with hover/focus tooltip definition
 
 Minimum usage — pick the closest component, fill in the JSON:
 
