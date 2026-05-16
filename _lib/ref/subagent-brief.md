@@ -181,6 +181,26 @@ Why the web-component wrapper (vs raw inline SVG + IIFE):
 - You can reuse it: drop a second `<atom-shells data=…>` elsewhere
   in the section with different data; same code handles both.
 
+**Verify the physics/math before shipping.** If your custom figure
+computes anything (forces, energies, probabilities, rates), check
+the formulas against the textbook at the obvious boundary points:
+
+- For a force-vs-separation curve: at the equilibrium r₀, F_N must
+  be EXACTLY zero. Solve F=0 to find r₀; don't reuse some other
+  derivative.
+- For a potential-energy curve: F = −dV/dr. At r₀, V is a MINIMUM
+  (negative — the bound-state energy −E₀); V should approach 0 from
+  below as r → ∞. If your V comes out positive at the minimum, your
+  integration sign is wrong.
+- For a probability density: it must be non-negative everywhere and
+  integrate to 1 over the domain.
+- For an angular variable that wraps: make sure your formula handles
+  the wrap (mod 2π or mod 360°), not just the principal branch.
+
+These are sanity checks, not full proofs. A figure with wrong-sign
+energy or non-zero force at the labeled equilibrium teaches the
+reader the wrong physics — worse than no figure.
+
 Rules for custom figures (same as the SVG/JS pitfalls below):
 - Inline `style="fill: var(--accent)"` — never bare `fill="var(--…)"`.
 - Set explicit `viewBox` + cap width via `style="width:100%; max-width:…"`.
