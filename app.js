@@ -567,6 +567,7 @@ function openChapterMenu(anchor, chapter) {
   const items = [];
   if (existing) {
     items.push({ id: 'open',  label: 'Open chapter site', primary: true });
+    items.push({ id: 'trace', label: 'View past run' });
     items.push({ id: 'regen', label: 'Regenerate' });
   } else {
     items.push({ id: 'summarize', label: 'Summarize chapter', primary: true });
@@ -588,6 +589,7 @@ function openChapterMenu(anchor, chapter) {
       if (it.id === 'open' && existing) openChapterSiteInline(existing.indexUrl, `${paper.name || ''} — ${ch.title}`);
       else if (it.id === 'summarize') kickoffChapterSummary(ch);
       else if (it.id === 'regen')     kickoffChapterSummary(ch);
+      else if (it.id === 'trace')     openPastRun(paper, ch);
     });
     menu.appendChild(btn);
   }
@@ -1672,6 +1674,33 @@ async function consumeSseToPanel(resp, panel) {
 // On paper open, reattach progress panels to any chapter runs whose
 // trace.jsonl exists but doesn't have a terminal event yet (page reload
 // during regeneration → don't lose the run).
+// Open the chsum panel for a chapter whose run is already complete
+// (or stale) and replay the saved trace.jsonl from disk. Same UI as
+// a live run — steps, log, tokens, workers — just historical. Useful
+// when the user wants to inspect what the agent did without
+// regenerating. resetChapterTab() wipes any prior tab state for this
+// chapter first so the replay starts clean.
+async function openPastRun(paper, ch) {
+  if (!paper?.id || !ch?.id) return;
+  const safe = (s) => String(s).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 48);
+  const dirName = `chapter-${safe(paper.id)}-${safe(ch.id)}`;
+  resetChapterTab(ch.id);
+  const panel = openChapterSummaryPanel(paper, ch);
+  panel.log(`Replaying past run for "${ch.title}"…`);
+  let resp;
+  try {
+    resp = await fetch(`/api/chapter_runs/replay?dir=${encodeURIComponent(dirName)}`);
+  } catch (e) {
+    panel.log(`Replay request failed: ${e.message}`);
+    return;
+  }
+  if (!resp.ok) {
+    panel.log(`Replay failed: ${resp.status} ${await resp.text().catch(() => '')}`);
+    return;
+  }
+  consumeSseToPanel(resp, panel).catch(() => {});
+}
+
 async function reattachActiveRuns(paper) {
   if (!paper?.id) return;
   let runs;
