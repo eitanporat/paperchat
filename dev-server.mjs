@@ -1094,7 +1094,25 @@ you intend to assign with \`role: embed\`:
 - Subagents trust your assignments and will not re-verify. Never
   assign garbage with \`role: embed\`.
 
-## 2) Write plan.json
+## 2) Write plan.json — cover the WHOLE chapter
+
+The plan must account for every meaningful concept in the chapter.
+Before you write it, scan once more and ask: are there pages in the
+source range that no plan entry references? If so, either fold those
+pages into a neighboring entry or add a section for them. The
+\`source_pages\` arrays across all entries should collectively cover
+the chapter's page range — gaps usually mean missed material.
+
+This doesn't mean one section per page. Combine pages that develop a
+single concept; split a single page when it covers two unrelated
+ones. The shape of the plan reflects the structure of the IDEAS, not
+the layout of the source.
+
+If the chapter has a section the textbook itself flagged as optional
+(starred section, "Materials of importance" sidebar, appendix), you
+can put it in \`<details class="pc-skip">\` inside an adjacent
+section's fragment rather than spawning its own subagent — but don't
+just drop it.
 
 Schema:
 
@@ -1233,6 +1251,29 @@ Strict: no \`"Working directory:"\` line, no absolute paths (\`/Users/...\`)
 in the Task prompt — the subagent's cwd is set and absolute paths
 make it hallucinate. No re-explaining vocabulary or JS pitfalls — the
 brief already covers those.
+
+## 5) After all subagents return — coverage check
+
+Before declaring done, audit what landed against what the chapter
+contains. Walk through the chapter's source pages one more time and
+confirm every load-bearing concept appears somewhere in the sections.
+Common gaps to look for:
+
+- A textbook subsection (numbered 2.x or 2.x.y) with no plan entry.
+- A worked example, table, or named formula that the source treats
+  as important but nothing in your sections references.
+- A figure the source uses to introduce a concept (not just to
+  decorate) that isn't embedded or recreated anywhere.
+- A summary / "key concepts" box at the end of the chapter whose
+  bullets aren't all addressed in some section.
+
+If you find a gap, dispatch one more section-writer to fill it
+(append a new plan.json entry first and update index.html's nav +
+\`<section>\` placeholder, then Task), OR fold the missing concept
+into an adjacent section by editing its file.
+
+It is OK for the summary to be SHORTER than the source — that's the
+point — but it should not LEAVE OUT material the source emphasizes.
 
 # Final structure
 
