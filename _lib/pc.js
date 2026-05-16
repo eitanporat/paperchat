@@ -230,12 +230,39 @@ function wireAnchors() {
   }
 }
 
+// --- Source-page citations: click → jump in parent PDF viewer ------
+// Every section has a `<div class="pc-source" data-page="40">pp. 40–42</div>`.
+// When the chapter site is loaded inside paperchat (in an iframe),
+// clicking the citation postMessage's the parent so it can close the
+// chapter overlay and scroll the PDF viewer to that page. When the
+// site is opened standalone (new tab), the click is a no-op (the
+// parent isn't paperchat).
+function wireSourceCitations() {
+  document.body.addEventListener('click', (e) => {
+    const el = e.target.closest('.pc-source');
+    if (!el) return;
+    e.preventDefault();
+    const explicit = parseInt(el.dataset.page || '0', 10);
+    // Fallback: parse the first number out of the visible text
+    // (e.g. "pp. 40–42" → 40) so older sections without data-page
+    // still work.
+    const fromText = explicit || (() => {
+      const m = (el.textContent || '').match(/\d+/);
+      return m ? parseInt(m[0], 10) : 0;
+    })();
+    if (!fromText) return;
+    try { window.parent?.postMessage({ type: 'paperchat:goto-page', page: fromText }, '*'); }
+    catch {}
+  });
+}
+
 // --- Boot ----------------------------------------------------------
 function boot() {
   wireZoom();
   wireSkipToggle();
   wireSectionTracking();
   wireAnchors();
+  wireSourceCitations();
   renderMathIn(document.body);
   // Always arm reveal animations across the whole document (sections
   // are no longer hidden/shown — they're all stacked and observed).

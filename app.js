@@ -2647,6 +2647,31 @@ if (!window._chsiteWatchInstalled) {
   }).observe(document.body, { childList: true });
 }
 
+// Listen for "jump to PDF page N" messages from the chapter-site
+// iframe (pc.js posts these when the user clicks a .pc-source
+// citation). On receive: close the chapter overlay so the PDF is
+// visible, then scroll the viewer to that page. Filtered to only
+// fire while we're inside the chapter-viewer (its iframe is the
+// only sender we expect) and only for the goto-page type.
+if (!window._chsiteMsgInstalled) {
+  window._chsiteMsgInstalled = true;
+  window.addEventListener('message', (ev) => {
+    const d = ev.data;
+    if (!d || d.type !== 'paperchat:goto-page') return;
+    const page = parseInt(d.page, 10);
+    if (!Number.isFinite(page) || page < 1) return;
+    // Verify the message came from our chapter-viewer iframe — we
+    // don't want random pages on the open web triggering jumps.
+    const wrap = document.getElementById('chapter-viewer');
+    const frame = wrap?.querySelector('iframe');
+    if (!frame || ev.source !== frame.contentWindow) return;
+    // Close the overlay (the MutationObserver clears sessionStorage),
+    // then jump on the next tick so the PDF viewer is the active surface.
+    wrap.remove();
+    setTimeout(() => jumpToPage(page), 0);
+  });
+}
+
 function openChapterSiteInline(url, title, opts = {}) {
   document.getElementById('chapter-viewer')?.remove();
   const liveDirName = opts.liveDirName || null;

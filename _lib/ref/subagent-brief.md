@@ -19,7 +19,7 @@ parent injects this into a `<section class="pc-page">` placeholder.
 ```html
 <div class="pc-prose pc-stagger">
   <div class="pc-eyebrow pc-fade-in">Section 2.3</div>
-  <div class="pc-source pc-fade-in">pp. 40–42</div>
+  <div class="pc-source pc-fade-in" data-page="40">pp. 40–42</div>
   <p class="pc-fade-in">
     Opening paragraph orients the reader: what is this idea, why does the chapter introduce it here, what do they already need to know.
   </p>
@@ -79,15 +79,21 @@ No `.card`. No ad-hoc colors. Use `var(--accent)`, `var(--ink-soft)` etc.
 ## Source-page citation — mandatory
 
 Every section must surface which pages of the original book it
-summarizes, so the reader can flip back for full depth. Use the
-`.pc-source` class right under the `.pc-eyebrow`:
+summarizes, AND must be clickable to jump the reader back to that
+page in the PDF viewer. Use the `.pc-source` class right under the
+`.pc-eyebrow`:
 
-    <div class="pc-source pc-fade-in">pp. 40–42</div>
+    <div class="pc-source pc-fade-in" data-page="40">pp. 40–42</div>
 
-Single page → `p. 41`. Range → `pp. 40–42` (en-dash, not hyphen).
-Discontiguous → `pp. 38, 41–42`. Match what the planner gave you in
-`source_pages`. Don't bury this in a callout or footnote — it's a
-top-of-section citation.
+- `data-page` is the FIRST PDF page (absolute page number, 1-indexed
+  — same as `source_pages[0]` from plan.json). The chapter-site
+  click handler reads this attribute and posts a message to the
+  paperchat parent app, which closes the overlay and scrolls the
+  PDF viewer to that page.
+- Visible text formats: single page → `p. 41`; range → `pp. 40–42`
+  (en-dash, not hyphen); discontiguous → `pp. 38, 41–42`.
+- Match what the planner gave you in `source_pages`. Don't bury
+  this in a callout or footnote — it's a top-of-section citation.
 
 ## Animation classes — apply liberally
 

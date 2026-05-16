@@ -98,11 +98,13 @@ body { padding-left: 200px; }
   color: var(--ink-soft);
 }
 
-/* Source-page citation for each section — appears under the eyebrow
-   or beside it. Same monospace as eyebrows but smaller and dimmer,
-   so the reader can find their place in the original book without
-   the citation competing with the heading. */
+/* Source-page citation for each section. Same monospace family as
+   eyebrows but smaller and dimmer — reads as a citation. Clickable:
+   when the chapter site is loaded inside paperchat, clicking jumps
+   the underlying PDF viewer to that page and closes the chapter
+   overlay. The pc.js click handler dispatches a postMessage. */
 .pc-source {
+  display: inline-block;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -110,8 +112,25 @@ body { padding-left: 200px; }
   color: var(--muted, var(--ink-soft));
   opacity: 0.75;
   margin-top: -0.15rem;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: opacity 0.12s ease, background 0.12s ease;
 }
 .pc-source::before { content: "↳ "; opacity: 0.6; }
+.pc-source:hover {
+  opacity: 1;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.pc-source:hover::after {
+  content: " — open in PDF";
+  opacity: 0.7;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
 
 /* --- Prose ---------------------------------------------------------- */
 .pc-prose h1,
