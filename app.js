@@ -1807,7 +1807,7 @@ function handleChapterSummaryEvent(panel, ev) {
       // and each section file landing (build progress).
       if (ev.name === 'Task') {
         const desc = ev.args?.description || ev.args?.subagent_type || 'subagent';
-        panel.addWorker(ev.id, desc);
+        panel.addWorker(ev.id, desc, ev.t);
       } else if (ev.name === 'Write' || ev.name === 'Edit') {
         // Replays inspect history — they should NOT auto-open the
         // live preview or fire section-write toasts. The user's
@@ -1848,7 +1848,7 @@ function handleChapterSummaryEvent(panel, ev) {
     }
     case 'tool_result': {
       // If the result is for a Task subagent, mark that worker done.
-      if (ev.id) panel.completeWorker(ev.id, ev.ok);
+      if (ev.id) panel.completeWorker(ev.id, ev.ok, ev.t);
       break;
     }
     case 'error': {
@@ -2166,22 +2166,41 @@ function openChapterSummaryPanel(paper, ch) {
   // Track parallel Task subagents (one per section). Each adds a chip
   // with a spinner; tool_result flips it to ✓/✗.
   const workersById = new Map();
-  function addWorker(id, desc) {
+  function addWorker(id, desc, at) {
     if (!id || workersById.has(id)) return;
+    if (typeof at === 'number') api._latestEventT = at;
     workersEl.hidden = false;
     const li = document.createElement('li');
     li.className = 'chsum-worker';
     li.dataset.workerId = id;
-    li.innerHTML = `<span class="chsum-worker-spin"></span><span class="chsum-worker-label">${escapeHtml(truncate(desc, 50))}</span>`;
+    li.dataset.startedAt = String(at ?? Date.now());
+    li.innerHTML = `<span class="chsum-worker-spin"></span><span class="chsum-worker-label">${escapeHtml(truncate(desc, 50))}</span><span class="chsum-dur"></span>`;
     workersEl.appendChild(li);
     workersById.set(id, li);
   }
-  function completeWorker(id, ok) {
+  function completeWorker(id, ok, at) {
     const li = workersById.get(id);
     if (!li) return;
+    if (typeof at === 'number') api._latestEventT = at;
     li.classList.add(ok === false ? 'chsum-worker--fail' : 'chsum-worker--done');
     li.querySelector('.chsum-worker-spin').textContent = ok === false ? '✗' : '✓';
+    const startedAt = Number(li.dataset.startedAt || 0);
+    const endedAt = typeof at === 'number' ? at : Date.now();
+    if (startedAt > 0 && endedAt > startedAt) {
+      li.querySelector('.chsum-dur').textContent = fmtDur(endedAt - startedAt);
+    }
   }
+  // Tick active workers' duration once a second (same idea as steps).
+  setInterval(() => {
+    let anyActive = false;
+    for (const li of workersById.values()) {
+      if (li.classList.contains('chsum-worker--done') || li.classList.contains('chsum-worker--fail')) continue;
+      anyActive = true;
+      const startedAt = Number(li.dataset.startedAt || 0);
+      const now = api._latestEventT || Date.now();
+      if (startedAt > 0) li.querySelector('.chsum-dur').textContent = fmtDur(now - startedAt);
+    }
+  }, 1000);
 
   function closeTab(id) {
     panel.querySelector(`.chsum-tab[data-tab="${id}"]`)?.remove();
