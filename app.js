@@ -2222,6 +2222,13 @@ function openChapterSummaryPanel(paper, ch) {
   // thinking_tokens field — thinking is rolled into output_tokens.)
   const usageByMsg = new Map();
   const usageTotals = { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 };
+  // Track the first and most-recent usage event timestamps (ms since
+  // run-start, from ev.t) so we can compute a rolling tokens-per-second
+  // figure: total output / elapsed. Includes time spent in tools, so
+  // it's a "wall-clock throughput" not a "raw inference rate" — the
+  // user can see when long tool calls are pulling the average down.
+  let firstUsageT = null;
+  let lastUsageT = null;
   function recomputeUsageTotals() {
     usageTotals.input = 0;
     usageTotals.output = 0;
@@ -2244,12 +2251,22 @@ function openChapterSummaryPanel(paper, ch) {
     // we already saw on a prior turn, so summing it inflates the number
     // misleadingly.
     const inSum = usageTotals.input + usageTotals.cacheCreation;
+    // Tokens/second: total output tokens divided by elapsed time since
+    // the first usage event. Includes tool-call wall time so it shows
+    // effective throughput, not raw inference rate.
+    let tps = '';
+    if (firstUsageT != null && lastUsageT != null && lastUsageT > firstUsageT && usageTotals.output > 0) {
+      const elapsedSec = (lastUsageT - firstUsageT) / 1000;
+      const rate = usageTotals.output / elapsedSec;
+      tps = `  · ${rate < 10 ? rate.toFixed(1) : Math.round(rate)} tok/s`;
+    }
     tokensEl.textContent =
-      `${inSum.toLocaleString()} in · ${usageTotals.output.toLocaleString()} out`;
+      `${inSum.toLocaleString()} in · ${usageTotals.output.toLocaleString()} out${tps}`;
     tokensEl.title =
       `${usageTotals.input.toLocaleString()} fresh + ${usageTotals.cacheCreation.toLocaleString()} cached this run ` +
       `(${usageTotals.cacheRead.toLocaleString()} cache reads also; ignored in display since they re-count prior context). ` +
-      'output_tokens already includes any thinking tokens.';
+      'output_tokens already includes any thinking tokens. ' +
+      'tok/s = total output / wall time since first usage event (includes tool-call time, so it dips during long tool calls).';
     const tabTokens = tab.querySelector('.chsum-tab-tokens');
     if (tabTokens) {
       tabTokens.textContent = `${fmtK(inSum)}·${fmtK(usageTotals.output)}`;
@@ -2491,6 +2508,10 @@ function openChapterSummaryPanel(paper, ch) {
         cacheCreation: ev.cacheCreation || 0,
         cacheRead: ev.cacheRead || 0,
       });
+      if (typeof ev.t === 'number') {
+        if (firstUsageT == null) firstUsageT = ev.t;
+        lastUsageT = ev.t;
+      }
       recomputeUsageTotals();
       renderTokens();
     },

@@ -219,6 +219,11 @@ export async function runChapterAgentOpenRouter({
     tools: { ...tools, Task: taskTool },
     stopWhen: stepCountIs(80),
     abortSignal: innerAbort.signal,
+    // Retry up to 2× on transport / chunk-timeout errors. chunkMs
+    // says "if no SSE chunk in 10s, abort this attempt" — caught the
+    // OpenRouter mid-stream drops we saw on the Kimi run.
+    maxRetries: 2,
+    timeout: { chunkMs: 10_000 },
     onStepFinish(step) {
       stepN++;
       // Translate AI-SDK step events to our SSE protocol.
@@ -256,35 +261,18 @@ export async function runChapterAgentOpenRouter({
   // LOT of reasoning before producing text or tool calls, sometimes
   // 1-3 minutes of pure reasoning tokens); the UI looked frozen.
   // fullStream gives us text + reasoning + tool calls + everything.
-  //
-  // Idle watchdog: OpenRouter occasionally drops the stream mid-
-  // message without signaling end (saw 8+ min of silence after a
-  // partial reasoning chunk). Track the last chunk timestamp; if
-  // nothing arrives for IDLE_LIMIT_MS, abort the agent loop with a
-  // clear error instead of hanging forever.
-  const IDLE_LIMIT_MS = 90_000;  // 90s of stream silence = treat as dropped
-  let lastChunkAt = Date.now();
-  const idleTimer = setInterval(() => {
-    if (Date.now() - lastChunkAt > IDLE_LIMIT_MS) {
-      clearInterval(idleTimer);
-      send({ type: 'error', message: `Stream idle for >${IDLE_LIMIT_MS / 1000}s — aborting (model or OpenRouter dropped the connection).` });
-      try { innerAbort.abort(); } catch {}
+  // (Replaced an earlier manual idle-watchdog with the AI SDK's
+  // built-in `timeout: { chunkMs: 10_000 }` + `maxRetries: 2` — see
+  // the streamText call above. The SDK now retries the API call
+  // itself when a chunk doesn't arrive in 10s, no extra code needed.)
+  for await (const part of result.fullStream) {
+    if (part.type === 'text-delta' && part.text) {
+      send({ type: 'text', content: part.text });
+    } else if (part.type === 'reasoning-delta' && part.text) {
+      send({ type: 'thinking', content: part.text });
     }
-  }, 10_000);
-
-  try {
-    for await (const part of result.fullStream) {
-      lastChunkAt = Date.now();
-      if (part.type === 'text-delta' && part.text) {
-        send({ type: 'text', content: part.text });
-      } else if (part.type === 'reasoning-delta' && part.text) {
-        send({ type: 'thinking', content: part.text });
-      }
-      // tool-call / tool-result deltas are surfaced via onStepFinish
-      // (with full args + results); we don't re-emit them here.
-    }
-  } finally {
-    clearInterval(idleTimer);
+    // tool-call / tool-result deltas are surfaced via onStepFinish
+    // (with full args + results); we don't re-emit them here.
   }
   const totalUsage = await result.totalUsage;
   const finishReason = await result.finishReason;
