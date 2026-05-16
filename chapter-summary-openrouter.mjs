@@ -201,7 +201,8 @@ export async function runChapterAgentOpenRouter({
         const txt = typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
         send({ type: 'tool_result', id: tr.toolCallId, ok: true, result: txt });
       }
-      if (step.text) send({ type: 'text', content: step.text });
+      // step.text already streamed chunk-by-chunk via textStream above;
+      // not re-emitting here to avoid duplicating it as one big block.
       // step.reasoning is an array of {type:'reasoning', text, providerMetadata}
       const reasoning = Array.isArray(step.reasoning)
         ? step.reasoning.map(r => r.text || '').join('\n').trim()
@@ -222,8 +223,15 @@ export async function runChapterAgentOpenRouter({
     },
   });
 
-  // Consume the stream so the loop actually runs.
-  for await (const _ of result.textStream) { /* drain */ }
+  // Consume the text stream + forward EACH chunk to the SSE as it
+  // arrives. Without this the UI sees long silences while a single
+  // step (e.g. writing plan.json with a 5-KB JSON output) finishes
+  // emitting — could be 30-60s with no visible progress. onStepFinish
+  // only fires after the whole step completes; the textStream is the
+  // only place we can get token-level granularity.
+  for await (const chunk of result.textStream) {
+    if (chunk) send({ type: 'text', content: chunk });
+  }
   const totalUsage = await result.totalUsage;
   const finishReason = await result.finishReason;
   send({
