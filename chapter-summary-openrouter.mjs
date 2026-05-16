@@ -39,21 +39,20 @@ function makeWorkdirTools(workdir) {
 
   return {
     Read: tool({
-      description: 'Read the contents of a file in the chapter workdir. Accepts text and image files (PNG/JPG return as image_url for multimodal models).',
+      description: 'Read the contents of a file in the chapter workdir. Text files return numbered lines. Image files (PNG/JPG/etc.) return a short metadata stub — for vision-based figure vetting, this build does NOT pass image content back through tool results (would need experimental multi-modal-tool-result support that not all OpenRouter models implement). Treat images as opaque assets and rely on the planner system prompt + composites listing.',
       inputSchema: z.object({ file_path: z.string().describe('Path relative to workdir (e.g. "_lib/pc.css")') }),
       execute: async ({ file_path }) => {
         const abs = safePath(file_path);
         const isImage = /\.(png|jpe?g|gif|webp)$/i.test(file_path);
         if (isImage) {
-          const buf = await readFile(abs);
-          const mime = file_path.match(/\.png$/i) ? 'image/png' : 'image/jpeg';
-          return { content: [{ type: 'image', data: buf.toString('base64'), mediaType: mime }] };
+          // Text-only tool result for now. Returning a stub keeps the
+          // agent loop alive without trying to embed a base64 image
+          // into a place Vercel AI SDK 6 doesn't yet uniformly accept.
+          const s = await stat(abs);
+          return `[image file ${file_path}, ${s.size} bytes — opaque to this run]`;
         }
         const text = await readFile(abs, 'utf8');
-        // Standard cat-n format so the agent sees line numbers like
-        // Claude Code's Read tool does.
-        const numbered = text.split('\n').map((l, i) => `${String(i + 1).padStart(6)}\t${l}`).join('\n');
-        return numbered;
+        return text.split('\n').map((l, i) => `${String(i + 1).padStart(6)}\t${l}`).join('\n');
       },
     }),
 
@@ -180,7 +179,11 @@ export async function runChapterAgentOpenRouter({
     },
   });
 
-  // Top-level planner loop.
+  // Track cumulative cost across all steps via per-step `usage.raw.cost`
+  // (OpenRouter reports the real billed cost on every response).
+  let cumulativeCost = 0;
+  let stepN = 0;
+
   const result = streamText({
     model: openrouter(plannerModel),
     system: systemPrompt,
@@ -189,6 +192,7 @@ export async function runChapterAgentOpenRouter({
     stopWhen: stepCountIs(80),
     abortSignal,
     onStepFinish(step) {
+      stepN++;
       // Translate AI-SDK step events to our SSE protocol.
       for (const tc of step.toolCalls || []) {
         send({ type: 'tool_use', id: tc.toolCallId, name: tc.toolName, args: tc.input });
@@ -198,29 +202,42 @@ export async function runChapterAgentOpenRouter({
         send({ type: 'tool_result', id: tr.toolCallId, ok: true, result: txt });
       }
       if (step.text) send({ type: 'text', content: step.text });
-      if (step.reasoning) send({ type: 'thinking_complete', content: step.reasoning });
+      // step.reasoning is an array of {type:'reasoning', text, providerMetadata}
+      const reasoning = Array.isArray(step.reasoning)
+        ? step.reasoning.map(r => r.text || '').join('\n').trim()
+        : (typeof step.reasoning === 'string' ? step.reasoning : '');
+      if (reasoning) send({ type: 'thinking_complete', content: reasoning });
       if (step.usage) {
         send({
           type: 'usage',
-          msgId: `step_${Date.now()}`,
+          msgId: `step_${stepN}`,
           input: step.usage.inputTokens || 0,
           output: step.usage.outputTokens || 0,
-          cacheCreation: step.usage.cachedInputTokens || 0,
-          cacheRead: 0,
+          cacheCreation: 0,  // OpenRouter doesn't distinguish create vs read
+          cacheRead: step.usage.cachedInputTokens || 0,
         });
+        const c = step.usage.raw?.cost;
+        if (typeof c === 'number') cumulativeCost += c;
       }
     },
   });
 
   // Consume the stream so the loop actually runs.
   for await (const _ of result.textStream) { /* drain */ }
-  const final = await result;
+  const totalUsage = await result.totalUsage;
+  const finishReason = await result.finishReason;
   send({
-    type: 'done',
-    stopReason: final.finishReason,
-    totalCostUsd: 0,  // AI SDK doesn't compute cost; we'd need to multiply usage by per-model rates ourselves
-    workdir,
+    type: 'usage_total',
+    modelUsage: {},
+    totals: {
+      input: totalUsage?.inputTokens || 0,
+      output: totalUsage?.outputTokens || 0,
+      cacheCreation: 0,
+      cacheRead: totalUsage?.cachedInputTokens || 0,
+    },
+    totalCostUsd: cumulativeCost,
   });
+  send({ type: 'done', stopReason: finishReason, totalCostUsd: cumulativeCost, workdir });
 }
 
 // Helper: detect whether a model slug should route through OpenRouter.

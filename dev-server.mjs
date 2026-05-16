@@ -458,6 +458,24 @@ async function handleChapterSummary(req, res) {
     send({ type: 'stage', message: `Extracted ${figFiles.length} embedded image(s) → figures/` });
   }
 
+  // 3b) Extract the chapter's full text via pdftotext. We embed this
+  //     verbatim in the system prompt — saves the agent from running
+  //     pdftotext itself (especially helpful for text-only models that
+  //     can't see composites), and the cached system prompt prefix
+  //     amortizes the text across every subagent call.
+  let chapterText = '';
+  const pt = await runCmd('pdftotext', [
+    '-layout', '-f', String(startPage), '-l', String(endPage),
+    pdfPath, '-',
+  ], { timeoutMs: 60_000 });
+  if (pt.code === 0 && pt.out) {
+    chapterText = pt.out;
+    await writeFile(join(workdir, 'chapter.txt'), chapterText, 'utf8');
+    send({ type: 'stage', message: `Extracted ${chapterText.length.toLocaleString()} chars of chapter text → chapter.txt (will be inlined in system prompt)` });
+  } else {
+    send({ type: 'stage', message: `pdftotext exited ${pt.code} (continuing without inlined text)` });
+  }
+
   // 4) Copy _lib/ into the workdir so the agent can read (and link to) it.
   await copyDir(join(ROOT, '_lib'), join(workdir, '_lib'));
   send({ type: 'stage', message: 'Copied _lib/ (pc.css, pc.js, pc-math.js, template.html, ref/autogo.html)' });
@@ -485,6 +503,7 @@ echo "wrote $OUT ($(magick identify -format '%wx%h' "$OUT"))"
   systemPrompt = buildChapterAgentPrompt({
     paperName, chapterTitle, startPage, endPage,
     pageFiles, figFiles, composites, plannerModel, writerModel,
+    chapterText,
   });
   // Initial user prompt — tell the agent what to read first.
   const compList = composites.map(c =>
@@ -806,6 +825,23 @@ async function handleResumeRun(req, res, url) {
     }
   };
 
+  // Route based on the model recorded in params.json. OpenRouter
+  // chapters (planner slug contains "/") cannot resume via Claude
+  // Agent SDK; the model isn't an Anthropic model. For now we just
+  // tell the user the resume isn't supported on OpenRouter (continue:
+  // true is a Claude-SDK-specific session feature). The chapter's
+  // workdir already has plan.json and partial sections from the
+  // original run; the user can regenerate to pick up where they left
+  // off, but that's a fresh run, not a continue.
+  const isORChapter = String(params.plannerModel || '').includes('/');
+  if (isORChapter) {
+    send({ type: 'stage', message: 'Resume not supported for OpenRouter chapters yet. Click Regenerate to restart from scratch (existing artifacts will be wiped).' });
+    send({ type: 'error', message: 'OpenRouter chapter resume not implemented' });
+    try { traceStream.end(); } catch {}
+    if (!clientGone) try { res.end(); } catch {}
+    return;
+  }
+
   send({ type: 'stage', message: `Resuming agent in ${dirName} (continue: true)…` });
 
   let query;
@@ -1058,19 +1094,22 @@ async function handleListChapterSummaries(req, res, url) {
 // only — read page rasters + write an interactive index.html using the
 // pc.css vocabulary and the autogo aesthetic. The full 4-pass plan is
 // layered in once the loop is verified end-to-end.
-function buildChapterAgentPrompt({ paperName, chapterTitle, startPage, endPage, pageFiles, figFiles, composites, plannerModel, writerModel }) {
+function buildChapterAgentPrompt({ paperName, chapterTitle, startPage, endPage, pageFiles, figFiles, composites, plannerModel, writerModel, chapterText = '' }) {
   const compositeList = (composites || []).map(c =>
     c.count === 1
       ? `  composites/${c.name}  (page ${c.firstPn})`
       : `  composites/${c.name}  (pages ${c.firstPn}–${c.lastPn})`
   ).join('\n');
   const nFigs = (figFiles || []).length;
+  const chapterTextBlock = chapterText
+    ? `\n\n# Chapter text (full, already extracted via pdftotext — DO NOT re-run pdftotext)\n\n\`\`\`\n${chapterText}\n\`\`\`\n`
+    : '';
   return `You build interactive HTML chapter sites for paperchat — autogo aesthetic, multi-file, parallel.
 
 # This chapter
 
 Paper:   "${paperName}"
-Chapter: "${chapterTitle}" (PDF pages ${startPage}-${endPage})
+Chapter: "${chapterTitle}" (PDF pages ${startPage}-${endPage})${chapterTextBlock}
 
 # Workdir (cwd is already set — use relative paths only)
 
