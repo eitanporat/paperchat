@@ -451,11 +451,37 @@ async function handleChapterSummary(req, res) {
     '-all', '-p', '-f', String(startPage), '-l', String(endPage),
     pdfPath, join(figuresDir, 'img'),
   ], { timeoutMs: 120_000 });
-  const figFiles = (await readdir(figuresDir)).filter(n => /\.(png|jpg|jpeg|tif|tiff|jb2)$/i.test(n)).sort();
+  let figFiles = (await readdir(figuresDir)).filter(n => /\.(png|jpg|jpeg|tif|tiff|jb2)$/i.test(n)).sort();
   if (pi.code !== 0) {
     send({ type: 'stage', message: `pdfimages exited ${pi.code} (continuing): ${pi.err.slice(0, 200)}` });
   } else {
     send({ type: 'stage', message: `Extracted ${figFiles.length} embedded image(s) → figures/` });
+  }
+  // Filter out tiny extracts (under 100px on any axis). pdfimages
+  // produces a lot of these — single ligatures, hairline rules,
+  // ornaments, sliver crops of larger graphics — and they're never
+  // useful as figures. Removing them shrinks the agent's decision
+  // space and saves it from Read-and-discard cycles.
+  const MIN_DIM = 100;
+  let dropped = 0;
+  const kept = [];
+  for (const fname of figFiles) {
+    const abs = join(figuresDir, fname);
+    try {
+      const r = await runCmd('magick', ['identify', '-format', '%w %h', abs], { timeoutMs: 5_000 });
+      const [w, h] = (r.out || '').trim().split(/\s+/).map(Number);
+      if (Number.isFinite(w) && Number.isFinite(h) && (w < MIN_DIM || h < MIN_DIM)) {
+        try { await unlink(abs); dropped++; } catch {}
+        continue;
+      }
+      kept.push(fname);
+    } catch {
+      kept.push(fname);  // if identify fails, keep — fail open, don't lose a real figure
+    }
+  }
+  if (dropped > 0) {
+    figFiles = kept;
+    send({ type: 'stage', message: `Filtered ${dropped} tiny figure(s) <${MIN_DIM}px → kept ${figFiles.length}` });
   }
 
   // 3b) Extract the chapter's full text via pdftotext. We embed this
