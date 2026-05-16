@@ -202,12 +202,14 @@ body { padding-left: 200px; }
 .pc-term.pc-term-open .pc-term-trigger {
   background: var(--accent-soft);
 }
+/* Tooltip is rendered as a popover so it always paints in the browser's
+   top layer, escaping any ancestor stacking context created by
+   pc-rise / pc-fade-in transforms. JS positions it relative to the trigger. */
 .pc-term-tip {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 6px);
-  z-index: 50;
-  display: block;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  border: 0;
   width: max-content;
   max-width: min(360px, 80vw);
   padding: 10px 12px;
@@ -220,13 +222,10 @@ body { padding-left: 200px; }
   text-transform: none;
   border-radius: 4px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-2px);
-  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
-  pointer-events: none;
   white-space: normal;
+  overflow: visible;
 }
+.pc-term-tip:not(:popover-open) { display: none; }
 .pc-term-tip::before {
   content: "";
   position: absolute;
@@ -235,14 +234,6 @@ body { padding-left: 200px; }
   width: 10px; height: 10px;
   background: var(--ink);
   transform: rotate(45deg);
-}
-.pc-term:hover .pc-term-tip,
-.pc-term:focus .pc-term-tip,
-.pc-term.pc-term-open .pc-term-tip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-  pointer-events: auto;
 }
 
 /* --- Prose ---------------------------------------------------------- */

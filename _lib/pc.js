@@ -316,6 +316,67 @@ function _pcData(el, fallback = null) {
 }
 const _pcEsc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Render KaTeX inside `root`. Generally unnecessary — the autoMath
+// MutationObserver below catches new content automatically. Exposed
+// for the rare case where a caller needs a synchronous render.
+function _pcMath(root) { if (window.pcMath) window.pcMath.renderMathIn(root); }
+
+// Auto-render math anywhere `$...$`, `\\(...\\)`, or `\\[...\\]`
+// appears in the DOM, no matter which component (or section, or
+// custom web component) inserted it. One MutationObserver replaces
+// what would otherwise be `renderMathIn` sprinkled into every
+// component's innerHTML / re-render path — easy to miss, easy to
+// drift. The observer is the source of truth.
+//
+// Loop avoidance: KaTeX itself mutates the DOM during rendering.
+// We disconnect the observer before rendering, drain pending records
+// after, and reconnect — so KaTeX's own mutations never re-trigger us.
+let _autoMathObserver = null;
+const _autoMathQueue = new Set();
+let _autoMathScheduled = false;
+function _enqueueAutoMath(node) {
+  if (!node || node.nodeType !== 1) return;
+  if (node.classList?.contains('katex')) return;  // skip already-rendered math
+  _autoMathQueue.add(node);
+  if (_autoMathScheduled) return;
+  _autoMathScheduled = true;
+  requestAnimationFrame(_flushAutoMath);
+}
+function _flushAutoMath() {
+  _autoMathScheduled = false;
+  if (!window.pcMath) { _autoMathQueue.clear(); return; }
+  const nodes = [..._autoMathQueue].filter(n => n.isConnected);
+  _autoMathQueue.clear();
+  if (!nodes.length) return;
+  if (_autoMathObserver) _autoMathObserver.disconnect();
+  try { for (const n of nodes) window.pcMath.renderMathIn(n); }
+  catch (e) { console.warn('autoMath:', e); }
+  if (_autoMathObserver && document.body) {
+    _autoMathObserver.takeRecords();  // discard mutations from KaTeX itself
+    _autoMathObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+}
+function _startAutoMath() {
+  if (_autoMathObserver || typeof MutationObserver === 'undefined' || !document.body) return;
+  _autoMathObserver = new MutationObserver((muts) => {
+    for (const m of muts) {
+      for (const n of m.addedNodes) {
+        const el = n.nodeType === 1 ? n : n.parentElement;
+        if (el) _enqueueAutoMath(el);
+      }
+      if (m.type === 'characterData' && m.target?.parentElement) {
+        _enqueueAutoMath(m.target.parentElement);
+      }
+    }
+  });
+  _enqueueAutoMath(document.body);  // initial render of existing content
+  _autoMathObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _startAutoMath);
+} else {
+  _startAutoMath();
+}
 
 // --- pc-chain ---------------------------------------------------------
 // data = [{label, sub?, detail?}, …]   3–5 nodes; click reveals detail.
@@ -356,7 +417,7 @@ class PcChain extends HTMLElement {
     const det = this.querySelector('.pc-chain-detail');
     const ns = this.querySelectorAll('.pc-chain-node');
     ns.forEach((el, i) => el.addEventListener('click', () => {
-      det.textContent = data[i].detail || data[i].label;
+      det.innerHTML = data[i].detail || data[i].label;
       ns.forEach(o => o.querySelector('rect').style.fill = 'var(--paper)');
       el.querySelector('rect').style.fill = 'var(--accent-soft)';
     }));
@@ -431,7 +492,7 @@ class PcTimeline extends HTMLElement {
       </figure>`;
     const det = this.querySelector('.pc-timeline-detail');
     this.querySelectorAll('.pc-timeline-pt').forEach((el, i) => el.addEventListener('click', () => {
-      det.textContent = data[i].detail || data[i].label;
+      det.innerHTML = data[i].detail || data[i].label;
     }));
   }
 }
@@ -518,7 +579,10 @@ class PcSlider extends HTMLElement {
     const render = () => {
       const x = Number(range.value);
       xEl.textContent = fmt(x) + (unit ? ' ' + unit : '');
-      if (fn && out) { try { out.innerHTML = String(fn(x)); } catch (e) { out.textContent = e.message; } }
+      if (fn && out) {
+      try { out.innerHTML = String(fn(x)); } catch (e) { out.textContent = e.message; }
+        catch (e) { out.textContent = e.message; }
+      }
     };
     range.addEventListener('input', render);
     render();
@@ -710,8 +774,6 @@ class PcTerm extends HTMLElement {
     if (this._wired) return;
     this._wired = true;
     const def = this.getAttribute('def') || '';
-    // Preserve the original term text as the trigger; build the
-    // tooltip alongside it. Use display:inline so it flows with prose.
     const text = this.textContent;
     this.textContent = '';
     this.classList.add('pc-term');
@@ -721,21 +783,58 @@ class PcTerm extends HTMLElement {
     const trigger = document.createElement('span');
     trigger.className = 'pc-term-trigger';
     trigger.textContent = text;
-    const tip = document.createElement('span');
+    // Tooltip is a popover so it renders in the top-layer, escaping any
+    // ancestor stacking context created by transformed pc-rise/pc-fade-in
+    // figures. Position is computed at show time relative to the trigger.
+    const tip = document.createElement('div');
     tip.className = 'pc-term-tip';
     tip.setAttribute('role', 'tooltip');
+    tip.setAttribute('popover', 'manual');
     tip.innerHTML = def;
     this.appendChild(trigger);
-    this.appendChild(tip);
+    document.body.appendChild(tip);
     if (window.pcMath) window.pcMath.renderMathIn(tip);
-    // Tap-to-toggle on touch / click; hover handled by CSS :hover.
+    const position = () => {
+      const r = trigger.getBoundingClientRect();
+      tip.style.left = '0px';
+      tip.style.top = '0px';
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      const margin = 8;
+      let left = r.left;
+      if (left + tw > window.innerWidth - margin) left = window.innerWidth - tw - margin;
+      if (left < margin) left = margin;
+      let top = r.bottom + 6;
+      if (top + th > window.innerHeight - margin) top = r.top - th - 6;
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+    };
     let open = false;
     const setOpen = (v) => {
       open = v;
       this.classList.toggle('pc-term-open', v);
+      if (v) {
+        try { tip.showPopover(); } catch (e) {}
+        position();
+      } else {
+        try { tip.hidePopover(); } catch (e) {}
+      }
     };
+    let closeTimer = 0;
+    const scheduleClose = () => {
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => {
+        if (!tipHover && !this.matches(':hover, :focus-within')) setOpen(false);
+      }, 80);
+    };
+    let tipHover = false;
+    tip.addEventListener('mouseenter', () => { tipHover = true; clearTimeout(closeTimer); });
+    tip.addEventListener('mouseleave', () => { tipHover = false; scheduleClose(); });
+    this.addEventListener('mouseenter', () => { clearTimeout(closeTimer); setOpen(true); });
+    this.addEventListener('mouseleave', scheduleClose);
+    this.addEventListener('focus', () => setOpen(true));
+    window.addEventListener('scroll', () => { if (open) position(); }, { passive: true });
+    window.addEventListener('resize', () => { if (open) position(); });
     this.addEventListener('click', (e) => {
-      // Don't intercept clicks on links inside the definition.
       if (e.target.closest('a')) return;
       e.preventDefault();
       setOpen(!open);
