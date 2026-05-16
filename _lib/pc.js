@@ -580,7 +580,7 @@ class PcSlider extends HTMLElement {
       const x = Number(range.value);
       xEl.textContent = fmt(x) + (unit ? ' ' + unit : '');
       if (fn && out) {
-      try { out.innerHTML = String(fn(x)); } catch (e) { out.textContent = e.message; }
+        try { out.innerHTML = String(fn(x)); }
         catch (e) { out.textContent = e.message; }
       }
     };
