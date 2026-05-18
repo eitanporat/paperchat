@@ -7,6 +7,13 @@ invite with `@mentions` (`@claude`, `@grok`, `@gpt`, `@code`).
 
 [fermat]: https://fermatslibrary.com/
 
+> **Live demo**: an interactive chapter summary generated end-to-end by
+> paperchat — [Chapter 3: The Structure of Crystalline Solids][demo]
+> (Callister & Rethwish, *Materials Science and Engineering*). Built by
+> GLM-5.1 via OpenRouter for ~$0.52. See [Interactive chapter summaries](#interactive-chapter-summaries) below.
+
+[demo]: https://eitanporat.github.io/paperchat/chapters/crystalline-solids/
+
 ![paperchat demo](assets/demo.gif)
 
 *(4× speed)*
@@ -24,6 +31,52 @@ invite with `@mentions` (`@claude`, `@grok`, `@gpt`, `@code`).
   static files.
 
 [sdk]: https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk
+
+## Interactive chapter summaries
+
+paperchat also generates **standalone interactive chapter sites** from a
+PDF — one HTML page per concept, with web-component figures, KaTeX math,
+3D unit cells, click-through Miller indices, Anki-style flashcards, and
+clickable definitions for every technical term. Output is plain HTML
+that runs without paperchat itself.
+
+[**→ Live demo: The Structure of Crystalline Solids**][demo]
+([landing page][landing])
+
+How it works:
+
+- A **planner** model reads the chapter (via `chapter.txt` + composite
+  page images for vision-capable models, or a `DescribeImage` helper for
+  text-only models like DeepSeek / GLM-5.1).
+- It writes a `plan.json` with one section per concept, then dispatches
+  **one writer subagent per section**, all in parallel.
+- Each writer produces a `sections/<id>.html` fragment using the
+  `pc-*` web-component library (`pc-3d`, `pc-equation`, `pc-stepped`,
+  `pc-anki`, `pc-grid`, `pc-tree`, …) bundled in `_lib/`.
+- The agent loop runs in a **detached child process**, so editing the
+  dev-server during a build doesn't kill the in-flight chapter.
+- Both planner and writer use Vercel AI SDK 6's `generateText` (not
+  `streamText`) — bypasses `api.z.ai`'s 30s SSE idle timeout
+  ([vercel/ai#12949][zai-bug]) so GLM-style batched tool-call generation
+  doesn't drop mid-step.
+
+Costs at a glance (one ~44-page chapter, summer 2026):
+
+| Model                        | Cost     | Notes                          |
+| ---------------------------- | -------- | ------------------------------ |
+| Claude Opus 4.7              | ~$1.50   | Highest quality                |
+| Kimi K2.6 (OpenRouter)       | ~$0.30   | Multimodal, agentic native     |
+| GLM-5.1 + Z.AI (OpenRouter)  | ~$0.52   | Text-only planner + vision helper |
+| DeepSeek V4 (OpenRouter)     | ~$0.20   | Text-only, cheapest            |
+
+Settings → pick a planner + writer model + (optional) provider, drop a
+PDF, click **Summarize**. The chapter lands in `cc-workdir/chapter-<id>/`
+and can be hosted anywhere static. The [live demo][demo] is the same
+output, served via GitHub Pages from `docs/chapters/crystalline-solids/`.
+
+[demo]: https://eitanporat.github.io/paperchat/chapters/crystalline-solids/
+[landing]: https://eitanporat.github.io/paperchat/
+[zai-bug]: https://github.com/vercel/ai/issues/12949
 
 ## Quick start
 
