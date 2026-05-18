@@ -1,0 +1,583 @@
+<div class="pc-prose pc-stagger">
+  <div class="pc-eyebrow pc-fade-in">Section 2.5–2.6 · Linear &amp; Planar Density · Close-Packed Stacking</div>
+  <div class="pc-source pc-fade-in" data-page="76">pp. 76–79</div>
+
+  <p class="pc-fade-in">
+    Unit cells describe how atoms pack in three dimensions, but two finer measures —
+    <pc-term def="Number of atoms centered on a direction vector divided by the length of that vector. Units: atoms/m or atoms/nm.">linear density</pc-term>
+    and
+    <pc-term def="Number of atoms centered on a lattice plane divided by the area of that plane within one unit cell. Units: atoms/m² or atoms/nm².">planar density</pc-term>
+    — tell us how tightly atoms line up along a specific direction or face. These numbers
+    govern which planes slip past each other during plastic deformation and how fast atoms diffuse.
+  </p>
+
+  <h3 class="pc-fade-in" style="font-weight:400; font-size:1.15rem; margin-top:1.4rem;">Linear density</h3>
+
+  <p class="pc-fade-in">
+    To find the
+    <pc-term def="LD = (atoms whose centers lie on the direction vector) / (length of the vector). A corner atom contributes ½ because the vector clips the atom at its edge; an interior atom contributes 1.">linear density</pc-term>
+    along direction [<em>uvw</em>], draw the direction vector across the unit cell and count atom centers it passes through —
+    a corner atom contributes <strong>½</strong> (only half its center lies on the vector segment inside the cell),
+    while an atom whose center falls squarely on the interior of the segment contributes <strong>1</strong>.
+    Divide by the vector's length.
+  </p>
+
+  <pc-equation data='{
+    "tex": "\\mathrm{LD} = \\frac{\\text{atoms on vector}}{\\text{length of vector}}",
+    "terms": {
+      "atoms on vector": "Sum of fractional contributions: corner = 1/2, interior = 1.",
+      "length of vector": "Expressed in terms of atomic radius $R$ or lattice parameter $a$."
+    }
+  }'></pc-equation>
+
+  <!-- Custom FCC [110] linear density walkthrough -->
+  <ld-walkthrough class="pc-rise"></ld-walkthrough>
+
+  <h3 class="pc-fade-in" style="font-weight:400; font-size:1.15rem; margin-top:1.4rem;">Planar density</h3>
+
+  <p class="pc-fade-in">
+    <pc-term def="PD = (atoms whose centers lie on the plane) / (area of the plane within the unit cell). Corner atoms on the plane contribute 1/4 (shared by 4 cells); edge atoms on the plane contribute 1/2 (shared by 2 cells); face-center atoms contribute 1.">Planar density</pc-term>
+    works the same way on a 2D slice.
+    For the FCC (110) plane: the rectangular face has four corner atoms each contributing ¼, and two
+    edge-midpoint atoms each contributing ½, giving $\frac{4}{4}+\frac{2}{2}=2$ atoms.
+    The rectangle's dimensions are $4R$ (along [001]) by $2R\sqrt{2}$ (along [1\overline{1}0]),
+    so the area is $8R^2\sqrt{2}$.
+  </p>
+
+  <pc-equation data='{
+    "tex": "\\mathrm{PD}_{(110)} = \\frac{2}{8R^2\\sqrt{2}} = \\frac{1}{4R^2\\sqrt{2}}",
+    "terms": {
+      "2": "Effective atom count: 4 corners × 1/4 + 2 edges × 1/2.",
+      "8R^2\\sqrt{2}": "Rectangle area: width $4R$ × height $2R\\sqrt{2}$.",
+      "R": "Atomic radius."
+    }
+  }'></pc-equation>
+
+  <h3 class="pc-fade-in" style="font-weight:400; font-size:1.15rem; margin-top:1.4rem;">Close-packed planes and stacking sequences</h3>
+
+  <p class="pc-fade-in">
+    A
+    <pc-term def="A layer of atoms arranged so that every atom touches six neighbors in-plane — the densest possible 2D arrangement. APF within the plane = π/(2√3) ≈ 0.906.">close-packed plane</pc-term>
+    is the most densely packed 2D arrangement of hard spheres. Between any two touching atoms
+    lie triangular depressions — two interlocked sets. Label the first layer of atom centers
+    <strong>A</strong>. The depressions directly above fall into two groups:
+    <strong>B</strong> (triangle pointing up) and <strong>C</strong> (triangle pointing down).
+    Only one type can be occupied at a time because B and C overlap.
+  </p>
+
+  <!-- Custom SVG: close-packed plane with A/B/C site hover -->
+  <cp-plane class="pc-rise"></cp-plane>
+
+  <p class="pc-fade-in">
+    Place the second layer in <strong>B</strong> sites. The third layer can go back to <strong>A</strong>
+    (directly above the first layer) or into the previously unoccupied <strong>C</strong> positions.
+    That single choice produces two distinct crystals with identical APF = 0.74.
+  </p>
+
+  <pc-toggle data='{
+    "a": {
+      "label": "HCP — ABABAB…",
+      "body": "<p><strong>Hexagonal close-packed.</strong> Third layer returns to A sites — directly above the first. Stacking sequence: <strong>ABABAB…</strong> (or ACACAC, same structure). Close-packed plane: <strong>(0001)</strong> basal plane. Metals: Mg, Ti, Zn, Co, Cd. Fewer independent slip systems than FCC → generally less ductile.</p>"
+    },
+    "b": {
+      "label": "FCC — ABCABC…",
+      "body": "<p><strong>Face-centered cubic.</strong> Third layer goes to C sites — not above any earlier layer. Stacking sequence: <strong>ABCABC…</strong>. Close-packed plane: <strong>{111}</strong> family (four distinct orientations). Metals: Al, Cu, Ni, Ag, Au. Four sets of {111} slip planes × 3 slip directions = 12 slip systems → highly ductile.</p>"
+    }
+  }'></pc-toggle>
+
+  <!-- Custom 3D stacking figure -->
+  <stacking-3d class="pc-rise"></stacking-3d>
+
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">The single choice that splits two crystal structures</div>
+    FCC and HCP are the same close-packed plane stacked two different ways — that single choice
+    flips ductility.
+  </div>
+
+  <pc-anki>
+    <script type="application/json">
+      [
+        {
+          "q": "What fraction does a corner atom contribute to linear density, and why?",
+          "a": "A corner atom contributes <strong>1/2</strong>. The direction vector clips the atom right at its boundary, so only half the atomic center lies within the segment counted."
+        },
+        {
+          "q": "Derive the linear density along [110] in FCC in terms of atomic radius R.",
+          "a": "The [110] vector crosses two corner atoms (each ½) and one face-center atom (1), giving 2 atoms. The vector length = 4R (face diagonal of edge a = 2√2 R, so diagonal = a√2 = 4R). LD = 2 / (4R) = <strong>1/(2R)</strong>."
+        },
+        {
+          "q": "What is the planar density of the FCC (110) plane?",
+          "a": "$\\mathrm{PD} = \\dfrac{1}{4R^2\\sqrt{2}}$. Atom count = 4 corners×¼ + 2 edges×½ = 2. Area = 4R × 2R√2 = 8R²√2."
+        },
+        {
+          "q": "What are the A, B, and C labels in close-packed stacking?",
+          "a": "<strong>A</strong>: first layer atom centers. <strong>B</strong>: triangular-up depressions above A. <strong>C</strong>: triangular-down depressions above A. B and C are mutually exclusive — only one set can host the next layer."
+        },
+        {
+          "q": "HCP and FCC both have APF = 0.74. What is different, and how does it affect mechanical behavior?",
+          "a": "The <strong>stacking sequence</strong> differs: HCP = ABABAB on (0001); FCC = ABCABC on {111}. FCC has 4 orientations of {111} giving 12 slip systems → <strong>more ductile</strong>. HCP has only 1 basal slip plane → <strong>less ductile</strong>."
+        }
+      ]
+    </script>
+  </pc-anki>
+</div>
+
+<!-- ================================================================
+     Custom web component: FCC [110] linear density walkthrough
+     ================================================================ -->
+<script>
+(function () {
+  class LdWalkthrough extends HTMLElement {
+    connectedCallback() {
+      // FCC bottom face: atoms at X (0,0), Y (face center = midpoint of edge), Z (a,0)
+      // In FCC a = 2√2 R. The [110] direction runs diagonally across the bottom face.
+      // We draw a square face with 3 atom markers along the diagonal.
+      const W = 420, H = 220;
+      const R_px = 34; // display radius
+      const pad = 54;
+      // Face corners in display coords
+      const X = [pad, H / 2];          // corner X (left)
+      const Y = [W / 2, H / 2];        // face-center Y (middle, on diagonal)
+      const Z = [W - pad, H / 2];      // corner Z (right)
+
+      // Surrounding face corners (just to draw the square outline)
+      const TL = [pad, pad];
+      const TR = [W - pad, pad];
+      const BL = [pad, H - pad];
+      const BR = [W - pad, H - pad];
+
+      const steps = [
+        {
+          highlight: 'none',
+          caption: 'FCC unit cell — bottom face. The [110] direction runs along the face diagonal from corner X to corner Z, passing through face-center Y.'
+        },
+        {
+          highlight: 'X',
+          caption: 'Corner atom X: only half its center lies on the vector segment inside the cell. Contribution = <strong>½</strong>.'
+        },
+        {
+          highlight: 'Y',
+          caption: 'Face-center atom Y: its center lies squarely on the interior of the segment. Contribution = <strong>1</strong>.'
+        },
+        {
+          highlight: 'Z',
+          caption: 'Corner atom Z: again half. Contribution = <strong>½</strong>. Total atoms = ½ + 1 + ½ = <strong>2</strong>.'
+        },
+        {
+          highlight: 'vec',
+          caption: 'Vector length = face diagonal = $a\\sqrt{2}$. For FCC, $a = 2\\sqrt{2}\\,R$, so length = $4R$. Therefore LD = 2 / (4R) = <strong>1/(2R)</strong>.'
+        }
+      ];
+
+      let step = 0;
+
+      const render = () => {
+        const s = steps[step];
+        const hi = s.highlight;
+
+        const atomFill = (id) => {
+          if (hi === id) return 'var(--accent)';
+          if (hi === 'vec') return 'var(--accent)';
+          return 'none';
+        };
+        const atomStroke = (id) => {
+          if (hi === id || hi === 'vec') return 'var(--accent)';
+          return 'var(--ink)';
+        };
+        const atomOpacity = (id) => {
+          if (hi === 'none') return '1';
+          if (hi === id || hi === 'vec') return '1';
+          return '0.25';
+        };
+
+        const vecColor = (hi === 'vec') ? 'var(--accent)' : 'var(--ink-soft)';
+
+        const corners = [[TL[0],TL[1]],[TR[0],TR[1]],[BR[0],BR[1]],[BL[0],BL[1]]].map((p,i)=>(i?'L':'M')+p.join(' ')).join(' ')+'Z';
+
+        const svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;display:block;">
+          <!-- face outline -->
+          <path d="${corners}" fill="none" stroke="var(--ink-soft)" stroke-width="1.2" stroke-dasharray="4 3"/>
+          <!-- diagonal vector line -->
+          <line x1="${X[0]}" y1="${X[1]}" x2="${Z[0]}" y2="${Z[1]}"
+                stroke="${vecColor}" stroke-width="${hi==='vec'?2.5:1.5}" stroke-dasharray="${hi==='vec'?'none':'6 4'}"/>
+          <!-- direction label -->
+          <text x="${W/2}" y="${H/2 - R_px - 8}" text-anchor="middle"
+                style="fill:${vecColor};font-family:'JetBrains Mono',monospace;font-size:12px;">[110]</text>
+          <!-- atom X -->
+          <g opacity="${atomOpacity('X')}">
+            <circle cx="${X[0]}" cy="${X[1]}" r="${R_px}" fill="${atomFill('X')}" fill-opacity="0.18"
+                    stroke="${atomStroke('X')}" stroke-width="2"/>
+            <text x="${X[0]}" y="${X[1]+5}" text-anchor="middle"
+                  style="fill:${atomStroke('X')};font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;">X</text>
+            <text x="${X[0]}" y="${H-8}" text-anchor="middle"
+                  style="fill:var(--ink-soft);font-family:'JetBrains Mono',monospace;font-size:10px;">½</text>
+          </g>
+          <!-- atom Y -->
+          <g opacity="${atomOpacity('Y')}">
+            <circle cx="${Y[0]}" cy="${Y[1]}" r="${R_px}" fill="${atomFill('Y')}" fill-opacity="0.18"
+                    stroke="${atomStroke('Y')}" stroke-width="2"/>
+            <text x="${Y[0]}" y="${Y[1]+5}" text-anchor="middle"
+                  style="fill:${atomStroke('Y')};font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;">Y</text>
+            <text x="${Y[0]}" y="${H-8}" text-anchor="middle"
+                  style="fill:var(--ink-soft);font-family:'JetBrains Mono',monospace;font-size:10px;">1</text>
+          </g>
+          <!-- atom Z -->
+          <g opacity="${atomOpacity('Z')}">
+            <circle cx="${Z[0]}" cy="${Z[1]}" r="${R_px}" fill="${atomFill('Z')}" fill-opacity="0.18"
+                    stroke="${atomStroke('Z')}" stroke-width="2"/>
+            <text x="${Z[0]}" y="${Z[1]+5}" text-anchor="middle"
+                  style="fill:${atomStroke('Z')};font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;">Z</text>
+            <text x="${Z[0]}" y="${H-8}" text-anchor="middle"
+                  style="fill:var(--ink-soft);font-family:'JetBrains Mono',monospace;font-size:10px;">½</text>
+          </g>
+          <!-- step indicator -->
+          <text x="${W/2}" y="16" text-anchor="middle"
+                style="fill:var(--ink-soft);font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;">
+            Step ${step+1} of ${steps.length}
+          </text>
+        </svg>`;
+
+        this.innerHTML = `<figure class="pc-fig-interactive" style="display:flex;flex-direction:column;align-items:center;gap:0.75rem;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-soft);">
+            Worked example — FCC [110] linear density
+          </div>
+          ${svg}
+          <p style="font-size:0.88rem;color:var(--ink);max-width:400px;text-align:center;min-height:3.5rem;">${s.caption}</p>
+          <div style="display:flex;gap:0.75rem;">
+            <button id="ld-prev" style="
+              padding:0.3rem 0.9rem;font-family:'JetBrains Mono',monospace;font-size:11px;
+              text-transform:uppercase;letter-spacing:0.1em;background:none;
+              border:1.5px solid var(--ink-soft);color:var(--ink-soft);border-radius:3px;cursor:pointer;
+              ${step===0?'opacity:0.35;pointer-events:none;':''}
+            ">&#8592; Prev</button>
+            <button id="ld-next" style="
+              padding:0.3rem 0.9rem;font-family:'JetBrains Mono',monospace;font-size:11px;
+              text-transform:uppercase;letter-spacing:0.1em;background:none;
+              border:1.5px solid var(--accent);color:var(--accent);border-radius:3px;cursor:pointer;
+              ${step===steps.length-1?'opacity:0.35;pointer-events:none;':''}
+            ">Next &#8594;</button>
+          </div>
+        </figure>`;
+
+        const prev = this.querySelector('#ld-prev');
+        const next = this.querySelector('#ld-next');
+        if (prev) prev.addEventListener('click', () => { if (step > 0) { step--; render(); } });
+        if (next) next.addEventListener('click', () => { if (step < steps.length - 1) { step++; render(); } });
+      };
+
+      render();
+    }
+  }
+  if (!customElements.get('ld-walkthrough')) {
+    customElements.define('ld-walkthrough', LdWalkthrough);
+  }
+})();
+</script>
+
+<!-- ================================================================
+     Custom web component: close-packed plane A/B/C site viewer
+     ================================================================ -->
+<script>
+(function () {
+  class CpPlane extends HTMLElement {
+    connectedCallback() {
+      const W = 420, H = 300;
+      const R = 26; // atom display radius
+      // Build a close-packed layer: rows staggered
+      // A atoms sit on a hex grid
+      const sqrt3 = Math.sqrt(3);
+      const dx = R * 2;
+      const dy = R * sqrt3;
+      const aAtoms = [];
+      for (let row = 0; row < 5; row++) {
+        const offX = (row % 2) * R;
+        const count = row % 2 === 0 ? 6 : 5;
+        for (let col = 0; col < count; col++) {
+          const x = 30 + offX + col * dx;
+          const y = 30 + row * dy;
+          if (x > 10 && x < W - 10 && y > 10 && y < H - 60) {
+            aAtoms.push([x, y]);
+          }
+        }
+      }
+
+      // B sites: triangular depressions pointing up
+      // Between every triplet of A atoms that form an upward triangle
+      const bSites = [];
+      const cSites = [];
+      // Generate B/C by finding midpoints of triangular cavities
+      // For each even-row atom, pair with same-row right neighbor and row+1 atom above
+      for (let row = 0; row < 4; row++) {
+        const evenRow = row % 2 === 0;
+        const rowAtoms = aAtoms.filter(([x, y]) => Math.abs(y - (30 + row * dy)) < 3);
+        const nextRowAtoms = aAtoms.filter(([x, y]) => Math.abs(y - (30 + (row+1) * dy)) < 3);
+        if (rowAtoms.length === 0 || nextRowAtoms.length === 0) continue;
+        for (let i = 0; i < rowAtoms.length - 1; i++) {
+          const a1 = rowAtoms[i], a2 = rowAtoms[i+1];
+          // B site: midpoint between a1, a2, and the next-row atom between them
+          const bx = (a1[0] + a2[0]) / 2;
+          const by = a1[1] + dy / 3;
+          if (bx > 10 && bx < W - 10 && by > 10 && by < H - 60) {
+            bSites.push([bx, by]);
+          }
+          // C site: midpoint pointing down
+          const cx2 = (a1[0] + a2[0]) / 2;
+          const cy2 = a1[1] - dy / 3;
+          if (cx2 > 10 && cx2 < W - 10 && cy2 > 10 && cy2 < H - 60) {
+            cSites.push([cx2, cy2]);
+          }
+        }
+      }
+
+      let hovered = 'none'; // 'A', 'B', 'C', 'none'
+
+      const render = () => {
+        const aColor = hovered === 'A' ? 'var(--accent)' : '#b0a897';
+        const bColor = hovered === 'B' ? 'oklch(55% 0.16 35)' : 'transparent';
+        const cColor = hovered === 'C' ? 'oklch(48% 0.14 140)' : 'transparent';
+        const bStroke = hovered === 'B' ? 'oklch(55% 0.16 35)' : (hovered === 'none' ? '#c0b8ac' : 'transparent');
+        const cStroke = hovered === 'C' ? 'oklch(48% 0.14 140)' : (hovered === 'none' ? '#c0b8ac' : 'transparent');
+        const aStroke = hovered === 'A' ? 'var(--accent)' : 'var(--ink)';
+
+        const aCircles = aAtoms.map(([x, y]) =>
+          `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${R}"
+            fill="${aColor}" fill-opacity="${hovered==='A'?'0.25':'0.18'}"
+            stroke="${aStroke}" stroke-width="${hovered==='A'?2.5:1.8}"/>`
+        ).join('');
+
+        const bCircles = bSites.map(([x, y]) =>
+          `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${R*0.42}"
+            fill="${bColor}" fill-opacity="0.55"
+            stroke="${bStroke}" stroke-width="1.4" stroke-dasharray="${hovered==='B'?'none':'2 2'}"/>`
+        ).join('');
+
+        const cCircles = cSites.map(([x, y]) =>
+          `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${R*0.42}"
+            fill="${cColor}" fill-opacity="0.55"
+            stroke="${cStroke}" stroke-width="1.4" stroke-dasharray="${hovered==='C'?'none':'2 2'}"/>`
+        ).join('');
+
+        // A labels on first row (just one)
+        const firstA = aAtoms.length > 0 ? aAtoms[0] : null;
+        const firstB = bSites.length > 0 ? bSites[0] : null;
+        const firstC = cSites.length > 0 ? cSites[0] : null;
+
+        const legend = `
+          <text x="30" y="${H - 32}" style="fill:var(--ink-soft);font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;">Hover to highlight sites:</text>
+          <circle cx="42" cy="${H-16}" r="7" fill="#b0a897" fill-opacity="0.3" stroke="var(--ink)" stroke-width="1.5" id="leg-a" style="cursor:pointer;"/>
+          <text x="55" y="${H-12}" style="fill:var(--ink);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;" id="leg-at">A atoms</text>
+          <circle cx="130" cy="${H-16}" r="5" fill="transparent" stroke="#c0b8ac" stroke-width="1.4" stroke-dasharray="2 2" id="leg-b" style="cursor:pointer;"/>
+          <text x="142" y="${H-12}" style="fill:var(--ink);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;" id="leg-bt">B sites</text>
+          <circle cx="220" cy="${H-16}" r="5" fill="transparent" stroke="#c0b8ac" stroke-width="1.4" stroke-dasharray="2 2" id="leg-c" style="cursor:pointer;"/>
+          <text x="232" y="${H-12}" style="fill:var(--ink);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;" id="leg-ct">C sites</text>
+        `;
+
+        const svgContent = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;display:block;" id="cp-svg">
+          ${aCircles}
+          ${bCircles}
+          ${cCircles}
+          ${legend}
+        </svg>`;
+
+        const descMap = {
+          none: 'A close-packed plane. Every atom (gray) touches 6 neighbors. Two sets of triangular depressions exist: B (up-triangles) and C (down-triangles). Hover the legend to reveal each.',
+          A: 'A-layer atoms — the first close-packed layer. Each touches 6 neighbors in-plane.',
+          B: 'B sites — triangular-up depressions. Placing the second layer here starts the stacking sequence.',
+          C: 'C sites — triangular-down depressions. These are the alternative for the third layer that creates FCC (ABCABC).'
+        };
+
+        this.innerHTML = `<figure class="pc-fig-interactive" style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-soft);">
+            Close-packed plane — A / B / C sites
+          </div>
+          ${svgContent}
+          <p style="font-size:0.85rem;color:var(--ink-soft);max-width:420px;text-align:center;min-height:3rem;" id="cp-desc">${descMap[hovered]}</p>
+        </figure>`;
+
+        // Wire hover on legend items and SVG circles
+        const wireHover = (id, site) => {
+          const el = this.querySelector('#' + id);
+          if (!el) return;
+          el.addEventListener('mouseenter', () => { hovered = site; render(); });
+          el.addEventListener('mouseleave', () => { hovered = 'none'; render(); });
+        };
+        wireHover('leg-a', 'A');
+        wireHover('leg-at', 'A');
+        wireHover('leg-b', 'B');
+        wireHover('leg-bt', 'B');
+        wireHover('leg-c', 'C');
+        wireHover('leg-ct', 'C');
+      };
+
+      render();
+    }
+  }
+  if (!customElements.get('cp-plane')) {
+    customElements.define('cp-plane', CpPlane);
+  }
+})();
+</script>
+
+<!-- ================================================================
+     Custom web component: 3D stacking toggle HCP ↔ FCC
+     Uses pc-3d declarative approach via three separate layer configs
+     ================================================================ -->
+<script>
+(function () {
+  class Stacking3d extends HTMLElement {
+    connectedCallback() {
+      let mode = 'HCP'; // or 'FCC'
+
+      // We build a lightweight canvas-based 2.5D isometric projection
+      // rather than full three.js to avoid dependency issues in the fragment.
+      // Three close-packed layers shown as hex grids in isometric projection.
+
+      const W = 420, H = 320;
+      const R_atom = 14; // display sphere radius
+      const sqrt3 = Math.sqrt(3);
+
+      // Colors for each layer
+      const COLORS = {
+        A: { fill: 'oklch(60% 0.09 245)', stroke: 'oklch(45% 0.12 245)' },   // blue-ish
+        B: { fill: 'oklch(65% 0.14 35)',  stroke: 'oklch(48% 0.16 35)' },    // orange
+        C: { fill: 'oklch(55% 0.12 140)', stroke: 'oklch(40% 0.14 140)' },   // green
+      };
+
+      // Isometric projection: x_iso = cx + (ix - iz)*cos30, y_iso = cy - iy*layer_h + (ix+iz)*sin30*0.5
+      const ISO_X = 0.866; // cos(30)
+      const ISO_Z = 0.5;   // sin(30)
+      const LAYER_H = 38;  // vertical separation between layers
+
+      // Center of projection
+      const cx = W / 2 - 10, cy = H - 40;
+
+      // Generate atoms for a close-packed layer at grid positions
+      // Layer offset in x for B vs C:
+      // A: offset [0,0], B: offset [+1/3, +1/3] in fractional hex coords
+      // We use simple integer hex grid + offset
+      const hexGrid = [];
+      for (let r = -2; r <= 2; r++) {
+        for (let q = -2; q <= 2; q++) {
+          if (Math.abs(q + r) <= 2) {
+            hexGrid.push([q, r]);
+          }
+        }
+      }
+
+      // Convert hex [q,r] to 3D cartesian, then isometric 2D
+      // For layer iy, offset: A=[0,0], B=[+0.5,+0.5/sqrt3], C=[+1, +1/sqrt3] (roughly)
+      // Simpler: use direct pixel offsets per layer type
+      const layerOffset = {
+        A: [0, 0],
+        B: [R_atom * 0.85, R_atom * 0.49],   // shift right and slightly down
+        C: [R_atom * 1.7, R_atom * 0.0],     // shift further right
+      };
+
+      const atomPos = (q, r, layerIndex, layerLabel) => {
+        const dx = R_atom * 2 * ISO_X;
+        const dz = R_atom * sqrt3;
+        const basex = q * dx + r * dx * 0.5;
+        const basez = r * dz * 0.5;
+        const off = layerOffset[layerLabel];
+        // isometric
+        const ix = (basex + off[0]) * 0.85;
+        const iz = (basez + off[1]) * 0.85;
+        const px = cx + ix - iz * 0.4;
+        const py = cy - layerIndex * LAYER_H - iz * 0.25;
+        return [px, py];
+      };
+
+      const render = () => {
+        const seq = mode === 'HCP' ? ['A', 'B', 'A'] : ['A', 'B', 'C'];
+
+        const canvas = document.createElement('canvas');
+        canvas.width = W * 2; canvas.height = H * 2; // retina
+        canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+        canvas.style.maxWidth = '100%';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(2, 2);
+
+        // Sort all atoms by y (painter's algorithm — back first)
+        const allAtoms = [];
+        for (let li = 0; li < seq.length; li++) {
+          const label = seq[li];
+          for (const [q, r] of hexGrid) {
+            const [px, py] = atomPos(q, r, li, label);
+            if (px > 10 && px < W - 10 && py > 10 && py < H - 10) {
+              allAtoms.push({ px, py, label, li });
+            }
+          }
+        }
+        allAtoms.sort((a, b) => a.py - b.py);
+
+        // Draw atoms
+        for (const { px, py, label } of allAtoms) {
+          const col = COLORS[label];
+          // Simple sphere approximation: circle with radial gradient
+          const grad = ctx.createRadialGradient(px - R_atom * 0.3, py - R_atom * 0.3, R_atom * 0.1, px, py, R_atom);
+          grad.addColorStop(0, 'rgba(255,255,255,0.45)');
+          grad.addColorStop(1, col.fill);
+          ctx.beginPath();
+          ctx.arc(px, py, R_atom, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+          ctx.strokeStyle = col.stroke;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+          // Label
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.font = 'bold 10px JetBrains Mono, monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, px, py + 1);
+        }
+
+        // Layer labels on the right
+        for (let li = 0; li < seq.length; li++) {
+          const label = seq[li];
+          const lx = W - 22;
+          const ly = cy - li * LAYER_H - 20;
+          ctx.fillStyle = COLORS[label].fill;
+          ctx.font = '600 13px JetBrains Mono, monospace';
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Layer ' + label, lx, ly);
+        }
+
+        // Title
+        ctx.fillStyle = '#6a5d4a';
+        ctx.font = '11px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(mode === 'HCP' ? 'HCP — ABAB stacking' : 'FCC — ABCA stacking', W / 2, 10);
+
+        this.innerHTML = `<figure class="pc-fig-interactive" style="display:flex;flex-direction:column;align-items:center;gap:0.75rem;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-soft);">
+            3-layer stacking — toggle to compare
+          </div>
+        </figure>`;
+        const fig = this.querySelector('figure');
+        fig.appendChild(canvas);
+        const p = document.createElement('p');
+        p.style.cssText = 'font-size:0.85rem;color:var(--ink-soft);max-width:420px;text-align:center;';
+        p.textContent = mode === 'HCP'
+          ? 'HCP: 3rd layer (A) sits directly above 1st layer. Sequence repeats: ABABAB…'
+          : 'FCC: 3rd layer (C) occupies new sites — not above A or B. Sequence: ABCABC…';
+        fig.appendChild(p);
+        const btn = document.createElement('button');
+        btn.textContent = 'Switch to ' + (mode === 'HCP' ? 'FCC (ABCA)' : 'HCP (ABAB)');
+        btn.style.cssText = `padding:0.35rem 1rem;font-family:'JetBrains Mono',monospace;font-size:11px;
+          text-transform:uppercase;letter-spacing:0.1em;background:none;
+          border:1.5px solid var(--accent);color:var(--accent);border-radius:3px;cursor:pointer;`;
+        btn.addEventListener('click', () => { mode = mode === 'HCP' ? 'FCC' : 'HCP'; render(); });
+        fig.appendChild(btn);
+      };
+
+      render();
+    }
+  }
+  if (!customElements.get('stacking-3d')) {
+    customElements.define('stacking-3d', Stacking3d);
+  }
+})();
+</script>

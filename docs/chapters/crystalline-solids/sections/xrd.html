@@ -1,0 +1,573 @@
+<div class="pc-prose pc-stagger">
+  <div class="pc-eyebrow pc-fade-in">Chapter 2 · X-ray Diffraction</div>
+  <div class="pc-source pc-fade-in" data-page="82">pp. 82–88</div>
+
+  <p class="pc-fade-in">
+    We now know how to describe crystal structures on paper — unit cells, Miller indices, packing fractions.
+    But how do experimentalists actually determine an unknown structure? The answer is
+    <pc-term def="The scattering of waves by a periodic array of obstacles (atomic planes), producing reinforced beams at specific angles when the path difference between scattered waves equals a whole number of wavelengths.">X-ray diffraction</pc-term>
+    (XRD). X-rays have wavelengths (0.05–0.25 nm) comparable to interatomic spacings, so a crystal acts
+    as a three-dimensional diffraction grating.
+  </p>
+
+  <p class="pc-fade-in">
+    The geometry is captured by
+    <pc-term def="A law relating the angle at which a crystal plane reflects X-rays to the plane spacing and wavelength: nλ = 2d sinθ.">Bragg's law</pc-term>.
+    Consider two parallel atomic planes separated by
+    <pc-term def="The perpendicular distance between adjacent parallel planes with Miller indices (hkl).">interplanar spacing</pc-term>
+    $d_{hkl}$. An X-ray beam strikes both planes at
+    <pc-term def="The glancing (grazing) angle between the incoming beam and the plane surface — measured from the plane, not the normal.">glancing angle</pc-term>
+    $\theta$. The ray reflected from the lower plane travels an extra path of $2 d_{hkl} \sin\theta$
+    compared with the ray from the upper plane. Constructive interference — a peak —
+    occurs only when that extra path is an integer number of wavelengths:
+  </p>
+
+  <!-- Bragg equation with symbol legend -->
+  <pc-equation data='{
+    "tex": "n\\lambda = 2\\,d_{hkl}\\sin\\theta",
+    "terms": {
+      "n":        "Diffraction order (positive integer: 1, 2, 3, …). Usually 1 in practice.",
+      "\\lambda": "X-ray wavelength (nm). Cu Kα = 0.1542 nm; Mo Kα = 0.0711 nm.",
+      "d_{hkl}":  "Spacing between adjacent (hkl) planes (nm).",
+      "\\theta":  "Bragg angle — glancing angle of incidence (and reflection) measured from the plane surface."
+    }
+  }'></pc-equation>
+
+  <!-- Interactive Bragg geometry figure -->
+  <bragg-viz></bragg-viz>
+  <script>
+  (function() {
+    class BraggViz extends HTMLElement {
+      connectedCallback() {
+        this.innerHTML = `
+<figure class="pc-fig-interactive pc-rise" style="background:var(--paper,#fbf6ea);border:1px solid #d8cfc0;border-radius:8px;padding:1.2rem 1rem 0.8rem;margin:1.5rem 0;">
+  <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;text-transform:uppercase;letter-spacing:.15em;color:var(--ink-soft,#6a5d4a);margin-bottom:0.6rem;">Bragg geometry — drag slider to explore</div>
+  <svg id="bsvg" viewBox="0 0 520 220" style="width:100%;max-width:520px;display:block;margin:0 auto;" aria-label="Two atomic planes with incident and reflected rays at angle theta"></svg>
+  <div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.7rem;flex-wrap:wrap;">
+    <label style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;min-width:5.5rem;">θ = <span id="theta-label">30</span>°</label>
+    <input id="theta-slider" type="range" min="5" max="85" value="30" style="flex:1;min-width:120px;">
+    <span id="path-label" style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;min-width:9rem;text-align:right;"></span>
+  </div>
+  <svg id="wave-svg" viewBox="0 0 520 90" style="width:100%;max-width:520px;display:block;margin:0.4rem auto 0;" aria-label="Wave interference diagram"></svg>
+  <div id="interference-label" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;text-align:center;margin-top:0.3rem;color:var(--ink-soft,#6a5d4a);"></div>
+</figure>`;
+
+        const svg = this.querySelector('#bsvg');
+        const waveSvg = this.querySelector('#wave-svg');
+        const slider = this.querySelector('#theta-slider');
+        const thetaLabel = this.querySelector('#theta-label');
+        const pathLabel = this.querySelector('#path-label');
+        const intLabel = this.querySelector('#interference-label');
+
+        // Fixed: d = 40px (visual units), lambda = 40px (so d/lambda=1, n=1 constructive at sin=0.5, theta=30)
+        const W = 520, H = 220;
+        const y1 = 80, y2 = 140; // two plane y-coords
+        const d_vis = y2 - y1;    // 60px
+        const lambda_vis = 60;    // same as d so 2d sin theta / lambda easy
+        const cx = 260;           // center x of reflection point on plane1
+
+        function draw(thetaDeg) {
+          const th = thetaDeg * Math.PI / 180;
+          const sinTh = Math.sin(th);
+          const cosTh = Math.cos(th);
+
+          // Ray direction: comes from upper-left at angle theta to horizontal plane
+          // incident ray travels at angle (90-theta) from vertical = theta from plane
+          const rayLen = 120;
+          // upper plane reflection point
+          const px1 = cx, py1 = y1;
+          // lower plane intersection: go down by d, shift x by d/tan(theta) ... but we draw from surface
+          // For the lower ray: it hits plane 2 at same x offset
+          const dx = d_vis / Math.tan(th);
+          const px2 = cx + dx, py2 = y2;
+
+          // incident ray ends at px1,py1; starts rayLen above
+          const ix0 = px1 - rayLen * cosTh, iy0 = py1 - rayLen * sinTh;
+          // reflected ray from px1,py1 goes rayLen in mirror direction
+          const rx1 = px1 + rayLen * cosTh, ry1 = py1 - rayLen * sinTh;
+
+          // lower incident ray starts at same y as ix0,iy0 (shifted)
+          const ix0b = px2 - rayLen * cosTh, iy0b = iy0;
+          // lower reflected ray
+          const rx2 = px2 + rayLen * cosTh, ry2 = py2 - rayLen * sinTh;
+
+          // Extra path = 2 * d_vis * sinTh
+          const extraPath = 2 * d_vis * sinTh;
+          const ratio = extraPath / lambda_vis; // nλ ratio
+          const nRounded = Math.round(ratio * 10) / 10;
+
+          // Atom dots along each plane
+          const dotSpacing = 24;
+          let dots = '';
+          for (let x = 20; x < W - 20; x += dotSpacing) {
+            dots += `<circle cx="${x}" cy="${y1}" r="5" fill="#c25b2a" opacity="0.85"/>`;
+            dots += `<circle cx="${x}" cy="${y2}" r="5" fill="#c25b2a" opacity="0.85"/>`;
+          }
+
+          // Angle arc
+          const arcR = 28;
+          // arc from horizontal to ray direction, at reflection point
+          const arcX1 = px1 + arcR, arcY1 = py1;
+          const arcX2 = px1 + arcR * cosTh, arcY2 = py1 - arcR * sinTh;
+          const arcLarge = thetaDeg > 90 ? 1 : 0;
+
+          // Vertical dashed line from px1 down to plane2 (shows d)
+          const dLineX = Math.min(px1, px2) - 18;
+
+          // Path difference bracket: the extra segment on lower ray
+          // Lower ray travels from iy0b to py2; upper travels from iy0 to py1.
+          // Extra path segments: the bits from where upper ray "starts" equiv down to plane2
+          // Simpler: show the 2*d*sin(theta) as a highlighted segment on the lower reflected ray
+          const extraSeg = extraPath;
+
+          svg.innerHTML = `
+<defs>
+  <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" style="fill:oklch(58% 0.12 245)"/>
+  </marker>
+  <marker id="arr2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" style="fill:oklch(55% 0.16 35)"/>
+  </marker>
+</defs>
+${dots}
+<!-- plane labels -->
+<text x="8" y="${y1+4}" style="font-family:'JetBrains Mono',monospace;font-size:11px;fill:#6a5d4a;">(hkl)</text>
+<text x="8" y="${y2+4}" style="font-family:'JetBrains Mono',monospace;font-size:11px;fill:#6a5d4a;">(hkl)</text>
+<!-- d spacing marker -->
+<line x1="${dLineX}" y1="${y1}" x2="${dLineX}" y2="${y2}" stroke="#aaa" stroke-width="1" stroke-dasharray="3,3"/>
+<line x1="${dLineX-5}" y1="${y1}" x2="${dLineX+5}" y2="${y1}" stroke="#aaa" stroke-width="1"/>
+<line x1="${dLineX-5}" y1="${y2}" x2="${dLineX+5}" y2="${y2}" stroke="#aaa" stroke-width="1"/>
+<text x="${dLineX-14}" y="${(y1+y2)/2+4}" style="font-family:'JetBrains Mono',monospace;font-size:11px;fill:#6a5d4a;" text-anchor="middle">d</text>
+<!-- upper incident ray -->
+<line x1="${ix0}" y1="${iy0}" x2="${px1}" y2="${py1}" stroke="oklch(58% 0.12 245)" stroke-width="2" marker-end="url(#arr)"/>
+<!-- upper reflected ray -->
+<line x1="${px1}" y1="${py1}" x2="${rx1}" y2="${ry1}" stroke="oklch(58% 0.12 245)" stroke-width="2" marker-end="url(#arr)"/>
+<!-- lower incident ray -->
+<line x1="${ix0b}" y1="${iy0b}" x2="${px2}" y2="${py2}" stroke="oklch(55% 0.16 35)" stroke-width="2" marker-end="url(#arr2)"/>
+<!-- lower reflected ray -->
+<line x1="${px2}" y1="${py2}" x2="${rx2}" y2="${ry2}" stroke="oklch(55% 0.16 35)" stroke-width="2" marker-end="url(#arr2)"/>
+<!-- theta angle arc on upper plane -->
+<path d="M ${arcX1} ${arcY1} A ${arcR} ${arcR} 0 ${arcLarge} 0 ${arcX2} ${arcY2}" fill="none" stroke="#888" stroke-width="1.2"/>
+<text x="${px1 + arcR + 5}" y="${py1 - 6}" style="font-family:'JetBrains Mono',monospace;font-size:12px;fill:#444;">θ</text>
+<!-- path difference label -->
+<text x="${W/2}" y="${H - 8}" style="font-family:'JetBrains Mono',monospace;font-size:11px;fill:#6a5d4a;" text-anchor="middle">extra path = 2d sinθ = ${extraPath.toFixed(1)} px  (${nRounded}λ)</text>
+`;
+          // Wave panel
+          const nW = W, nH = 90;
+          const amp = 14, periods = 3;
+          const omega = (2 * Math.PI * periods) / nW;
+          // phase shift for lower wave = 2π * (extra path / lambda_vis)
+          const phase = 2 * Math.PI * (extraPath / lambda_vis);
+          let path1 = '', path2 = '', pathSum = '';
+          for (let x = 0; x <= nW; x += 2) {
+            const y_ref = 22 + amp * Math.sin(omega * x);
+            const y_lower = 52 + amp * Math.sin(omega * x + phase);
+            const y_sum = 75 + (amp / 2) * Math.sin(omega * x) + (amp / 2) * Math.sin(omega * x + phase);
+            const pfx = x === 0 ? 'M' : 'L';
+            path1 += `${pfx}${x},${y_ref} `;
+            path2 += `${pfx}${x},${y_lower} `;
+            pathSum += `${pfx}${x},${y_sum} `;
+          }
+
+          // Is it near constructive?
+          const frac = (extraPath / lambda_vis) % 1;
+          const nearConstructive = frac < 0.1 || frac > 0.9;
+          const nearDestructive = Math.abs(frac - 0.5) < 0.1;
+          const sumColor = nearConstructive ? '#2a7a2a' : nearDestructive ? '#a02020' : '#555';
+          const statusText = nearConstructive
+            ? 'CONSTRUCTIVE — bright peak'
+            : nearDestructive
+              ? 'DESTRUCTIVE — cancellation'
+              : 'partial interference';
+
+          waveSvg.innerHTML = `
+<text x="6" y="18" style="font-family:'JetBrains Mono',monospace;font-size:9px;fill:#6a5d4a;">ray 1</text>
+<path d="${path1}" fill="none" stroke="oklch(58% 0.12 245)" stroke-width="1.5"/>
+<text x="6" y="48" style="font-family:'JetBrains Mono',monospace;font-size:9px;fill:#6a5d4a;">ray 2</text>
+<path d="${path2}" fill="none" stroke="oklch(55% 0.16 35)" stroke-width="1.5"/>
+<text x="6" y="72" style="font-family:'JetBrains Mono',monospace;font-size:9px;fill:${sumColor};">sum</text>
+<path d="${pathSum}" fill="none" stroke="${sumColor}" stroke-width="2"/>
+`;
+          intLabel.textContent = statusText;
+          intLabel.style.color = sumColor;
+        }
+
+        slider.addEventListener('input', function() {
+          const v = parseInt(this.value);
+          thetaLabel.textContent = v;
+          const extraPath_nm = 2 * 1.0 * Math.sin(v * Math.PI / 180); // d=1 unit for display
+          pathLabel.textContent = `2d sinθ = ${(2 * Math.sin(v * Math.PI / 180)).toFixed(3)}d`;
+          draw(v);
+        });
+
+        draw(30);
+        thetaLabel.textContent = '30';
+        pathLabel.textContent = `2d sinθ = ${(2 * Math.sin(30 * Math.PI / 180)).toFixed(3)}d`;
+      }
+    }
+    if (!customElements.get('bragg-viz')) customElements.define('bragg-viz', BraggViz);
+  })();
+  </script>
+
+  <p class="pc-fade-in">
+    Move the slider to θ ≈ 30° (where 2d sinθ = 1.000d ≈ λ) to see the two reflected waves snap
+    into phase and the sum double in amplitude — a Bragg peak. At θ ≈ 60° the path difference
+    equals 1.73d; if λ = 1.73d that too would be a peak (second-order). At intermediate angles
+    the waves partially cancel and no peak appears in the diffractogram.
+  </p>
+
+  <h3 style="font-weight:400;margin:1.4rem 0 0.4rem;" class="pc-fade-in">Interplanar spacing in cubic systems</h3>
+
+  <p class="pc-fade-in">
+    For a
+    <pc-term def="A crystal with all three unit-cell edges equal and all angles 90°. Examples: Fe (BCC), Cu (FCC), NaCl (FCC-based).">cubic crystal</pc-term>
+    with lattice parameter $a$, the spacing between $(hkl)$ planes is:
+  </p>
+
+  <pc-equation data='{
+    "tex": "d_{hkl} = \\frac{a}{\\sqrt{h^2 + k^2 + l^2}}",
+    "terms": {
+      "d_{hkl}": "Interplanar spacing (nm) for the family of planes with Miller indices (hkl).",
+      "a":       "Cubic lattice parameter — the unit-cell edge length (nm).",
+      "h,k,l":   "Miller indices of the plane family. Higher indices → closer spacing → diffract at larger 2θ."
+    }
+  }'></pc-equation>
+
+  <p class="pc-fade-in">
+    Planes with larger $(h^2+k^2+l^2)$ are more closely packed together, so their $d_{hkl}$ is smaller.
+    Bragg's law then demands a larger $\sin\theta$ — the peak appears at a higher $2\theta$ angle.
+  </p>
+
+  <h3 style="font-weight:400;margin:1.4rem 0 0.4rem;" class="pc-fade-in">Systematic absences — reflection rules</h3>
+
+  <p class="pc-fade-in">
+    Not every $(hkl)$ family produces a peak. In BCC and FCC crystals, extra atoms inside the unit
+    cell scatter rays that are exactly out of phase with the corner atoms for certain $(hkl)$,
+    completely cancelling the reflection. The surviving peaks follow strict rules called
+    <pc-term def="Conditions on h, k, l under which a diffraction peak is systematically absent because of destructive interference from the lattice basis.">selection rules</pc-term>
+    (or reflection conditions).
+  </p>
+
+  <pc-grid>
+    <script type="application/json">
+      [
+        {
+          "eyebrow": "SC",
+          "title": "All (hkl) allowed",
+          "body": "No extra atoms to cancel any reflection. Peaks at h²+k²+l² = 1,2,3,4,5,6,8,… → (100),(110),(111),(200),(210),(211),…"
+        },
+        {
+          "eyebrow": "BCC",
+          "title": "h+k+l must be even",
+          "body": "Body-center atom cancels odd-sum planes. Peaks at 2,4,6,8,10,12,… → (110),(200),(211),(220),(310),(222),…"
+        },
+        {
+          "eyebrow": "FCC",
+          "title": "h,k,l all odd OR all even",
+          "body": "Face-center atoms cancel mixed-index planes. Peaks at 3,4,8,11,12,16,… → (111),(200),(220),(311),(222),(400),…"
+        }
+      ]
+    </script>
+  </pc-grid>
+
+  <p class="pc-fade-in">
+    The pattern of allowed peaks is a structural fingerprint: BCC gives a different sequence of
+    $2\theta$ positions than FCC, letting you identify the lattice type directly from a diffractogram
+    without any assumed model.
+  </p>
+
+  <h3 style="font-weight:400;margin:1.4rem 0 0.4rem;" class="pc-fade-in">The X-ray diffractometer</h3>
+
+  <p class="pc-fade-in">
+    A
+    <pc-term def="An instrument that records X-ray intensity as a function of diffraction angle 2θ. A motorized goniometer rotates the specimen and the detector in a linked θ–2θ scan.">diffractometer</pc-term>
+    has three key parts: a fixed X-ray tube (T), a specimen stage (S) that rotates by angle θ, and
+    a detector (C) that always rotates by 2θ — keeping the detector on the reflected beam.
+    The
+    <pc-term def="Diffraction from a finely ground polycrystalline sample. Because grains are randomly oriented, every family of planes is guaranteed to have some grains oriented at the correct Bragg angle.">powder method</pc-term>
+    ensures that among thousands of randomly oriented crystallites, some grains will satisfy
+    Bragg's law for every plane family — so every allowed $(hkl)$ registers a peak as the detector
+    sweeps through $2\theta$.
+  </p>
+
+  <!-- Interactive diffractometer sweep -->
+  <diffractometer-sim></diffractometer-sim>
+  <script>
+  (function() {
+    class DiffractometerSim extends HTMLElement {
+      connectedCallback() {
+        // BCC Fe peaks: (110),(200),(211),(220),(310),(222)
+        // a=0.2866nm, lambda=0.1542nm (Cu Ka)
+        const a = 0.2866, lam = 0.1542;
+        const bccPlanes = [
+          {h:1,k:1,l:0},{h:2,k:0,l:0},{h:2,k:1,l:1},
+          {h:2,k:2,l:0},{h:3,k:1,l:0},{h:2,k:2,l:2}
+        ];
+        const peaks = bccPlanes.map(p => {
+          const denom = Math.sqrt(p.h*p.h + p.k*p.k + p.l*p.l);
+          const d = a / denom;
+          const sinTh = lam / (2 * d);
+          if (sinTh > 1) return null;
+          const twoTheta = 2 * Math.asin(sinTh) * 180 / Math.PI;
+          return { twoTheta, label: `(${p.h}${p.k}${p.l})`, d };
+        }).filter(Boolean);
+
+        this.innerHTML = `
+<figure class="pc-fig-interactive pc-rise" style="background:var(--paper,#fbf6ea);border:1px solid #d8cfc0;border-radius:8px;padding:1.2rem 1rem 0.8rem;margin:1.5rem 0;">
+  <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;text-transform:uppercase;letter-spacing:.15em;color:var(--ink-soft,#6a5d4a);margin-bottom:0.5rem;">Diffractometer sweep — BCC Fe, Cu Kα (λ = 0.1542 nm)</div>
+  <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+    <div style="flex:0 0 auto;">
+      <svg id="dschem" viewBox="0 0 200 200" width="180" height="180" aria-label="Diffractometer schematic showing source, specimen and detector"></svg>
+    </div>
+    <div style="flex:1;min-width:200px;">
+      <svg id="dplot" viewBox="0 0 340 160" style="width:100%;max-width:340px;display:block;" aria-label="Intensity vs 2-theta diffractogram being built up"></svg>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.7rem;flex-wrap:wrap;">
+    <button id="dsweep-btn" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:0.3rem 0.8rem;border:1px solid #c0b8a0;border-radius:4px;background:var(--bg,#f6f1e7);cursor:pointer;">Sweep ▶</button>
+    <button id="dreset-btn" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:0.3rem 0.8rem;border:1px solid #c0b8a0;border-radius:4px;background:var(--bg,#f6f1e7);cursor:pointer;">Reset</button>
+    <span id="dangle-label" style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--ink-soft,#6a5d4a);">2θ = 0°</span>
+  </div>
+</figure>`;
+
+        const schSvg = this.querySelector('#dschem');
+        const plotSvg = this.querySelector('#dplot');
+        const sweepBtn = this.querySelector('#dsweep-btn');
+        const resetBtn = this.querySelector('#dreset-btn');
+        const angleLabel = this.querySelector('#dangle-label');
+
+        const minTT = 30, maxTT = 130;
+        const plotW = 340, plotH = 160;
+        const padL = 40, padR = 10, padT = 15, padB = 30;
+        const pw = plotW - padL - padR, ph = plotH - padT - padB;
+
+        // Map 2theta to x pixel
+        const xOf = tt => padL + ((tt - minTT) / (maxTT - minTT)) * pw;
+        const baseY = padT + ph;
+
+        let currentAngle = minTT;
+        let sweepInterval = null;
+        const revealedPeaks = new Set();
+
+        function drawSchematic(twoTheta) {
+          const th = twoTheta / 2;
+          const cx = 100, cy = 100, r = 70;
+          const specAngle = th * Math.PI / 180; // specimen rotates theta from horizontal
+          const detAngle = twoTheta * Math.PI / 180; // detector at 2theta
+
+          // Source fixed at left (180 deg)
+          const sx = cx - r, sy = cy;
+          // Specimen always at center
+          const px = cx, py = cy;
+          // Detector
+          const dx = cx + r * Math.cos(detAngle - Math.PI), dy = cy - r * Math.sin(detAngle - Math.PI);
+
+          // Beam lines
+          const beamColor = 'oklch(58% 0.12 245)';
+          const detColor = 'oklch(55% 0.16 35)';
+
+          // Specimen surface direction (rotates with theta)
+          const specLen = 22;
+          const spx1 = px - specLen * Math.cos(specAngle), spy1 = py - specLen * Math.sin(specAngle);
+          const spx2 = px + specLen * Math.cos(specAngle), spy2 = py + specLen * Math.sin(specAngle);
+
+          schSvg.innerHTML = `
+<!-- circle track -->
+<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#d8cfc0" stroke-width="1" stroke-dasharray="4,3"/>
+<!-- incident beam: source to specimen -->
+<line x1="${sx}" y1="${sy}" x2="${px}" y2="${py}" stroke="${beamColor}" stroke-width="2"/>
+<text x="${sx-2}" y="${sy-8}" style="font-family:'JetBrains Mono',monospace;font-size:10px;fill:${beamColor};" text-anchor="middle">T</text>
+<!-- reflected beam: specimen to detector -->
+<line x1="${px}" y1="${py}" x2="${dx}" y2="${dy}" stroke="${detColor}" stroke-width="2"/>
+<!-- specimen surface -->
+<line x1="${spx1}" y1="${spy1}" x2="${spx2}" y2="${spy2}" stroke="#c25b2a" stroke-width="3" stroke-linecap="round"/>
+<text x="${px}" y="${py+14}" style="font-family:'JetBrains Mono',monospace;font-size:10px;fill:#c25b2a;" text-anchor="middle">S</text>
+<!-- detector -->
+<rect x="${dx-8}" y="${dy-8}" width="16" height="16" rx="3" fill="${detColor}" opacity="0.85"/>
+<text x="${dx}" y="${dy+4}" style="font-family:'JetBrains Mono',monospace;font-size:9px;fill:white;" text-anchor="middle">C</text>
+<!-- angle label -->
+<text x="${cx}" y="${cy-78}" style="font-family:'JetBrains Mono',monospace;font-size:10px;fill:#6a5d4a;" text-anchor="middle">θ=${th.toFixed(1)}°  2θ=${twoTheta.toFixed(1)}°</text>
+`;
+        }
+
+        function drawPlot() {
+          const axis = `<line x1="${padL}" y1="${baseY}" x2="${padL+pw}" y2="${baseY}" stroke="#888" stroke-width="1"/>
+<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${baseY}" stroke="#888" stroke-width="1"/>
+<text x="${padL + pw/2}" y="${plotH-4}" style="font-family:'JetBrains Mono',monospace;font-size:9px;fill:#6a5d4a;" text-anchor="middle">2θ (°)</text>
+<text x="10" y="${padT + ph/2}" style="font-family:'JetBrains Mono',monospace;font-size:9px;fill:#6a5d4a;" text-anchor="middle" transform="rotate(-90,10,${padT+ph/2})">Intensity</text>`;
+
+          // X-axis ticks
+          let ticks = '';
+          for (let tt = 30; tt <= 130; tt += 20) {
+            const tx = xOf(tt);
+            ticks += `<line x1="${tx}" y1="${baseY}" x2="${tx}" y2="${baseY+4}" stroke="#888" stroke-width="1"/>
+<text x="${tx}" y="${baseY+13}" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#6a5d4a;" text-anchor="middle">${tt}</text>`;
+          }
+
+          // sweep line
+          const sweepX = xOf(currentAngle);
+          const sweepLine = `<line x1="${sweepX}" y1="${padT}" x2="${sweepX}" y2="${baseY}" stroke="#ddd" stroke-width="1" stroke-dasharray="3,2"/>`;
+
+          // peaks revealed so far
+          let peaksSvg = '';
+          for (const p of peaks) {
+            if (p.twoTheta <= currentAngle) {
+              const px2 = xOf(p.twoTheta);
+              const peakH = 80;
+              peaksSvg += `<line x1="${px2}" y1="${baseY}" x2="${px2}" y2="${baseY - peakH}" stroke="oklch(58% 0.12 245)" stroke-width="2"/>`;
+              peaksSvg += `<text x="${px2}" y="${baseY - peakH - 5}" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#444;" text-anchor="middle">${p.label}</text>`;
+              // small intensity value
+              peaksSvg += `<text x="${px2}" y="${baseY - peakH - 14}" style="font-family:'JetBrains Mono',monospace;font-size:7px;fill:#888;" text-anchor="middle">${p.d.toFixed(3)}nm</text>`;
+            }
+          }
+
+          plotSvg.innerHTML = axis + ticks + sweepLine + peaksSvg;
+        }
+
+        function step() {
+          currentAngle += 0.5;
+          if (currentAngle > maxTT) {
+            currentAngle = maxTT;
+            clearInterval(sweepInterval);
+            sweepInterval = null;
+            sweepBtn.textContent = 'Sweep ▶';
+          }
+          angleLabel.textContent = `2θ = ${currentAngle.toFixed(1)}°`;
+          drawSchematic(currentAngle);
+          drawPlot();
+        }
+
+        sweepBtn.addEventListener('click', function() {
+          if (sweepInterval) {
+            clearInterval(sweepInterval);
+            sweepInterval = null;
+            sweepBtn.textContent = 'Sweep ▶';
+          } else {
+            if (currentAngle >= maxTT) currentAngle = minTT;
+            sweepInterval = setInterval(step, 30);
+            sweepBtn.textContent = 'Pause ‖';
+          }
+        });
+
+        resetBtn.addEventListener('click', function() {
+          clearInterval(sweepInterval);
+          sweepInterval = null;
+          sweepBtn.textContent = 'Sweep ▶';
+          currentAngle = minTT;
+          angleLabel.textContent = `2θ = ${minTT}°`;
+          drawSchematic(minTT);
+          drawPlot();
+        });
+
+        drawSchematic(minTT);
+        drawPlot();
+      }
+    }
+    if (!customElements.get('diffractometer-sim')) customElements.define('diffractometer-sim', DiffractometerSim);
+  })();
+  </script>
+
+  <p class="pc-fade-in">
+    Press <strong>Sweep</strong> to watch the detector scan from 30° to 130°. Each time 2θ
+    reaches a position satisfying Bragg's law for one of the BCC-allowed planes, a peak appears
+    on the pattern at the right with the corresponding $(hkl)$ label and $d_{hkl}$ spacing.
+    No peak appears for $(100)$ (h+k+l = 1, odd) or $(111)$ (h+k+l = 3, odd) — they are
+    systematically absent.
+  </p>
+
+  <h3 style="font-weight:400;margin:1.4rem 0 0.4rem;" class="pc-fade-in">Worked example — BCC Fe, (220) planes</h3>
+
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">Step by step</div>
+    <p style="margin:0.4rem 0;"><strong>Given:</strong> BCC iron, $a = 0.2866$ nm, $\lambda = 0.1790$ nm (Co K$\alpha$), plane $(220)$, $n = 1$.</p>
+    <p style="margin:0.4rem 0;"><strong>1. Check selection rule:</strong> $h+k+l = 2+2+0 = 4$ (even) ✓ — BCC allows this reflection.</p>
+    <p style="margin:0.4rem 0;"><strong>2. Compute d:</strong> $d_{220} = \dfrac{0.2866}{\sqrt{4+4+0}} = \dfrac{0.2866}{2\sqrt{2}} = 0.1013$ nm.</p>
+    <p style="margin:0.4rem 0;"><strong>3. Apply Bragg's law:</strong> $\sin\theta = \dfrac{n\lambda}{2d} = \dfrac{0.1790}{2 \times 0.1013} = 0.884$.</p>
+    <p style="margin:0.4rem 0;"><strong>4. Solve for angle:</strong> $\theta = \arcsin(0.884) = 62.1°$, so $2\theta = 124.2°$.</p>
+  </div>
+
+  <h3 style="font-weight:400;margin:1.6rem 0 0.4rem;" class="pc-fade-in">Noncrystalline (amorphous) solids</h3>
+
+  <p class="pc-fade-in">
+    The chapter closes by returning to
+    <pc-term def="A solid with no long-range periodic order. Atoms are bonded to neighbors much as in a crystal, but the network has no repeating unit extending over large distances. Often called a supercooled liquid.">amorphous solids</pc-term>.
+    Crystalline and amorphous SiO₂ share the same local chemistry: every Si is tetrahedrally bonded
+    to four O atoms. The difference is whether those tetrahedra are arranged in a periodic pattern
+    (quartz crystal) or a random network (silica glass). Because XRD requires long-range periodicity
+    to produce sharp peaks, an amorphous material gives only a broad hump, not a fingerprint pattern.
+  </p>
+
+  <!-- Crystalline vs amorphous SiO2 toggle -->
+  <pc-toggle>
+    <script type="application/json">
+      {
+        "a": {
+          "label": "Crystalline SiO₂ (quartz)",
+          "body": "<figure style='text-align:center;margin:0.5rem 0'><svg viewBox='0 0 260 160' width='260' height='160' aria-label='Regular hexagonal network of SiO4 tetrahedra in quartz'><defs><radialGradient id='sg1' cx='50%' cy='50%' r='50%'><stop offset='0%' stop-color='#7ab'/><stop offset='100%' stop-color='#448'/></radialGradient><radialGradient id='og1' cx='50%' cy='50%' r='50%'><stop offset='0%' stop-color='#f99'/><stop offset='100%' stop-color='#c44'/></radialGradient></defs><g id='xtal-net'><!-- regular hexagonal Si-O rings --><line x1='60' y1='80' x2='80' y2='46' stroke='#666' stroke-width='1.5'/><line x1='80' y1='46' x2='120' y2='46' stroke='#666' stroke-width='1.5'/><line x1='120' y1='46' x2='140' y2='80' stroke='#666' stroke-width='1.5'/><line x1='140' y1='80' x2='120' y2='114' stroke='#666' stroke-width='1.5'/><line x1='120' y1='114' x2='80' y2='114' stroke='#666' stroke-width='1.5'/><line x1='80' y1='114' x2='60' y2='80' stroke='#666' stroke-width='1.5'/><line x1='140' y1='80' x2='180' y2='80' stroke='#666' stroke-width='1.5'/><line x1='180' y1='80' x2='200' y2='46' stroke='#666' stroke-width='1.5'/><line x1='200' y1='46' x2='180' y2='12' stroke='#666' stroke-width='1.5'/><line x1='180' y1='12' x2='120' y2='46' stroke='#666' stroke-width='1.5'/><line x1='200' y1='46' x2='230' y2='62' stroke='#666' stroke-width='1.5'/><line x1='200' y1='114' x2='230' y2='98' stroke='#666' stroke-width='1.5'/><line x1='200' y1='114' x2='180' y2='148' stroke='#666' stroke-width='1.5'/><line x1='180' y1='148' x2='120' y2='114' stroke='#666' stroke-width='1.5'/><line x1='180' y1='80' x2='200' y2='114' stroke='#666' stroke-width='1.5'/><!-- Si atoms (blue) --><circle cx='60' cy='80' r='7' fill='url(#sg1)'/><circle cx='80' cy='46' r='7' fill='url(#sg1)'/><circle cx='120' cy='46' r='7' fill='url(#sg1)'/><circle cx='140' cy='80' r='7' fill='url(#sg1)'/><circle cx='120' cy='114' r='7' fill='url(#sg1)'/><circle cx='80' cy='114' r='7' fill='url(#sg1)'/><circle cx='180' cy='80' r='7' fill='url(#sg1)'/><circle cx='200' cy='46' r='7' fill='url(#sg1)'/><circle cx='180' cy='12' r='7' fill='url(#sg1)'/><circle cx='200' cy='114' r='7' fill='url(#sg1)'/><circle cx='180' cy='148' r='7' fill='url(#sg1)'/><!-- O atoms (red) on bonds midpoints --><circle cx='70' cy='63' r='5' fill='url(#og1)'/><circle cx='100' cy='46' r='5' fill='url(#og1)'/><circle cx='130' cy='63' r='5' fill='url(#og1)'/><circle cx='130' cy='97' r='5' fill='url(#og1)'/><circle cx='100' cy='114' r='5' fill='url(#og1)'/><circle cx='70' cy='97' r='5' fill='url(#og1)'/><circle cx='160' cy='80' r='5' fill='url(#og1)'/><circle cx='190' cy='63' r='5' fill='url(#og1)'/><circle cx='190' cy='97' r='5' fill='url(#og1)'/><circle cx='150' cy='46' r='5' fill='url(#og1)'/><circle cx='150' cy='114' r='5' fill='url(#og1)'/></g><text x='130' y='155' text-anchor='middle' style='font-family:JetBrains Mono,monospace;font-size:10px;fill:#444;'>Regular — long-range order → sharp XRD peaks</text></svg></figure><p style='font-size:0.9rem;margin:0.3rem 0;'><strong>Quartz.</strong> Si–O tetrahedra tile into a periodic hexagonal network. Every ring is identical. XRD gives a sharp, indexed pattern. Slow cooling from SiO₂ melt allows time for this order to develop.</p>"
+        },
+        "b": {
+          "label": "Amorphous SiO₂ (silica glass)",
+          "body": "<figure style='text-align:center;margin:0.5rem 0'><svg viewBox='0 0 260 160' width='260' height='160' aria-label='Irregular random network of SiO4 tetrahedra in silica glass'><defs><radialGradient id='sg2' cx='50%' cy='50%' r='50%'><stop offset='0%' stop-color='#7ab'/><stop offset='100%' stop-color='#448'/></radialGradient><radialGradient id='og2' cx='50%' cy='50%' r='50%'><stop offset='0%' stop-color='#f99'/><stop offset='100%' stop-color='#c44'/></radialGradient></defs><g><!-- irregular bonds --><line x1='55' y1='90' x2='90' y2='55' stroke='#666' stroke-width='1.5'/><line x1='90' y1='55' x2='135' y2='62' stroke='#666' stroke-width='1.5'/><line x1='135' y1='62' x2='160' y2='38' stroke='#666' stroke-width='1.5'/><line x1='135' y1='62' x2='155' y2='95' stroke='#666' stroke-width='1.5'/><line x1='155' y1='95' x2='195' y2='85' stroke='#666' stroke-width='1.5'/><line x1='155' y1='95' x2='140' y2='125' stroke='#666' stroke-width='1.5'/><line x1='140' y1='125' x2='100' y2='130' stroke='#666' stroke-width='1.5'/><line x1='100' y1='130' x2='65' y2='115' stroke='#666' stroke-width='1.5'/><line x1='65' y1='115' x2='55' y2='90' stroke='#666' stroke-width='1.5'/><line x1='90' y1='55' x2='75' y2='28' stroke='#666' stroke-width='1.5'/><line x1='195' y1='85' x2='215' y2='110' stroke='#666' stroke-width='1.5'/><line x1='160' y1='38' x2='200' y2='22' stroke='#666' stroke-width='1.5'/><!-- Si atoms --><circle cx='55' cy='90' r='7' fill='url(#sg2)'/><circle cx='90' cy='55' r='7' fill='url(#sg2)'/><circle cx='135' cy='62' r='7' fill='url(#sg2)'/><circle cx='160' cy='38' r='7' fill='url(#sg2)'/><circle cx='155' cy='95' r='7' fill='url(#sg2)'/><circle cx='195' cy='85' r='7' fill='url(#sg2)'/><circle cx='140' cy='125' r='7' fill='url(#sg2)'/><circle cx='100' cy='130' r='7' fill='url(#sg2)'/><circle cx='65' cy='115' r='7' fill='url(#sg2)'/><circle cx='75' cy='28' r='7' fill='url(#sg2)'/><circle cx='215' cy='110' r='7' fill='url(#sg2)'/><!-- O atoms --><circle cx='72' cy='72' r='5' fill='url(#og2)'/><circle cx='112' cy='58' r='5' fill='url(#og2)'/><circle cx='147' cy='50' r='5' fill='url(#og2)'/><circle cx='145' cy='78' r='5' fill='url(#og2)'/><circle cx='175' cy='90' r='5' fill='url(#og2)'/><circle cx='147' cy='110' r='5' fill='url(#og2)'/><circle cx='120' cy='128' r='5' fill='url(#og2)'/><circle cx='82' cy='122' r='5' fill='url(#og2)'/><circle cx='60' cy='102' r='5' fill='url(#og2)'/><circle cx='82' cy='41' r='5' fill='url(#og2)'/><circle cx='205' cy='97' r='5' fill='url(#og2)'/></g><text x='130' y='155' text-anchor='middle' style='font-family:JetBrains Mono,monospace;font-size:10px;fill:#444;'>Disordered — no long-range order → broad XRD hump</text></svg></figure><p style='font-size:0.9rem;margin:0.3rem 0;'><strong>Silica glass.</strong> Same Si–O tetrahedra, but ring sizes and orientations vary randomly. No periodicity extends beyond a few bond lengths. XRD shows only a diffuse hump. Fast cooling traps atoms before they can organize into quartz.</p>"
+        }
+      }
+    </script>
+  </pc-toggle>
+
+  <p class="pc-fade-in">
+    <strong>Which materials go amorphous?</strong> Most metals crystallize readily because their
+    non-directional metallic bonds allow atoms to rearrange quickly. Most ceramics can be either
+    crystalline or glassy depending on processing; complex silicates with many components are
+    particularly prone to glass formation. Polymers are typically
+    <pc-term def="A partially ordered polymer solid containing both crystalline regions (lamellae) and disordered amorphous regions. Degree of crystallinity varies from nearly 0% to ~90%.">semi-crystalline</pc-term>
+    — their long chain geometry prevents complete crystallization.
+  </p>
+
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">Why it matters</div>
+    A diffraction pattern is a crystal's fingerprint; Bragg's law is how we read it.
+    The sequence of peak positions identifies the lattice type; the spacings yield $a$;
+    the intensities encode atomic positions — and the absence of sharp peaks reveals glass.
+  </div>
+
+  <pc-anki>
+    <script type="application/json">
+      [
+        {
+          "q": "State Bragg's law and define every symbol.",
+          "a": "$n\\lambda = 2d_{hkl}\\sin\\theta$. $n$ = diffraction order (integer), $\\lambda$ = X-ray wavelength, $d_{hkl}$ = interplanar spacing, $\\theta$ = glancing (Bragg) angle measured from the plane surface."
+        },
+        {
+          "q": "For a cubic crystal, what is the formula for $d_{hkl}$?",
+          "a": "$d_{hkl} = a \\,/\\, \\sqrt{h^2 + k^2 + l^2}$. Higher-index planes have smaller spacing and therefore diffract at larger $2\\theta$."
+        },
+        {
+          "q": "Which (hkl) peaks are allowed for BCC and for FCC? State the selection rules.",
+          "a": "<strong>BCC:</strong> $h+k+l$ must be even (e.g., 110, 200, 211). <strong>FCC:</strong> $h$, $k$, $l$ must be all odd or all even (e.g., 111, 200, 220, 311)."
+        },
+        {
+          "q": "BCC iron has $a = 0.2866$ nm. Using $\\lambda = 0.1542$ nm, at what $2\\theta$ does the (110) peak appear?",
+          "a": "$d_{110} = 0.2866/\\sqrt{2} = 0.2027$ nm. $\\sin\\theta = 0.1542/(2 \\times 0.2027) = 0.380$. $\\theta = 22.3°$, so $2\\theta = 44.7°$."
+        },
+        {
+          "q": "In a θ–2θ diffractometer, how much does the detector rotate for every 1° the specimen rotates?",
+          "a": "2°. The specimen rotates by θ and the detector (counter) rotates by 2θ simultaneously — keeping the detector on the geometrically reflected beam."
+        },
+        {
+          "q": "Why does XRD of an amorphous material show only a broad hump rather than sharp peaks?",
+          "a": "Sharp Bragg peaks require long-range periodic planes. In an amorphous solid there are no repeating planes — only short-range order — so no single $d$ satisfies Bragg's law; all angles scatter weakly and the result is a broad diffuse hump."
+        }
+      ]
+    </script>
+  </pc-anki>
+
+  <details class="pc-skip pc-fade-in">
+    <summary>Skipped: structure factor and peak intensities</summary>
+    <p>The selection rules above are a simplified consequence of the full
+    <strong>structure factor</strong> $F_{hkl} = \sum_j f_j \exp[2\pi i(hx_j + ky_j + lz_j)]$,
+    where $f_j$ is the atomic scattering factor and $x_j,y_j,z_j$ are fractional coordinates.
+    A peak vanishes when $|F_{hkl}|^2 = 0$. For BCC the body-center atom at (½,½,½) produces
+    a phase shift that cancels corner contributions whenever $h+k+l$ is odd. Peak <em>intensities</em>
+    (as opposed to mere presence/absence) encode the positions of all atoms in the basis and are
+    the foundation of full crystal-structure determination by Rietveld refinement.</p>
+  </details>
+</div>

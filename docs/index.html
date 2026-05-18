@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>paperchat — interactive chapter summaries</title>
+  <meta name="description" content="paperchat generates interactive chapter sites from textbook PDFs — interactive figures, web components, math, and inline explanations." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --paper:   #fbf6ea;
+      --paper-2: #f3eedf;
+      --ink:     #1f1d1a;
+      --ink-2:   #555049;
+      --accent:  #c25b2a;
+      --accent-soft: #f3d7c5;
+      --border:  rgba(31, 29, 26, 0.10);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+    body {
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: 18px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    main { max-width: 720px; margin: 0 auto; padding: 80px 24px 120px; }
+    h1 {
+      font-family: Inter, -apple-system, sans-serif;
+      font-size: 44px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0 0 12px;
+    }
+    .tag {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      margin: 0 0 32px;
+    }
+    .lede { font-size: 20px; line-height: 1.5; margin: 0 0 40px; color: var(--ink-2); }
+    h2 {
+      font-family: Inter, sans-serif;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin: 48px 0 16px;
+    }
+    p { margin: 0 0 16px; }
+    a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-soft); }
+    a:hover { border-bottom-color: var(--accent); }
+    code, pre { font-family: "JetBrains Mono", monospace; font-size: 14px; }
+    code { background: var(--paper-2); padding: 2px 6px; border-radius: 3px; }
+    pre { background: var(--paper-2); padding: 16px; border-radius: 4px; overflow-x: auto; }
+
+    .chapters { display: grid; gap: 16px; margin: 24px 0; }
+    .chapter-card {
+      display: block;
+      padding: 20px 24px;
+      background: var(--paper-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: inherit;
+      transition: border-color 120ms, transform 120ms;
+    }
+    .chapter-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .chapter-card .eyebrow {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--ink-2);
+      margin-bottom: 4px;
+    }
+    .chapter-card .title {
+      font-family: Inter, sans-serif;
+      font-size: 19px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .chapter-card .meta { font-size: 14px; color: var(--ink-2); }
+
+    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; margin: 24px 0; }
+    .features li { list-style: none; }
+    .features strong { display: block; font-family: Inter, sans-serif; margin-bottom: 2px; }
+    .features span { font-size: 15px; color: var(--ink-2); }
+
+    footer {
+      margin-top: 80px; padding-top: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 14px; color: var(--ink-2);
+    }
+  </style>
+</head>
+<body>
+<main>
+  <p class="tag">interactive textbook summaries</p>
+  <h1>paperchat</h1>
+  <p class="lede">
+    Drop a textbook PDF, get a navigable interactive chapter site —
+    page-by-page concept fragments with web-component figures, KaTeX-rendered math, and
+    walk-through explanations you can click through.
+  </p>
+
+  <h2>Live demo</h2>
+  <p>One chapter, generated end-to-end by GLM&#8209;5.1 via OpenRouter, for &lt; $0.55.</p>
+  <div class="chapters">
+    <a class="chapter-card" href="chapters/crystalline-solids/">
+      <div class="eyebrow">Materials Science · Callister &amp; Rethwish · Ch. 3</div>
+      <div class="title">The Structure of Crystalline Solids</div>
+      <div class="meta">9 sections · 44 PDF pages · interactive 3D unit cells, draggable Bragg's law, click-through Miller indices</div>
+    </a>
+  </div>
+
+  <h2>What's inside each chapter</h2>
+  <ul class="features">
+    <li><strong>Interactive figures</strong><span>Click, drag, slide. Each concept gets a manipulable diagram instead of a static one.</span></li>
+    <li><strong>3D visualizations</strong><span>Unit cells, orbitals, lattices — rotate them yourself with Three.js.</span></li>
+    <li><strong>Click-to-define</strong><span>Hover any technical term to read its definition without losing your place.</span></li>
+    <li><strong>Source-anchored</strong><span>Every section cites the source pages so you can verify against the textbook.</span></li>
+    <li><strong>Math-native</strong><span>KaTeX rendering with clickable symbol legends in equations.</span></li>
+    <li><strong>Self-test decks</strong><span>Anki-style flashcards at the end of every section.</span></li>
+  </ul>
+
+  <h2>How it works</h2>
+  <p>
+    paperchat runs a planner-then-subagents agent loop. The planner reads the chapter, vets the embedded figures,
+    writes a section plan, and dispatches one writer subagent per concept page. Each writer produces a self-contained
+    HTML fragment with interactive figures from a small web-component library (<code>pc-3d</code>, <code>pc-equation</code>,
+    <code>pc-stepped</code>, <code>pc-anki</code>, &hellip;). Output is plain HTML — no framework, no build step.
+  </p>
+  <p>
+    The local dev server is <code>node dev-server.mjs</code>; the agent loop runs in a detached child process so file
+    edits don't kill in-flight chapter generation.
+  </p>
+
+  <h2>Run it yourself</h2>
+  <pre>git clone https://github.com/eitanporat/paperchat
+cd paperchat
+npm install
+npm run dev   # opens http://localhost:5173</pre>
+
+  <p>
+    Drop a PDF, pick a model (OpenRouter or Anthropic), click <em>Summarize</em>. The chapter HTML lands in
+    <code>cc-workdir/chapter-&lt;id&gt;/</code> and can be served as-is — that's what's hosted here.
+  </p>
+
+  <footer>
+    Source on <a href="https://github.com/eitanporat/paperchat">GitHub</a> ·
+    Generated chapter is a summary of copyrighted material for educational/demo purposes — please buy the textbook to support the authors.
+  </footer>
+</main>
+</body>
+</html>

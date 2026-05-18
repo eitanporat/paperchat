@@ -1,0 +1,194 @@
+<div class="pc-prose pc-stagger">
+  <div class="pc-eyebrow pc-fade-in">Chapter 2 · Introduction</div>
+  <div class="pc-source pc-fade-in" data-page="49">pp. 49–51</div>
+
+  <p class="pc-fade-in">
+    Every solid material owes its properties — strength, color, transparency, electrical behavior — to how
+    its atoms are arranged in space. The central distinction is between
+    <pc-term def="A solid whose atoms are arranged in a repeating, periodic 3D pattern that extends over long distances (long-range order).">crystalline</pc-term>
+    and
+    <pc-term def="A solid with no long-range repeating order; atomic arrangement resembles a frozen liquid. Also called noncrystalline or a supercooled liquid.">amorphous</pc-term>
+    solids.
+  </p>
+
+  <p class="pc-fade-in">
+    In a <strong>crystalline solid</strong>, every atom sits at a predictable position — the pattern repeats
+    in three dimensions over distances of millions of atoms. All metals are crystalline when solidified
+    slowly, as are many ceramics and some polymers. In an <strong>amorphous solid</strong>, no such long-range
+    rhythm exists. The atoms are frozen in place but in a disordered tangle, the way they might look in a
+    snapshot of a liquid. Window glass is the archetypal example.
+  </p>
+
+  <p class="pc-fade-in">
+    To reason about crystals precisely, we use three foundational ideas. The
+    <pc-term def="The simplest model of a crystal: atoms are treated as rigid, touching spheres with a well-defined radius. Nearest-neighbor atoms literally touch.">hard-sphere model</pc-term>
+    treats each atom as a solid sphere; neighboring atoms in the crystal are in direct contact.
+    The
+    <pc-term def="A 3D array of mathematical points, each coinciding with an atom center, that captures the periodicity of the crystal.">lattice</pc-term>
+    is the abstract 3D grid of points — one per atom site — that captures the repeating geometry.
+    The
+    <pc-term def="The smallest parallelepiped (box) that, when repeated by translation along its three edges, fills the entire crystal. Corners sit on atom centers; chosen for maximum symmetry.">unit cell</pc-term>
+    is the smallest repeating box: stack identical unit cells edge-to-edge in all three directions
+    and you rebuild the whole crystal.
+  </p>
+
+  <!-- Custom side-by-side crystalline vs amorphous SVG figure -->
+  <crystal-vs-amorphous class="pc-rise"></crystal-vs-amorphous>
+
+  <p class="pc-fade-in">
+    The difference between crystalline and amorphous is not just academic — it shows up in everyday
+    properties. Crystalline ceramics and polymers tend to be <strong>opaque</strong>, while the amorphous
+    form of the same material is often <strong>transparent</strong>. Magnesium (Mg) crystallizes in a
+    hexagonal close-packed (HCP) arrangement: its crystals are opaque and cleave along specific planes.
+    Silicon dioxide (SiO₂) can form either crystalline quartz (opaque, anisotropic) or window glass
+    (amorphous, transparent, and the same in every direction). Same atoms, radically different arrangements,
+    radically different behavior.
+  </p>
+
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">The core idea</div>
+    A crystal is what you get when atoms agree on a rhythm and stick to it.
+  </div>
+
+  <pc-anki>
+    <script type="application/json">
+      [
+        {
+          "q": "What distinguishes a crystalline solid from an amorphous solid?",
+          "a": "A <strong>crystalline solid</strong> has long-range periodic order — atoms repeat in a 3D pattern over vast distances. An <strong>amorphous solid</strong> has no such long-range order; its structure resembles a frozen liquid."
+        },
+        {
+          "q": "What is a lattice in crystallography?",
+          "a": "A <strong>lattice</strong> is a 3D array of mathematical points, each coinciding with an atom center, that describes the periodic geometry of a crystal."
+        },
+        {
+          "q": "What is a unit cell, and what property determines the 'best' choice of unit cell?",
+          "a": "The <strong>unit cell</strong> is the smallest repeating parallelepiped that tiles the whole crystal by translation. The preferred choice is the one with the <em>highest symmetry</em>."
+        },
+        {
+          "q": "Give one example each of a crystalline and an amorphous form of silicon dioxide (SiO₂), and describe how their optical properties differ.",
+          "a": "Crystalline SiO₂ = <strong>quartz</strong> (opaque, anisotropic). Amorphous SiO₂ = <strong>window glass</strong> (transparent, isotropic). Same chemical formula, completely different arrangement of atoms."
+        }
+      ]
+    </script>
+  </pc-anki>
+</div>
+
+<!-- Custom web component: crystalline vs amorphous side-by-side -->
+<script>
+(function () {
+  class CrystalVsAmorphous extends HTMLElement {
+    connectedCallback() {
+      const W = 320, H = 200, R = 8;
+      const ACCENT = 'var(--accent)';
+      const INK = 'var(--ink)';
+      const INK_SOFT = 'var(--ink-soft)';
+
+      // --- Crystalline: triangular lattice grid ---
+      const crystallineAtoms = [];
+      const dx = R * 2.1, dy = R * 1.82;
+      for (let row = 0; row < 7; row++) {
+        const offset = (row % 2) * dx * 0.5;
+        for (let col = 0; col < 7; col++) {
+          const x = 20 + offset + col * dx;
+          const y = 18 + row * dy;
+          if (x > 8 && x < W - 8 && y > 8 && y < H - 8) {
+            crystallineAtoms.push([x, y]);
+          }
+        }
+      }
+
+      // --- Amorphous: pseudo-random placement with no overlap ---
+      // Use a seeded-ish approach (fixed offsets) so it renders consistently
+      const seed = [
+        [22,18],[50,14],[80,20],[110,12],[140,22],[170,16],[200,20],[230,14],[260,22],[290,18],
+        [36,42],[66,38],[96,44],[126,36],[156,44],[186,38],[216,42],[246,36],[276,44],[308,40],
+        [18,70],[52,66],[84,72],[116,64],[148,72],[180,66],[212,70],[244,64],[274,70],[304,66],
+        [32,96],[64,92],[98,98],[130,90],[162,98],[194,92],[226,96],[256,90],[284,96],[314,90],
+        [22,122],[58,118],[90,124],[124,116],[156,124],[188,118],[220,122],[252,116],[282,122],
+        [40,148],[74,144],[108,150],[140,142],[172,150],[204,144],[236,148],[268,142],[296,148],
+        [28,174],[62,170],[96,176],[128,168],[160,176],[192,170],[224,174],[256,168],[286,174]
+      ];
+      // Clip to panel and take ~30
+      const amorphousAtoms = seed.filter(([x, y]) => x > 8 && x < W - 8 && y > 8 && y < H - 8).slice(0, 30);
+
+      // Unit cell overlay for crystalline (pick one repeating cell)
+      // In triangular lattice, pick a parallelogram at the top-left region
+      const ux0 = crystallineAtoms[0][0], uy0 = crystallineAtoms[0][1];
+      // find the right neighbor and the upper-right neighbor
+      const ux1 = crystallineAtoms[1][0], uy1 = crystallineAtoms[1][1];
+      // row-1 first atom
+      const ux2 = ux0 + dx * 0.5, uy2 = uy0 + dy;
+      const cellPoints = [
+        [ux0, uy0],
+        [ux1, uy1],
+        [ux1 + dx * 0.5, uy1 + dy],
+        [ux2, uy2]
+      ];
+      const cellPath = cellPoints.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + ' Z';
+
+      const makeSVG = (atoms, showCell) => {
+        const circles = atoms.map(([x, y]) =>
+          `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${R}" fill="none" stroke="currentColor" stroke-width="1.5"/>`
+        ).join('');
+
+        const cellOverlay = showCell
+          ? `<path d="${cellPath}" fill="none" stroke-width="2" class="unit-cell-overlay" style="stroke: var(--accent);"/>`
+          : `<text x="${W / 2}" y="${H - 8}" text-anchor="middle" class="no-cell-label" style="fill: var(--ink-soft); font-size: 11px; font-family: 'JetBrains Mono', monospace;">no repeating unit</text>`;
+
+        return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%; display:block; color: var(--ink);">
+          ${circles}
+          ${cellOverlay}
+        </svg>`;
+      };
+
+      const render = (showCell) => {
+        this.innerHTML = `
+          <figure class="pc-fig-interactive pc-rise" style="display:flex; flex-direction:column; align-items:center; gap: 0.5rem;">
+            <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; justify-content:center; align-items:flex-start;">
+              <div style="display:flex; flex-direction:column; align-items:center; gap:0.4rem;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft);">Crystalline</div>
+                <div id="cva-crystal">${makeSVG(crystallineAtoms, showCell)}</div>
+              </div>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:0.4rem;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft);">Amorphous</div>
+                <div id="cva-amorphous">${makeSVG(amorphousAtoms, false)}</div>
+              </div>
+            </div>
+            <button id="cva-btn" style="
+              margin-top: 0.5rem;
+              padding: 0.35rem 1rem;
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.12em;
+              background: none;
+              border: 1.5px solid var(--accent);
+              color: var(--accent);
+              border-radius: 3px;
+              cursor: pointer;
+            ">${showCell ? 'Hide unit cell' : 'Show unit cell'}</button>
+            <figcaption style="font-size:0.85rem; color:var(--ink-soft); text-align:center; max-width: 480px;">
+              Left: atoms in a triangular lattice — the same motif tiles indefinitely.
+              Right: atoms frozen in disorder — no repeating unit cell exists.
+              ${showCell ? '<span style="color:var(--accent); font-family:JetBrains Mono,monospace; font-size:11px;">Blue box = unit cell.</span>' : ''}
+            </figcaption>
+          </figure>
+        `;
+        this.querySelector('#cva-btn').addEventListener('click', () => render(!showCell));
+        // pc-rise/pc-fade-in start opacity:0 and only reveal via an
+        // IntersectionObserver bound at section-load time. Re-rendering
+        // makes a fresh <figure class="pc-rise"> the observer isn't
+        // watching, so without this it stays invisible.
+        if (window.pcSite) { pcSite.primeReveals(this); pcSite.observeReveals(this); }
+      };
+
+      render(false);
+    }
+  }
+
+  if (!customElements.get('crystal-vs-amorphous')) {
+    customElements.define('crystal-vs-amorphous', CrystalVsAmorphous);
+  }
+})();
+</script>

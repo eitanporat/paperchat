@@ -1,0 +1,240 @@
+<div class="pc-prose pc-stagger">
+  <div class="pc-eyebrow pc-fade-in">Section 3.5 — Theoretical Density</div>
+  <div class="pc-source pc-fade-in" data-page="57">p. 57</div>
+
+  <p class="pc-fade-in">
+    Every crystal has a <pc-term def="The smallest repeating 3D building block whose translation tiles the whole crystal.">unit cell</pc-term>
+    with a fixed number of atoms and a fixed volume. Dividing the mass of those atoms by that volume gives the
+    <pc-term def="The density predicted purely from atomic weight, atoms per cell, and cell geometry — with no defects assumed.">theoretical density</pc-term>
+    $\rho$. Because it depends only on atomic weight and geometry, it can be computed before a sample is ever weighed.
+  </p>
+
+  <pc-equation data='{
+    "tex": "\\rho = \\frac{n A}{V_C N_A}",
+    "terms": {
+      "\\rho": "Theoretical density (g/cm³).",
+      "n": "Number of atoms per unit cell (FCC = 4, BCC = 2, HCP = 6, SC = 1).",
+      "A": "Atomic weight (g/mol).",
+      "V_C": "Volume of the unit cell (cm³), computed from geometry.",
+      "N_A": "Avogadro&apos;s number: $6.022 \\times 10^{23}$ atoms/mol."
+    }
+  }'></pc-equation>
+
+  <p class="pc-fade-in">
+    The logic is a two-step ratio. First, find the mass inside one cell: $n$ atoms each weighing $A/N_A$ grams.
+    Then divide by the cell volume $V_C$. The four quantities — $n$, $A$, $V_C$, $N_A$ — completely determine the result.
+  </p>
+
+  <pc-chain>
+    <script type="application/json">
+      [
+        {"label": "atoms/cell", "sub": "n", "detail": "FCC: 8 corners × 1/8 + 6 faces × 1/2 = 4. BCC: 8 × 1/8 + 1 body-center = 2. HCP: 6. SC: 1."},
+        {"label": "mass/cell", "sub": "n × A / N_A (g)", "detail": "A g/mol divided by Avogadro's number gives grams per atom. Multiply by n for the whole cell."},
+        {"label": "÷ volume", "sub": "V_C (cm³)", "detail": "For cubic cells V_C = a³. For FCC a = 2√2·R so V_C = 16√2·R³. For BCC a = 4R/√3 so V_C = 64R³/(3√3). For HCP V_C = 6√3·R²·c with c ≈ 3.248R."},
+        {"label": "density", "sub": "ρ (g/cm³)", "detail": "The theoretical maximum — assumes a perfect lattice with no vacancies or dislocations."}
+      ]
+    </script>
+  </pc-chain>
+
+  <p class="pc-fade-in">
+    Cell volume $V_C$ comes from the <pc-term def="The edge length of the unit cell, related to atomic radius R by geometry.">lattice parameter</pc-term>
+    $a$, which is tied to the atomic radius $R$ by hard-sphere geometry:
+  </p>
+
+  <ul class="pc-fade-in" style="font-family: 'JetBrains Mono', monospace; font-size: 0.88em; line-height: 2; padding-left: 1.5em;">
+    <li>FCC: $a = 2\sqrt{2}\,R$ → $V_C = 16\sqrt{2}\,R^3$</li>
+    <li>BCC: $a = \dfrac{4R}{\sqrt{3}}$ → $V_C = \dfrac{64R^3}{3\sqrt{3}}$</li>
+    <li>HCP: $V_C = 6\sqrt{3}\,R^2 c$ with $c \approx 1.624 \times 2R$</li>
+  </ul>
+
+  <h3 class="pc-fade-in" style="font-weight: 400; font-size: 1.15em; margin-top: 1.6em;">Worked example — Copper (FCC)</h3>
+
+  <pc-stepped>
+    <script type="application/json">
+      [
+        {"title": "Given", "body": "Cu is FCC. Atomic radius $R = 0.128\\text{ nm} = 1.28 \\times 10^{-8}\\text{ cm}$. Atomic weight $A = 63.5\\text{ g/mol}$. Atoms per cell $n = 4$."},
+        {"title": "Step 1 — cell volume", "body": "$V_C = 16\\sqrt{2}\\,R^3 = 16\\sqrt{2}\\times(1.28\\times10^{-8})^3 \\approx 4.75\\times10^{-23}\\text{ cm}^3$"},
+        {"title": "Step 2 — plug in", "body": "$\\rho = \\dfrac{4 \\times 63.5}{4.75\\times10^{-23}\\times 6.022\\times10^{23}} = \\dfrac{254}{28.6} \\approx 8.89\\text{ g/cm}^3$"},
+        {"title": "Step 3 — compare to measured", "body": "Measured copper density is $8.94\\text{ g/cm}^3$. The $0.6\\%$ gap comes from vacancies and other defects that the perfect-lattice model ignores."}
+      ]
+    </script>
+  </pc-stepped>
+
+  <p class="pc-fade-in" style="margin-top: 1.4em;">
+    Try varying the atomic radius below to see how sensitively $\rho$ responds — the cell volume scales as $R^3$, so a small change in $R$ has a large effect.
+  </p>
+
+  <pc-slider data='{
+    "label": "R for Cu FCC (nm)",
+    "min": 0.10,
+    "max": 0.20,
+    "step": 0.001,
+    "value": 0.128,
+    "unit": " nm",
+    "formula": "(function(R){ var Rcm = R * 1e-7; var Vc = 16*Math.sqrt(2)*Math.pow(Rcm,3); var rho = (4*63.5)/(Vc*6.022e23); return \"ρ = \" + rho.toFixed(3) + \" g/cm³\"; })(x)"
+  }'></pc-slider>
+
+  <h3 class="pc-fade-in" style="font-weight: 400; font-size: 1.15em; margin-top: 1.8em;">Compare metals — theoretical vs measured</h3>
+
+  <p class="pc-fade-in">Select a metal to see how theory stacks up against the handbook value.</p>
+
+  <metal-density-picker></metal-density-picker>
+  <script>
+    (function() {
+      const metals = {
+        cu: { name: "Cu (FCC)", n: 4, R_nm: 0.128, A: 63.5,  measured: 8.94,  struct: "FCC", color: "#c87533" },
+        fe: { name: "Fe (BCC)", n: 2, R_nm: 0.1241, A: 55.85, measured: 7.87, struct: "BCC", color: "#888" },
+        mg: { name: "Mg (HCP)", n: 6, R_nm: 0.160, A: 24.31, measured: 1.74,  struct: "HCP", color: "#9ba4b5" }
+      };
+
+      function calcRho(m) {
+        var R = m.R_nm * 1e-7; // cm
+        var Vc;
+        if (m.struct === "FCC") {
+          Vc = 16 * Math.sqrt(2) * Math.pow(R, 3);
+        } else if (m.struct === "BCC") {
+          // a = 4R/sqrt(3), Vc = a^3
+          var a = 4 * R / Math.sqrt(3);
+          Vc = Math.pow(a, 3);
+        } else {
+          // HCP: c = 1.624 * 2R
+          var c = 1.624 * 2 * R;
+          Vc = 6 * Math.sqrt(3) * R * R * c;
+        }
+        return (m.n * m.A) / (Vc * 6.022e23);
+      }
+
+      class MetalDensityPicker extends HTMLElement {
+        connectedCallback() {
+          var self = this;
+          this.innerHTML = `
+            <figure class="pc-fig-interactive pc-rise" style="padding: 1.2em 1.4em; border-radius: 8px;">
+              <div style="display: flex; gap: 0.7em; flex-wrap: wrap; margin-bottom: 1.2em;" id="mdp-btns-${self._uid}">
+                <button data-key="cu" style="padding: 0.4em 1.1em; border-radius: 4px; border: 2px solid #c87533; background: #c87533; color: #fff; cursor: pointer; font-family: inherit; font-size: 0.9em;">Cu (FCC)</button>
+                <button data-key="fe" style="padding: 0.4em 1.1em; border-radius: 4px; border: 2px solid #888; background: transparent; color: var(--ink); cursor: pointer; font-family: inherit; font-size: 0.9em;">Fe (BCC)</button>
+                <button data-key="mg" style="padding: 0.4em 1.1em; border-radius: 4px; border: 2px solid #9ba4b5; background: transparent; color: var(--ink); cursor: pointer; font-family: inherit; font-size: 0.9em;">Mg (HCP)</button>
+              </div>
+              <div id="mdp-result-${self._uid}" style="font-family: 'JetBrains Mono', monospace; font-size: 0.9em; line-height: 2;"></div>
+              <div id="mdp-bar-${self._uid}" style="margin-top: 1em;"></div>
+            </figure>
+          `;
+
+          this._uid = Math.random().toString(36).slice(2, 8);
+          // Re-attach with correct IDs
+          this.innerHTML = `
+            <figure class="pc-fig-interactive pc-rise" style="padding: 1.2em 1.4em; border-radius: 8px;">
+              <div style="display: flex; gap: 0.7em; flex-wrap: wrap; margin-bottom: 1.2em;" id="mdp-btns-${this._uid}">
+                <button data-key="cu" style="padding: 0.4em 1.1em; border-radius: 4px; border: 2px solid #c87533; background: #c87533; color: #fff; cursor: pointer; font-family: inherit; font-size: 0.9em;">Cu (FCC)</button>
+                <button data-key="fe" style="padding: 0.4em 1.1em; border-radius: 4px; border: 2px solid #888; background: transparent; color: var(--ink); cursor: pointer; font-family: inherit; font-size: 0.9em;">Fe (BCC)</button>
+                <button data-key="mg" style="padding: 0.4em 1.1em; border-radius: 4px; border: 2px solid #9ba4b5; background: transparent; color: var(--ink); cursor: pointer; font-family: inherit; font-size: 0.9em;">Mg (HCP)</button>
+              </div>
+              <div id="mdp-result-${this._uid}" style="font-family: 'JetBrains Mono', monospace; font-size: 0.9em; line-height: 2;"></div>
+              <div id="mdp-bar-${this._uid}" style="margin-top: 1em;"></div>
+            </figure>
+          `;
+
+          var uid = this._uid;
+          var current = "cu";
+
+          function render(key) {
+            current = key;
+            var m = metals[key];
+            var rho = calcRho(m);
+            var diff = ((m.measured - rho) / rho * 100);
+            var sign = diff >= 0 ? "+" : "";
+
+            var resultEl = document.getElementById("mdp-result-" + uid);
+            var barEl = document.getElementById("mdp-bar-" + uid);
+
+            resultEl.innerHTML =
+              "<div><strong>n</strong> = " + m.n + " atoms/cell &nbsp;&nbsp; " +
+              "<strong>R</strong> = " + m.R_nm + " nm &nbsp;&nbsp; " +
+              "<strong>A</strong> = " + m.A + " g/mol</div>" +
+              "<div style='margin-top:0.3em'>" +
+              "<strong>Theoretical ρ</strong> = " + rho.toFixed(3) + " g/cm³" +
+              "&nbsp;&nbsp;|&nbsp;&nbsp;" +
+              "<strong>Measured ρ</strong> = " + m.measured.toFixed(2) + " g/cm³" +
+              "&nbsp;&nbsp;|&nbsp;&nbsp;" +
+              "<span style='color: var(--ink-soft)'>Δ = " + sign + diff.toFixed(2) + "%</span></div>";
+
+            // Bar comparison
+            var maxRho = 10;
+            var tPct = Math.min(rho / maxRho * 100, 100).toFixed(1);
+            var mPct = Math.min(m.measured / maxRho * 100, 100).toFixed(1);
+            barEl.innerHTML =
+              "<div style='display:grid; gap:0.5em;'>" +
+              "<div style='display:flex; align-items:center; gap:0.7em;'>" +
+              "<span style='font-family:JetBrains Mono,monospace; font-size:0.8em; width:7em; color:var(--ink-soft)'>theoretical</span>" +
+              "<div style='flex:1; background: var(--paper); border-radius:3px; height:14px; border: 1px solid var(--ink-soft);'>" +
+              "<div style='width:" + tPct + "%; background:" + m.color + "; height:100%; border-radius:3px; transition: width 0.4s cubic-bezier(0.2,0.7,0.2,1);'></div></div>" +
+              "<span style='font-family:JetBrains Mono,monospace; font-size:0.82em; min-width:5em; text-align:right;'>" + rho.toFixed(3) + "</span></div>" +
+              "<div style='display:flex; align-items:center; gap:0.7em;'>" +
+              "<span style='font-family:JetBrains Mono,monospace; font-size:0.8em; width:7em; color:var(--ink-soft)'>measured</span>" +
+              "<div style='flex:1; background: var(--paper); border-radius:3px; height:14px; border: 1px solid var(--ink-soft);'>" +
+              "<div style='width:" + mPct + "%; background:" + m.color + "; opacity:0.5; height:100%; border-radius:3px; transition: width 0.4s cubic-bezier(0.2,0.7,0.2,1);'></div></div>" +
+              "<span style='font-family:JetBrains Mono,monospace; font-size:0.82em; min-width:5em; text-align:right;'>" + m.measured.toFixed(2) + "</span></div>" +
+              "</div>";
+
+            // Update button styles
+            var btns = document.querySelectorAll("#mdp-btns-" + uid + " button");
+            btns.forEach(function(btn) {
+              var bkey = btn.getAttribute("data-key");
+              var bm = metals[bkey];
+              if (bkey === key) {
+                btn.style.background = bm.color;
+                btn.style.color = "#fff";
+                btn.style.borderColor = bm.color;
+              } else {
+                btn.style.background = "transparent";
+                btn.style.color = "var(--ink)";
+                btn.style.borderColor = bm.color;
+              }
+            });
+          }
+
+          var btnsEl = document.getElementById("mdp-btns-" + uid);
+          btnsEl.addEventListener("click", function(e) {
+            var btn = e.target.closest("button");
+            if (btn) render(btn.getAttribute("data-key"));
+          });
+
+          render("cu");
+        }
+      }
+
+      if (!customElements.get("metal-density-picker")) {
+        customElements.define("metal-density-picker", MetalDensityPicker);
+      }
+    })();
+  </script>
+
+  <p class="pc-fade-in" style="margin-top: 1.6em;">
+    The theoretical value always sits at or above the measured value. The small gap is direct evidence of
+    <pc-term def="Point defects where an atom is missing from its expected lattice site, leaving an empty site.">vacancies</pc-term>
+    and other structural imperfections — they add volume without adding mass, pulling the measured density slightly below perfect-lattice prediction.
+  </p>
+
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">Why it matters</div>
+    A single formula links atomic weight and crystal geometry to a macroscopic, measurable property — and any deviation from the theoretical value is a quantitative fingerprint of the defects within.
+  </div>
+
+  <p class="pc-fade-in" style="font-style: italic; text-align: center; margin-top: 1.4em; color: var(--ink-soft);">
+    Density is geometry made measurable.
+  </p>
+
+  <pc-anki>
+    <script type="application/json">
+      [
+        {"q": "Write the theoretical density formula and define every symbol.",
+         "a": "$\\rho = \\dfrac{nA}{V_C N_A}$ — $n$ = atoms per unit cell, $A$ = atomic weight (g/mol), $V_C$ = cell volume (cm³), $N_A$ = Avogadro's number ($6.022 \\times 10^{23}$)."},
+        {"q": "For FCC copper ($R = 0.128$ nm, $A = 63.5$ g/mol), what is the theoretical density?",
+         "a": "$V_C = 16\\sqrt{2}\\,R^3 \\approx 4.75 \\times 10^{-23}$ cm³; $\\rho = (4 \\times 63.5)/(4.75 \\times 10^{-23} \\times 6.022 \\times 10^{23}) \\approx 8.89$ g/cm³. Measured is 8.94 g/cm³."},
+        {"q": "Why is measured density always slightly lower than theoretical density?",
+         "a": "Vacancies and other defects add volume (empty sites) without adding mass, so the real solid is less dense than the perfect-lattice model predicts."},
+        {"q": "How does cell volume $V_C$ scale with atomic radius $R$ for cubic structures?",
+         "a": "$V_C \\propto R^3$ (since $a \\propto R$ and $V_C = a^3$). A 5% larger radius means roughly 16% larger cell volume and therefore ~16% lower density."}
+      ]
+    </script>
+  </pc-anki>
+</div>

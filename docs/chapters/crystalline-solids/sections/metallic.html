@@ -1,0 +1,504 @@
+<div class="pc-prose pc-stagger">
+  <div class="pc-eyebrow pc-fade-in">Section 3.4 – 3.5</div>
+  <div class="pc-source pc-fade-in" data-page="51">pp. 51–55</div>
+
+  <p class="pc-fade-in">
+    Most metals crystallise into one of three structures — <pc-term def="Face-Centred Cubic: atoms at every corner and at the centre of every face.">FCC</pc-term>,
+    <pc-term def="Body-Centred Cubic: atoms at every corner plus one atom at the cube's geometric centre.">BCC</pc-term>,
+    or <pc-term def="Hexagonal Close-Packed: alternating layers of hexagonally arranged atoms. Two-atom basis with ideal c/a ≈ 1.633.">HCP</pc-term>.
+    A fourth — <pc-term def="Simple Cubic: only corner atoms. Very rare; Po is the only elemental example.">SC</pc-term> (simple cubic) — appears in essentially one element.
+    Understanding each structure means knowing (a) how many atoms actually belong to a unit cell, (b) how tightly the atoms are packed, and (c) the relationship between the cube edge length $a$ and atomic radius $R$.
+  </p>
+
+  <!-- ── 3D rotatable unit cells ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:1.6rem;">Rotate &amp; inspect the four unit cells</h3>
+
+  <div class="pc-fade-in" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0;">
+    <!-- FCC -->
+    <div>
+      <pc-3d>
+        <script type="application/json">
+          {
+            "caption": "FCC — 4 atoms/cell",
+            "camera": [2.8, 2.2, 2.8],
+            "axes": false,
+            "autoRotate": false,
+            "objects": [
+              {"type":"box","pos":[0.5,0.5,0.5],"size":[1,1,1],"wireframe":true,"color":"#888"},
+              {"type":"sphere","pos":[0,0,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,0,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,1,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,1,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,0,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,0,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,1,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,1,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0.5,0.5,0],"r":0.20,"color":"#e87a3c","label":"face"},
+              {"type":"sphere","pos":[0.5,0.5,1],"r":0.20,"color":"#e87a3c"},
+              {"type":"sphere","pos":[0.5,0,0.5],"r":0.20,"color":"#e87a3c"},
+              {"type":"sphere","pos":[0.5,1,0.5],"r":0.20,"color":"#e87a3c"},
+              {"type":"sphere","pos":[0,0.5,0.5],"r":0.20,"color":"#e87a3c"},
+              {"type":"sphere","pos":[1,0.5,0.5],"r":0.20,"color":"#e87a3c"}
+            ]
+          }
+        </script>
+      </pc-3d>
+    </div>
+    <!-- BCC -->
+    <div>
+      <pc-3d>
+        <script type="application/json">
+          {
+            "caption": "BCC — 2 atoms/cell",
+            "camera": [2.8, 2.2, 2.8],
+            "axes": false,
+            "autoRotate": false,
+            "objects": [
+              {"type":"box","pos":[0.5,0.5,0.5],"size":[1,1,1],"wireframe":true,"color":"#888"},
+              {"type":"sphere","pos":[0,0,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,0,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,1,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,1,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,0,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,0,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,1,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,1,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0.5,0.5,0.5],"r":0.24,"color":"#e87a3c","label":"body"}
+            ]
+          }
+        </script>
+      </pc-3d>
+    </div>
+    <!-- HCP -->
+    <div>
+      <pc-3d>
+        <script type="application/json">
+          {
+            "caption": "HCP — 6 atoms/cell",
+            "camera": [3.2, 2.8, 3.2],
+            "axes": false,
+            "autoRotate": false,
+            "objects": [
+              {"type":"box","pos":[0.5,0.816,0.5],"size":[1,1.633,1],"wireframe":true,"color":"#aaa"},
+              {"type":"sphere","pos":[0,0,0],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,0,0],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0.5,0,0.866],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[-0.5,0,0.866],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[-1,0,0],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[-0.5,0,-0.866],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0.5,0,-0.866],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,1.633,0],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,1.633,0],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0.5,1.633,0.866],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[-0.5,1.633,0.866],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[-1,1.633,0],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[-0.5,1.633,-0.866],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0.5,1.633,-0.866],"r":0.18,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0.333,0.5443,0.5774],"r":0.20,"color":"#e87a3c","label":"mid"},
+              {"type":"sphere","pos":[-0.333,0.5443,0.2887],"r":0.20,"color":"#e87a3c"},
+              {"type":"sphere","pos":[0,0.5443,-0.2887],"r":0.20,"color":"#e87a3c"}
+            ]
+          }
+        </script>
+      </pc-3d>
+    </div>
+    <!-- SC -->
+    <div>
+      <pc-3d>
+        <script type="application/json">
+          {
+            "caption": "SC — 1 atom/cell (Po only)",
+            "camera": [2.8, 2.2, 2.8],
+            "axes": false,
+            "autoRotate": false,
+            "objects": [
+              {"type":"box","pos":[0.5,0.5,0.5],"size":[1,1,1],"wireframe":true,"color":"#888"},
+              {"type":"sphere","pos":[0,0,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,0,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,1,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,1,0],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,0,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,0,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[0,1,1],"r":0.20,"color":"#6ea8d8"},
+              {"type":"sphere","pos":[1,1,1],"r":0.20,"color":"#6ea8d8"}
+            ]
+          }
+        </script>
+      </pc-3d>
+    </div>
+  </div>
+  <p class="pc-fade-in" style="font-size:0.85em;color:var(--ink-soft);margin-top:-0.5rem;">
+    Blue = corner atom (shared), orange = non-corner atom (face-center or body-center). Drag to rotate.
+  </p>
+
+  <!-- ── Atom-sharing logic ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:2rem;">How to count atoms per cell</h3>
+  <p class="pc-fade-in">
+    A unit cell shares its boundary atoms with neighbouring cells. The rule is simple: count the fraction of each atom that lies <em>inside</em> the cell boundary.
+  </p>
+
+  <pc-grid>
+    <script type="application/json">
+      [
+        {"eyebrow": "Corner (cubic)", "title": "1/8 per atom", "body": "A cube corner is shared by 8 adjacent cells. Each cell owns 1/8 of that atom. 8 corners × 1/8 = 1 corner contribution."},
+        {"eyebrow": "Face centre", "title": "1/2 per atom", "body": "A face is shared by exactly 2 neighbouring cells. 6 faces × 1/2 = 3 face contributions."},
+        {"eyebrow": "Body centre", "title": "1 per atom", "body": "The body-centre atom sits entirely inside the cell. 1 × 1 = 1."},
+        {"eyebrow": "Corner (hexagonal)", "title": "1/6 per atom", "body": "Each corner of an HCP prism is shared by 6 cells. 12 corners × 1/6 = 2 corner contributions."}
+      ]
+    </script>
+  </pc-grid>
+
+  <!-- ── FCC atom-count derivation (chain) ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:2rem;">FCC atom count — step by step</h3>
+  <pc-chain>
+    <script type="application/json">
+      [
+        {"label": "8 corners", "sub": "× 1/8 each", "detail": "Every corner is shared by 8 cells. Total corner contribution = 8 × (1/8) = 1 atom."},
+        {"label": "6 faces", "sub": "× 1/2 each", "detail": "Every face centre is shared by 2 cells. Total face contribution = 6 × (1/2) = 3 atoms."},
+        {"label": "1 + 3", "sub": "= 4 atoms", "detail": "n = 4 is the atoms-per-cell for FCC. This drives density, packing fraction, and diffraction intensities."}
+      ]
+    </script>
+  </pc-chain>
+
+  <!-- ── BCC atom-count derivation (chain) ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:2rem;">BCC atom count — step by step</h3>
+  <pc-chain>
+    <script type="application/json">
+      [
+        {"label": "8 corners", "sub": "× 1/8 each", "detail": "Same as FCC: 8 × (1/8) = 1 atom from corners."},
+        {"label": "1 body centre", "sub": "× 1 each", "detail": "The body-centre atom is entirely inside the cell: contribution = 1."},
+        {"label": "1 + 1", "sub": "= 2 atoms", "detail": "n = 2. BCC is less efficiently packed than FCC (APF 0.68 vs 0.74), but many important metals — α-Fe, W, Cr — adopt it."}
+      ]
+    </script>
+  </pc-chain>
+
+  <!-- ── HCP atom-count derivation (chain) ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:2rem;">HCP atom count — step by step</h3>
+  <pc-chain>
+    <script type="application/json">
+      [
+        {"label": "12 corners", "sub": "× 1/6 each", "detail": "Each prism corner is shared by 6 HCP cells. 12 × (1/6) = 2."},
+        {"label": "2 face centres", "sub": "× 1/2 each", "detail": "One on the top hexagon, one on the bottom. 2 × (1/2) = 1."},
+        {"label": "3 midplane atoms", "sub": "× 1 each", "detail": "Three atoms nestled in the interior of the prism, shared by no other cell. Contribution = 3."},
+        {"label": "2 + 1 + 3", "sub": "= 6 atoms", "detail": "n = 6 is the largest atoms-per-cell of the common structures. APF equals FCC at 0.74 — both are close-packed."}
+      ]
+    </script>
+  </pc-chain>
+
+  <!-- ── Exploded-view SVG toggle ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:2rem;">Exploded view: see where every atom fraction comes from</h3>
+
+  <fcc-bcc-exploded></fcc-bcc-exploded>
+  <script>
+    (function() {
+      class FccBccExploded extends HTMLElement {
+        connectedCallback() {
+          this.innerHTML = `
+            <figure class="pc-fig-interactive pc-rise" style="background:var(--paper);border:1px solid #d9cfc0;border-radius:8px;padding:1.2rem;">
+              <div style="display:flex;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;">
+                <button class="xv-btn xv-active" data-mode="fcc" style="font-family:var(--font-mono,monospace);font-size:0.78rem;padding:0.3rem 0.9rem;border:1.5px solid var(--accent);border-radius:4px;cursor:pointer;background:var(--accent);color:#fff;">FCC</button>
+                <button class="xv-btn" data-mode="bcc" style="font-family:var(--font-mono,monospace);font-size:0.78rem;padding:0.3rem 0.9rem;border:1.5px solid var(--accent);border-radius:4px;cursor:pointer;background:transparent;color:var(--accent);">BCC</button>
+              </div>
+              <svg id="xv-svg" viewBox="0 0 520 220" style="width:100%;max-width:520px;display:block;margin:0 auto;" aria-label="Exploded unit cell view"></svg>
+              <figcaption id="xv-cap" style="margin-top:0.8rem;font-size:0.85em;color:var(--ink-soft);text-align:center;"></figcaption>
+            </figure>`;
+
+          const svg = this.querySelector('#xv-svg');
+          const cap = this.querySelector('#xv-cap');
+          let mode = 'fcc';
+
+          const CORNER_C = '#6ea8d8';
+          const FACE_C   = '#e87a3c';
+          const BODY_C   = '#e87a3c';
+
+          function labelStyle(x, y, text, small) {
+            return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="JetBrains Mono,monospace" font-size="${small ? 10 : 11}" fill="var(--ink-soft)">${text}</text>`;
+          }
+
+          function atomCircle(cx, cy, r, color, opacity, label) {
+            let g = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" opacity="${opacity}" stroke="#fff" stroke-width="1.2"/>`;
+            if (label) g += labelStyle(cx, cy, label, true);
+            return g;
+          }
+
+          function render() {
+            let html = '';
+            if (mode === 'fcc') {
+              // Draw a flattened cube face in 2D, then show face-centers animating in
+              // Cube corners (8 shown as 4 front + 4 back, offset)
+              const corners = [
+                [50,160],[150,160],[50,80],[150,80],   // front face
+                [80,185],[180,185],[80,105],[180,105]  // back face (offset)
+              ];
+              // edges (back)
+              html += `<line x1="80" y1="185" x2="180" y2="185" stroke="#ccc" stroke-width="1.2"/>`;
+              html += `<line x1="80" y1="185" x2="80" y2="105" stroke="#ccc" stroke-width="1.2"/>`;
+              html += `<line x1="180" y1="185" x2="180" y2="105" stroke="#ccc" stroke-width="1.2"/>`;
+              html += `<line x1="80" y1="105" x2="180" y2="105" stroke="#ccc" stroke-width="1.2"/>`;
+              // edges connecting front to back
+              html += `<line x1="50" y1="160" x2="80" y2="185" stroke="#ccc" stroke-width="1"/>`;
+              html += `<line x1="150" y1="160" x2="180" y2="185" stroke="#ccc" stroke-width="1"/>`;
+              html += `<line x1="50" y1="80" x2="80" y2="105" stroke="#ccc" stroke-width="1"/>`;
+              html += `<line x1="150" y1="80" x2="180" y2="105" stroke="#ccc" stroke-width="1"/>`;
+              // front face edges
+              html += `<line x1="50" y1="160" x2="150" y2="160" stroke="#888" stroke-width="1.5"/>`;
+              html += `<line x1="50" y1="160" x2="50" y2="80" stroke="#888" stroke-width="1.5"/>`;
+              html += `<line x1="150" y1="160" x2="150" y2="80" stroke="#888" stroke-width="1.5"/>`;
+              html += `<line x1="50" y1="80" x2="150" y2="80" stroke="#888" stroke-width="1.5"/>`;
+
+              // 8 corner atoms
+              for (const [cx, cy] of corners) {
+                html += atomCircle(cx, cy, 12, CORNER_C, 0.85, '');
+              }
+              html += labelStyle(100, 200, '8 corners × 1/8 = 1', false);
+
+              // 6 face-center atoms (only 3 visible faces shown)
+              const faceCenters = [
+                [100, 120], // front face
+                [130, 142], // bottom face (perspective)
+                [162, 120], // right face (perspective)
+              ];
+              for (const [cx, cy] of faceCenters) {
+                html += atomCircle(cx, cy, 13, FACE_C, 0.90, '');
+              }
+              html += `<text x="290" y="40" font-family="JetBrains Mono,monospace" font-size="12" fill="var(--ink)">FCC tally:</text>`;
+              html += `<text x="290" y="62" font-family="JetBrains Mono,monospace" font-size="11" fill="${CORNER_C}">8 corners × 1/8 = 1</text>`;
+              html += `<text x="290" y="82" font-family="JetBrains Mono,monospace" font-size="11" fill="${FACE_C}">6 faces × 1/2 = 3</text>`;
+              html += `<line x1="290" y1="92" x2="430" y2="92" stroke="var(--ink-soft)" stroke-width="1"/>`;
+              html += `<text x="290" y="110" font-family="JetBrains Mono,monospace" font-size="13" fill="var(--ink)" font-weight="bold">n = 4 atoms/cell</text>`;
+              html += `<text x="290" y="138" font-family="JetBrains Mono,monospace" font-size="10" fill="var(--ink-soft)">CN = 12   APF = 0.74</text>`;
+              html += `<text x="290" y="156" font-family="JetBrains Mono,monospace" font-size="10" fill="var(--ink-soft)">a = 2R√2</text>`;
+              html += `<text x="290" y="180" font-family="JetBrains Mono,monospace" font-size="10" fill="var(--ink-soft)">Cu, Al, Ag, Au, Ni, Pb</text>`;
+              // legend dots
+              html += `<circle cx="275" cy="59" r="5" fill="${CORNER_C}"/>`;
+              html += `<circle cx="275" cy="79" r="5" fill="${FACE_C}"/>`;
+              cap.textContent = 'FCC: 8 blue corner atoms (×1/8 each) + 6 orange face-centre atoms (×1/2 each) = 4 atoms per cell.';
+            } else {
+              // BCC
+              const corners = [
+                [50,160],[150,160],[50,80],[150,80],
+                [80,185],[180,185],[80,105],[180,105]
+              ];
+              html += `<line x1="80" y1="185" x2="180" y2="185" stroke="#ccc" stroke-width="1.2"/>`;
+              html += `<line x1="80" y1="185" x2="80" y2="105" stroke="#ccc" stroke-width="1.2"/>`;
+              html += `<line x1="180" y1="185" x2="180" y2="105" stroke="#ccc" stroke-width="1.2"/>`;
+              html += `<line x1="80" y1="105" x2="180" y2="105" stroke="#ccc" stroke-width="1.2"/>`;
+              html += `<line x1="50" y1="160" x2="80" y2="185" stroke="#ccc" stroke-width="1"/>`;
+              html += `<line x1="150" y1="160" x2="180" y2="185" stroke="#ccc" stroke-width="1"/>`;
+              html += `<line x1="50" y1="80" x2="80" y2="105" stroke="#ccc" stroke-width="1"/>`;
+              html += `<line x1="150" y1="80" x2="180" y2="105" stroke="#ccc" stroke-width="1"/>`;
+              html += `<line x1="50" y1="160" x2="150" y2="160" stroke="#888" stroke-width="1.5"/>`;
+              html += `<line x1="50" y1="160" x2="50" y2="80" stroke="#888" stroke-width="1.5"/>`;
+              html += `<line x1="150" y1="160" x2="150" y2="80" stroke="#888" stroke-width="1.5"/>`;
+              html += `<line x1="50" y1="80" x2="150" y2="80" stroke="#888" stroke-width="1.5"/>`;
+              // body-diagonal lines
+              html += `<line x1="50" y1="160" x2="115" y2="127" stroke="${BODY_C}" stroke-width="1" stroke-dasharray="3,2" opacity="0.7"/>`;
+              html += `<line x1="150" y1="80" x2="115" y2="127" stroke="${BODY_C}" stroke-width="1" stroke-dasharray="3,2" opacity="0.7"/>`;
+              for (const [cx, cy] of corners) {
+                html += atomCircle(cx, cy, 12, CORNER_C, 0.85, '');
+              }
+              // body centre
+              html += atomCircle(115, 127, 15, BODY_C, 0.95, '');
+              html += labelStyle(100, 205, '8 corners × 1/8 = 1', false);
+
+              html += `<text x="290" y="40" font-family="JetBrains Mono,monospace" font-size="12" fill="var(--ink)">BCC tally:</text>`;
+              html += `<text x="290" y="62" font-family="JetBrains Mono,monospace" font-size="11" fill="${CORNER_C}">8 corners × 1/8 = 1</text>`;
+              html += `<text x="290" y="82" font-family="JetBrains Mono,monospace" font-size="11" fill="${BODY_C}">1 body centre × 1 = 1</text>`;
+              html += `<line x1="290" y1="92" x2="430" y2="92" stroke="var(--ink-soft)" stroke-width="1"/>`;
+              html += `<text x="290" y="110" font-family="JetBrains Mono,monospace" font-size="13" fill="var(--ink)" font-weight="bold">n = 2 atoms/cell</text>`;
+              html += `<text x="290" y="138" font-family="JetBrains Mono,monospace" font-size="10" fill="var(--ink-soft)">CN = 8   APF = 0.68</text>`;
+              html += `<text x="290" y="156" font-family="JetBrains Mono,monospace" font-size="10" fill="var(--ink-soft)">a = 4R / √3</text>`;
+              html += `<text x="290" y="180" font-family="JetBrains Mono,monospace" font-size="10" fill="var(--ink-soft)">Cr, α-Fe, W, Mo, Ta</text>`;
+              html += `<circle cx="275" cy="59" r="5" fill="${CORNER_C}"/>`;
+              html += `<circle cx="275" cy="79" r="5" fill="${BODY_C}"/>`;
+              cap.textContent = 'BCC: 8 blue corner atoms (×1/8 each) + 1 orange body-centre atom (×1) = 2 atoms per cell.';
+            }
+            svg.innerHTML = html;
+          }
+
+          this.querySelectorAll('.xv-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              mode = btn.dataset.mode;
+              this.querySelectorAll('.xv-btn').forEach(b => {
+                const active = b.dataset.mode === mode;
+                b.style.background = active ? 'var(--accent)' : 'transparent';
+                b.style.color = active ? '#fff' : 'var(--accent)';
+              });
+              render();
+            });
+          });
+
+          render();
+        }
+      }
+      if (!customElements.get('fcc-bcc-exploded')) {
+        customElements.define('fcc-bcc-exploded', FccBccExploded);
+      }
+    })();
+  </script>
+
+  <!-- ── Lattice parameter equations ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:2rem;">Lattice parameter vs atomic radius</h3>
+
+  <p class="pc-fade-in">
+    Atoms are assumed to be hard spheres. The lattice parameter $a$ is determined by which direction atoms actually <em>touch</em> along — and that direction differs between FCC and BCC.
+  </p>
+
+  <div class="pc-fade-in" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0;">
+    <div>
+      <pc-equation>
+        <script type="application/json">
+          {
+            "tex": "a_{\\text{FCC}} = 2R\\sqrt{2}",
+            "terms": {
+              "a": "Cube edge length (lattice parameter).",
+              "R": "Atomic radius (hard-sphere model).",
+              "\\sqrt{2}": "Comes from the face diagonal: atoms touch corner-to-face-centre, diagonal = 4R = a\\sqrt{2}."
+            }
+          }
+        </script>
+      </pc-equation>
+    </div>
+    <div>
+      <pc-equation>
+        <script type="application/json">
+          {
+            "tex": "a_{\\text{BCC}} = \\frac{4R}{\\sqrt{3}}",
+            "terms": {
+              "a": "Cube edge length (lattice parameter).",
+              "R": "Atomic radius (hard-sphere model).",
+              "\\sqrt{3}": "Comes from the body diagonal: atoms touch corner-to-body-centre, diagonal = 4R = a\\sqrt{3}."
+            }
+          }
+        </script>
+      </pc-equation>
+    </div>
+  </div>
+
+  <!-- ── APF worked example ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:2rem;">Worked example: FCC atomic packing factor</h3>
+  <p class="pc-fade-in">
+    The <pc-term def="Fraction of a unit cell's volume occupied by atoms, assuming hard spheres. APF = (total sphere volume) / (cell volume).">atomic packing factor</pc-term> (APF) tells us what fraction of the cell volume is filled by atoms.
+  </p>
+
+  <pc-stepped>
+    <script type="application/json">
+      [
+        {
+          "title": "Step 1 — sphere volume",
+          "body": "FCC has $n = 4$ atoms per cell, each a sphere of radius $R$: $$V_S = 4 \\times \\frac{4}{3}\\pi R^3 = \\frac{16}{3}\\pi R^3$$"
+        },
+        {
+          "title": "Step 2 — cell volume",
+          "body": "The lattice parameter for FCC is $a = 2R\\sqrt{2}$, so: $$V_C = a^3 = (2R\\sqrt{2})^3 = 8R^3 \\cdot 2\\sqrt{2} = 16R^3\\sqrt{2}$$"
+        },
+        {
+          "title": "Step 3 — divide",
+          "body": "$$\\text{APF} = \\frac{V_S}{V_C} = \\frac{\\tfrac{16}{3}\\pi R^3}{16R^3\\sqrt{2}} = \\frac{\\pi}{3\\sqrt{2}} \\approx 0.7405$$"
+        },
+        {
+          "title": "Step 4 — interpret",
+          "body": "APF = 0.74 means 74% of space is occupied — this is the maximum possible for equal hard spheres. FCC and HCP are both close-packed; BCC only reaches 0.68."
+        }
+      ]
+    </script>
+  </pc-stepped>
+
+  <!-- ── Four-structure comparison grid ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:2rem;">Four structures at a glance</h3>
+  <pc-grid>
+    <script type="application/json">
+      [
+        {
+          "eyebrow": "FCC",
+          "title": "n = 4 · CN = 12 · APF = 0.74",
+          "body": "$a = 2R\\sqrt{2}$. Close-packed along ⟨110⟩. Ductile: many slip systems. Cu, Al, Ag, Au, Ni, Pb."
+        },
+        {
+          "eyebrow": "BCC",
+          "title": "n = 2 · CN = 8 · APF = 0.68",
+          "body": "$a = 4R/\\sqrt{3}$. Atoms touch along body diagonal. Less packed — stronger but less ductile. Cr, α-Fe, W, Mo, Ta."
+        },
+        {
+          "eyebrow": "HCP",
+          "title": "n = 6 · CN = 12 · APF = 0.74",
+          "body": "Ideal $c/a = 1.633$. Close-packed layers stacked ABABAB. Fewer slip systems than FCC → harder to deform. Mg, Ti, Zn, Cd, Co."
+        },
+        {
+          "eyebrow": "SC",
+          "title": "n = 1 · CN = 6 · APF = 0.52",
+          "body": "$a = 2R$. Only 52% packing — very inefficient. Essentially only polonium (Po) adopts this structure among pure elements."
+        }
+      ]
+    </script>
+  </pc-grid>
+
+  <!-- ── APF slider ── -->
+  <h3 class="pc-eyebrow pc-fade-in" style="margin-top:2rem;">Which structure as a function of APF?</h3>
+  <pc-slider>
+    <script type="application/json">
+      {
+        "label": "APF",
+        "min": 0.50,
+        "max": 0.80,
+        "step": 0.01,
+        "value": 0.74,
+        "unit": "",
+        "formula": "x <= 0.52 ? 'SC (Po only) — APF ≈ 0.52' : x <= 0.69 ? 'BCC (Fe, W, Cr…) — APF ≈ 0.68' : x <= 0.75 ? 'FCC or HCP (Cu, Al, Mg…) — APF ≈ 0.74' : 'Above theoretical maximum for hard spheres'"
+      }
+    </script>
+  </pc-slider>
+
+  <!-- ── HCP c/a note ── -->
+  <p class="pc-fade-in">
+    For HCP the additional geometric parameter is the <pc-term def="Ratio of the prism height c to the hexagonal base edge length a. Ideal value = √(8/3) ≈ 1.633 when atoms touch in all directions.">c/a ratio</pc-term>.
+    The ideal value, derived by requiring equal touching in-plane and between layers, is $c/a = \sqrt{8/3} \approx 1.633$.
+    Real metals deviate slightly: Zn has $c/a \approx 1.856$ (elongated), Be has $c/a \approx 1.568$ (compressed).
+  </p>
+
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">A unit cell is a recipe; the crystal is what you bake from it.</div>
+    Specify $n$, $a$ (and $c/a$ for HCP), and you have determined the density, diffraction pattern, slip systems, and packing of an entire infinite lattice from a box containing just 1–6 atoms.
+  </div>
+
+  <pc-anki>
+    <script type="application/json">
+      [
+        {
+          "q": "How many atoms per unit cell does FCC have, and why?",
+          "a": "4. Eight corners × 1/8 = 1, plus six face centres × 1/2 = 3. Total = 4."
+        },
+        {
+          "q": "How many atoms per unit cell does BCC have?",
+          "a": "2. Eight corners × 1/8 = 1, plus one body centre × 1 = 1. Total = 2."
+        },
+        {
+          "q": "What is the APF for FCC and HCP, and what does it represent?",
+          "a": "0.74 for both — the maximum fraction of space fillable by equal hard spheres. 74% of the cell volume is occupied by atoms."
+        },
+        {
+          "q": "What is the relationship between lattice parameter $a$ and atomic radius $R$ in FCC?",
+          "a": "$a = 2R\\sqrt{2}$. Atoms touch along the face diagonal, which has length $4R = a\\sqrt{2}$."
+        },
+        {
+          "q": "What is the relationship between lattice parameter $a$ and atomic radius $R$ in BCC?",
+          "a": "$a = 4R/\\sqrt{3}$. Atoms touch along the body diagonal, which has length $4R = a\\sqrt{3}$."
+        },
+        {
+          "q": "What is the ideal c/a ratio for HCP, and which direction do atoms touch?",
+          "a": "$c/a = \\sqrt{8/3} \\approx 1.633$. Atoms touch both within the close-packed hexagonal layers and between layers (along the stacking direction)."
+        }
+      ]
+    </script>
+  </pc-anki>
+
+  <details class="pc-skip pc-fade-in">
+    <summary>Skipped: coordination number derivations and HCP stacking sequence</summary>
+    <p>
+      The <pc-term def="Number of nearest-neighbour atoms touching a given atom.">coordination number</pc-term> CN = 12 for FCC can be shown by noting each atom has 4 nearest neighbours in its own layer plus 4 above and 4 below.
+      The FCC stacking sequence is ABCABC (three distinct layer positions), while HCP is ABABAB (two).
+      Changing stacking sequence while keeping packing the same is how FCC and HCP are related by stacking faults.
+    </p>
+  </details>
+
+</div>

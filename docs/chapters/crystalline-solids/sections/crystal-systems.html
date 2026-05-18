@@ -1,0 +1,380 @@
+<div class="pc-prose pc-stagger">
+  <div class="pc-eyebrow pc-fade-in">Section 3.4 · Crystal Systems</div>
+  <div class="pc-source pc-fade-in" data-page="59">pp. 59–60</div>
+
+  <p class="pc-fade-in">
+    Every crystal has a repeating building block — the
+    <pc-term def="The minimum 3-D building block whose repeated translation fills the whole crystal. Described by six numbers: three edge lengths and three angles.">unit cell</pc-term>.
+    Six numbers fully describe its shape:
+    three edge lengths $a$, $b$, $c$ and three
+    <pc-term def="The angles between pairs of cell edges: α is between $b$ and $c$, β between $a$ and $c$, γ between $a$ and $b$.">interaxial angles</pc-term>
+    $\alpha$ (between $b$–$c$), $\beta$ (between $a$–$c$), and $\gamma$ (between $a$–$b$).
+    Together these are the
+    <pc-term def="The six numbers $a$, $b$, $c$, $α$, $β$, $γ$ that define a unit cell's shape and size.">lattice parameters</pc-term>.
+  </p>
+
+  <p class="pc-fade-in">
+    When you ask which combinations of edge-length equalities and right-angle constraints are geometrically distinct, the answer is exactly seven. These are the <strong>seven crystal systems</strong>.
+  </p>
+
+  <!-- Interactive parallelepiped with sliders -->
+  <crystal-parallelepiped class="pc-rise"></crystal-parallelepiped>
+  <script>
+  (function() {
+    class CrystalParallelepiped extends HTMLElement {
+      connectedCallback() {
+        this.innerHTML = `
+          <figure class="pc-fig-interactive pc-rise" style="padding:1.2rem 1rem 1rem; box-sizing:border-box;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.18em; color:var(--ink-soft); margin-bottom:0.8rem;">Interactive: unit cell geometry</div>
+            <div style="display:flex; flex-wrap:wrap; gap:1.2rem; align-items:flex-start;">
+              <div style="flex:0 0 auto;">
+                <canvas id="cpCanvas" width="260" height="220" style="width:260px;height:220px;display:block;border-radius:6px;background:var(--paper,#fbf6ea);"></canvas>
+              </div>
+              <div style="flex:1 1 180px;">
+                <div id="cpSystemLabel" style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--accent,#4a7fcb);font-weight:600;margin-bottom:0.9rem;min-height:1.4em;"></div>
+                <div id="cpSliders" style="display:grid;gap:0.45rem;"></div>
+              </div>
+            </div>
+            <figcaption style="font-size:0.82rem;color:var(--ink-soft);margin-top:0.7rem;">Drag sliders to change cell shape — the crystal system updates automatically.</figcaption>
+          </figure>`;
+
+        const canvas = this.querySelector('#cpCanvas');
+        const ctx = canvas.getContext('2d');
+        const systemLabel = this.querySelector('#cpSystemLabel');
+        const slidersDiv = this.querySelector('#cpSliders');
+
+        const params = {
+          a: 1.0, b: 1.0, c: 1.0,
+          alpha: 90, beta: 90, gamma: 90
+        };
+
+        const SYSTEMS = [
+          { name: 'Cubic',         check: p => eq(p.a,p.b) && eq(p.b,p.c) && eq90(p.alpha) && eq90(p.beta) && eq90(p.gamma) },
+          { name: 'Tetragonal',    check: p => eq(p.a,p.b) && !eq(p.b,p.c) && eq90(p.alpha) && eq90(p.beta) && eq90(p.gamma) },
+          { name: 'Hexagonal',     check: p => eq(p.a,p.b) && !eq(p.b,p.c) && eq90(p.alpha) && eq90(p.beta) && eq(p.gamma,120) },
+          { name: 'Orthorhombic',  check: p => !eq(p.a,p.b) && !eq(p.b,p.c) && eq90(p.alpha) && eq90(p.beta) && eq90(p.gamma) },
+          { name: 'Rhombohedral',  check: p => eq(p.a,p.b) && eq(p.b,p.c) && eq(p.alpha,p.beta) && eq(p.beta,p.gamma) && !eq90(p.alpha) },
+          { name: 'Monoclinic',    check: p => !eq(p.a,p.b) && !eq(p.b,p.c) && eq90(p.alpha) && !eq90(p.beta) && eq90(p.gamma) },
+          { name: 'Triclinic',     check: p => !eq(p.a,p.b) && !eq(p.b,p.c) && !eq90(p.alpha) && !eq90(p.beta) && !eq90(p.gamma) }
+        ];
+
+        function eq(x, y) { return Math.abs(x - y) < 0.05; }
+        function eq90(x) { return Math.abs(x - 90) < 3; }
+
+        function getSystem(p) {
+          for (const s of SYSTEMS) if (s.check(p)) return s.name;
+          return 'General parallelepiped';
+        }
+
+        const sliderDefs = [
+          { key: 'a', label: 'a', min: 0.5, max: 2.0, step: 0.05 },
+          { key: 'b', label: 'b', min: 0.5, max: 2.0, step: 0.05 },
+          { key: 'c', label: 'c', min: 0.5, max: 2.0, step: 0.05 },
+          { key: 'alpha', label: 'α (b-c)', min: 60, max: 120, step: 1 },
+          { key: 'beta',  label: 'β (a-c)', min: 60, max: 120, step: 1 },
+          { key: 'gamma', label: 'γ (a-b)', min: 60, max: 120, step: 1 }
+        ];
+
+        sliderDefs.forEach(def => {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;align-items:center;gap:0.5rem;';
+          const lbl = document.createElement('label');
+          lbl.style.cssText = 'font-family:"JetBrains Mono",monospace;font-size:0.72rem;color:var(--ink-soft);width:3.5rem;flex-shrink:0;';
+          lbl.textContent = def.label;
+          const inp = document.createElement('input');
+          inp.type = 'range';
+          inp.min = def.min; inp.max = def.max; inp.step = def.step;
+          inp.value = params[def.key];
+          inp.style.cssText = 'flex:1;accent-color:var(--accent,#4a7fcb);';
+          const val = document.createElement('span');
+          val.style.cssText = 'font-family:"JetBrains Mono",monospace;font-size:0.72rem;width:2.8rem;text-align:right;color:var(--ink);';
+          val.textContent = params[def.key];
+          inp.addEventListener('input', () => {
+            params[def.key] = parseFloat(inp.value);
+            val.textContent = def.key === 'a' || def.key === 'b' || def.key === 'c'
+              ? parseFloat(inp.value).toFixed(2)
+              : Math.round(inp.value) + '°';
+            render();
+          });
+          val.textContent = def.key === 'a' || def.key === 'b' || def.key === 'c'
+            ? parseFloat(inp.value).toFixed(2)
+            : Math.round(inp.value) + '°';
+          row.appendChild(lbl);
+          row.appendChild(inp);
+          row.appendChild(val);
+          slidersDiv.appendChild(row);
+        });
+
+        function toRad(deg) { return deg * Math.PI / 180; }
+
+        function render() {
+          const W = canvas.width, H = canvas.height;
+          ctx.clearRect(0, 0, W, H);
+
+          const a = params.a, b = params.b, c = params.c;
+          const al = toRad(params.alpha), be = toRad(params.beta), ga = toRad(params.gamma);
+
+          // Build cell vectors using crystallographic convention
+          // a along x; b in xy-plane; c general
+          const scale = 70;
+          const ax = a * scale, ay = 0;
+          const bx = b * Math.cos(ga) * scale, by = -b * Math.sin(ga) * scale;
+          // c: project using alpha, beta, gamma
+          const cx_c = c * Math.cos(be) * scale;
+          const cy_c_num = Math.cos(al) - Math.cos(be) * Math.cos(ga);
+          const cy_c = -c * (cy_c_num / Math.sin(ga)) * scale;
+          // Isometric-ish: project 3D → 2D with oblique projection
+          // Use a simple cabinet-style projection
+          const proj = (x3, y3, z3) => [
+            x3 + z3 * 0.45,
+            y3 + z3 * 0.35
+          ];
+
+          // Origin
+          const ox = 50, oy = 160;
+          const O = [ox, oy];
+          const A3 = proj(ax, ay, 0);
+          const B3 = proj(bx, by, 0);
+          const C3 = proj(cx_c, cy_c, 0);
+
+          const A = [ox + A3[0], oy + A3[1]];
+          const B = [ox + B3[0], oy + B3[1]];
+          const C = [ox + C3[0], oy + C3[1]];
+          const AB = [A[0] + B3[0], A[1] + B3[1]];
+          const AC = [A[0] + C3[0], A[1] + C3[1]];
+          const BC = [B[0] + C3[0], B[1] + C3[1]];
+          const ABC = [A[0] + B3[0] + C3[0], A[1] + B3[1] + C3[1]];
+
+          const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#1f1a14';
+          const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4a7fcb';
+          const soft = getComputedStyle(document.documentElement).getPropertyValue('--ink-soft').trim() || '#6a5d4a';
+
+          function drawEdge(p1, p2, color, dash) {
+            ctx.beginPath();
+            ctx.moveTo(p1[0], p1[1]);
+            ctx.lineTo(p2[0], p2[1]);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash(dash || []);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          // Back edges (dashed)
+          drawEdge(B, AB, soft, [4,3]);
+          drawEdge(B, BC, soft, [4,3]);
+          drawEdge(C, BC, soft, [4,3]);
+          drawEdge(C, AC, soft, [4,3]);
+          drawEdge(BC, ABC, soft, [4,3]);
+
+          // Front faces
+          drawEdge(O, A, ink);
+          drawEdge(O, B, soft, [4,3]);
+          drawEdge(O, C, accent);
+          drawEdge(A, AB, soft);
+          drawEdge(A, AC, accent);
+          drawEdge(AB, ABC, accent);
+          drawEdge(AC, ABC, soft);
+
+          // Labels
+          ctx.font = 'italic 13px serif';
+          ctx.fillStyle = ink;
+          ctx.fillText('a', (O[0]+A[0])/2 + 2, (O[1]+A[1])/2 + 14);
+          ctx.fillStyle = soft;
+          const bMid = [(O[0]+B[0])/2 - 10, (O[1]+B[1])/2 - 4];
+          ctx.fillText('b', bMid[0], bMid[1]);
+          ctx.fillStyle = accent;
+          ctx.fillText('c', (O[0]+C[0])/2 - 14, (O[1]+C[1])/2);
+
+          // Angle arc for gamma (O corner between a and b)
+          ctx.beginPath();
+          const angA = Math.atan2(A[1]-O[1], A[0]-O[0]);
+          const angB = Math.atan2(B[1]-O[1], B[0]-O[0]);
+          ctx.arc(O[0], O[1], 18, angA, angB, true);
+          ctx.strokeStyle = soft;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.font = '11px "JetBrains Mono",monospace';
+          ctx.fillStyle = soft;
+          ctx.fillText('γ', O[0]-4, O[1]-20);
+
+          // System name
+          const sys = getSystem(params);
+          systemLabel.textContent = sys;
+        }
+
+        render();
+      }
+    }
+
+    if (!customElements.get('crystal-parallelepiped')) {
+      customElements.define('crystal-parallelepiped', CrystalParallelepiped);
+    }
+  })();
+  </script>
+
+  <!-- 7 Systems Grid -->
+  <pc-grid>
+    <script type="application/json">
+      [
+        {"eyebrow": "1 · Cubic",        "title": "a = b = c",      "body": "α = β = γ = 90°. Highest symmetry. Examples: Cu, W, NaCl, Fe."},
+        {"eyebrow": "2 · Tetragonal",   "title": "a = b ≠ c",      "body": "α = β = γ = 90°. Stretched or squashed cube. Examples: white Sn, TiO₂ (rutile)."},
+        {"eyebrow": "3 · Hexagonal",    "title": "a = b ≠ c",      "body": "α = β = 90°, γ = 120°. Rhombus base. Examples: Mg, Zn, graphite."},
+        {"eyebrow": "4 · Orthorhombic", "title": "a ≠ b ≠ c",      "body": "α = β = γ = 90°. Three unequal edges, all right angles. Examples: α-S, Ga, olivine."},
+        {"eyebrow": "5 · Rhombohedral", "title": "a = b = c",      "body": "α = β = γ ≠ 90°. Equal edges, all angles equal but not 90°. Examples: calcite, bismuth."},
+        {"eyebrow": "6 · Monoclinic",   "title": "a ≠ b ≠ c",      "body": "α = γ = 90°, β ≠ 90°. One tilted axis. Examples: gypsum, monoclinic S."},
+        {"eyebrow": "7 · Triclinic",    "title": "a ≠ b ≠ c",      "body": "α ≠ β ≠ γ ≠ 90°. Lowest symmetry — nothing equal. Examples: K₂Cr₂O₇, turquoise."}
+      ]
+    </script>
+  </pc-grid>
+
+  <!-- Custom SVG: oblique lineup of 7 cells -->
+  <figure class="pc-figure pc-rise" style="margin:1.8rem 0;">
+    <svg viewBox="0 0 760 130" xmlns="http://www.w3.org/2000/svg"
+         style="width:100%;max-width:760px;display:block;font-family:'JetBrains Mono',monospace;">
+      <style>
+        .cs-edge { fill: none; stroke-width: 1.4; }
+        .cs-edge-back { fill: none; stroke-width: 1; stroke-dasharray: 3 2.5; }
+        .cs-label { font-size: 8.5px; text-anchor: middle; }
+        .cs-name { font-size: 7.5px; text-anchor: middle; fill: #6a5d4a; }
+      </style>
+
+      <!-- Helper: draws a parallelepiped cell at origin (tx,ty).
+           Oblique projection: right = x, up = -y, depth = 45° diagonal.
+           Arguments per cell: tx ty aw ah bw bh dw dh color label sublabel -->
+
+      <!-- 1. Cubic: all equal, right angles -->
+      <g transform="translate(20,85)" style="--c:#4a7fcb;">
+        <!-- front face -->
+        <polygon points="0,0 36,0 36,-36 0,-36" class="cs-edge" style="stroke:#4a7fcb;" fill="oklch(58% 0.12 245 / 0.07)"/>
+        <!-- top face -->
+        <polygon points="0,-36 36,-36 48,-24 12,-24" class="cs-edge" style="stroke:#4a7fcb;" fill="oklch(58% 0.12 245 / 0.05)"/>
+        <!-- right face -->
+        <polygon points="36,0 48,12 48,-24 36,-36" class="cs-edge" style="stroke:#4a7fcb;" fill="oklch(58% 0.12 245 / 0.04)"/>
+        <!-- back edges -->
+        <line x1="0" y1="0" x2="12" y2="12" class="cs-edge-back" style="stroke:#4a7fcb;"/>
+        <line x1="12" y1="12" x2="48" y2="12" class="cs-edge-back" style="stroke:#4a7fcb;"/>
+        <line x1="12" y1="12" x2="12" y2="-24" class="cs-edge-back" style="stroke:#4a7fcb;"/>
+        <text x="24" y="14" class="cs-label" style="fill:#4a7fcb;">Cubic</text>
+        <text x="24" y="23" class="cs-name">a=b=c, 90°</text>
+      </g>
+
+      <!-- 2. Tetragonal: a=b, c longer, right angles -->
+      <g transform="translate(95,88)">
+        <polygon points="0,0 32,0 32,-50 0,-50" class="cs-edge" style="stroke:#c25b2a;" fill="oklch(55% 0.16 35 / 0.07)"/>
+        <polygon points="0,-50 32,-50 42,-42 10,-42" class="cs-edge" style="stroke:#c25b2a;" fill="oklch(55% 0.16 35 / 0.05)"/>
+        <polygon points="32,0 42,8 42,-42 32,-50" class="cs-edge" style="stroke:#c25b2a;" fill="oklch(55% 0.16 35 / 0.04)"/>
+        <line x1="0" y1="0" x2="10" y2="8" class="cs-edge-back" style="stroke:#c25b2a;"/>
+        <line x1="10" y1="8" x2="42" y2="8" class="cs-edge-back" style="stroke:#c25b2a;"/>
+        <line x1="10" y1="8" x2="10" y2="-42" class="cs-edge-back" style="stroke:#c25b2a;"/>
+        <text x="21" y="12" class="cs-label" style="fill:#c25b2a;">Tetragonal</text>
+        <text x="21" y="21" class="cs-name">a=b≠c, 90°</text>
+      </g>
+
+      <!-- 3. Hexagonal: a=b, c tall, gamma=120° (rhombus base) -->
+      <g transform="translate(172,88)">
+        <!-- rhombus base projected: 120° angle in base -->
+        <polygon points="16,0 48,0 56,-8 24,-8" class="cs-edge" style="stroke:#2a7c5f;" fill="oklch(52% 0.12 165 / 0.06)"/>
+        <polygon points="16,0 16,-50 48,-50 48,0" class="cs-edge" style="stroke:#2a7c5f;" fill="oklch(52% 0.12 165 / 0.07)"/>
+        <polygon points="48,0 56,-8 56,-58 48,-50" class="cs-edge" style="stroke:#2a7c5f;" fill="oklch(52% 0.12 165 / 0.04)"/>
+        <polygon points="16,-50 48,-50 56,-58 24,-58" class="cs-edge" style="stroke:#2a7c5f;" fill="oklch(52% 0.12 165 / 0.05)"/>
+        <line x1="16" y1="0" x2="24" y2="-8" class="cs-edge-back" style="stroke:#2a7c5f;"/>
+        <line x1="24" y1="-8" x2="56" y2="-8" class="cs-edge-back" style="stroke:#2a7c5f;"/>
+        <line x1="24" y1="-8" x2="24" y2="-58" class="cs-edge-back" style="stroke:#2a7c5f;"/>
+        <text x="36" y="12" class="cs-label" style="fill:#2a7c5f;">Hexagonal</text>
+        <text x="36" y="21" class="cs-name">γ=120°</text>
+      </g>
+
+      <!-- 4. Orthorhombic: a≠b≠c, all 90° -->
+      <g transform="translate(257,88)">
+        <polygon points="0,0 44,0 44,-40 0,-40" class="cs-edge" style="stroke:#7c5ab4;" fill="oklch(50% 0.14 290 / 0.07)"/>
+        <polygon points="0,-40 44,-40 56,-30 12,-30" class="cs-edge" style="stroke:#7c5ab4;" fill="oklch(50% 0.14 290 / 0.05)"/>
+        <polygon points="44,0 56,10 56,-30 44,-40" class="cs-edge" style="stroke:#7c5ab4;" fill="oklch(50% 0.14 290 / 0.04)"/>
+        <line x1="0" y1="0" x2="12" y2="10" class="cs-edge-back" style="stroke:#7c5ab4;"/>
+        <line x1="12" y1="10" x2="56" y2="10" class="cs-edge-back" style="stroke:#7c5ab4;"/>
+        <line x1="12" y1="10" x2="12" y2="-30" class="cs-edge-back" style="stroke:#7c5ab4;"/>
+        <text x="28" y="14" class="cs-label" style="fill:#7c5ab4;">Orthorhombic</text>
+        <text x="28" y="23" class="cs-name">a≠b≠c, 90°</text>
+      </g>
+
+      <!-- 5. Rhombohedral: a=b=c, all angles equal ≠90° -->
+      <g transform="translate(355,85)">
+        <!-- tilted equal-edge cell -->
+        <polygon points="14,0 46,-6 40,-46 8,-40" class="cs-edge" style="stroke:#b4803a;" fill="oklch(56% 0.14 60 / 0.07)"/>
+        <polygon points="8,-40 40,-46 52,-38 20,-32" class="cs-edge" style="stroke:#b4803a;" fill="oklch(56% 0.14 60 / 0.05)"/>
+        <polygon points="46,-6 52,-38 40,-46" class="cs-edge" style="stroke:#b4803a;" fill="oklch(56% 0.14 60 / 0.04)"/>
+        <line x1="14" y1="0" x2="20" y2="-32" class="cs-edge-back" style="stroke:#b4803a;"/>
+        <line x1="20" y1="-32" x2="52" y2="-38" class="cs-edge-back" style="stroke:#b4803a;"/>
+        <line x1="20" y1="-32" x2="8" y2="-40" class="cs-edge-back" style="stroke:#b4803a;"/>
+        <text x="32" y="12" class="cs-label" style="fill:#b4803a;">Rhombohedral</text>
+        <text x="32" y="21" class="cs-name">a=b=c, α=β=γ≠90°</text>
+      </g>
+
+      <!-- 6. Monoclinic: a≠b≠c, α=γ=90°, β≠90° -->
+      <g transform="translate(452,88)">
+        <!-- beta tilt: parallelogram front face -->
+        <polygon points="8,0 48,0 40,-44 0,-44" class="cs-edge" style="stroke:#4a7c4a;" fill="oklch(48% 0.12 145 / 0.07)"/>
+        <polygon points="0,-44 40,-44 52,-34 12,-34" class="cs-edge" style="stroke:#4a7c4a;" fill="oklch(48% 0.12 145 / 0.05)"/>
+        <polygon points="48,0 52,-34 40,-44" class="cs-edge" style="stroke:#4a7c4a;" fill="oklch(48% 0.12 145 / 0.04)"/>
+        <line x1="8" y1="0" x2="12" y2="-34" class="cs-edge-back" style="stroke:#4a7c4a;"/>
+        <line x1="12" y1="-34" x2="52" y2="-34" class="cs-edge-back" style="stroke:#4a7c4a;"/>
+        <line x1="12" y1="-34" x2="0" y2="-44" class="cs-edge-back" style="stroke:#4a7c4a;"/>
+        <text x="28" y="12" class="cs-label" style="fill:#4a7c4a;">Monoclinic</text>
+        <text x="28" y="21" class="cs-name">α=γ=90°, β≠90°</text>
+      </g>
+
+      <!-- 7. Triclinic: nothing equal, nothing 90° -->
+      <g transform="translate(552,88)">
+        <polygon points="10,0 46,-4 34,-46 -2,-42" class="cs-edge" style="stroke:#8a4a4a;" fill="oklch(45% 0.12 15 / 0.07)"/>
+        <polygon points="-2,-42 34,-46 48,-32 12,-28" class="cs-edge" style="stroke:#8a4a4a;" fill="oklch(45% 0.12 15 / 0.05)"/>
+        <polygon points="46,-4 48,-32 34,-46" class="cs-edge" style="stroke:#8a4a4a;" fill="oklch(45% 0.12 15 / 0.04)"/>
+        <line x1="10" y1="0" x2="12" y2="-28" class="cs-edge-back" style="stroke:#8a4a4a;"/>
+        <line x1="12" y1="-28" x2="48" y2="-32" class="cs-edge-back" style="stroke:#8a4a4a;"/>
+        <line x1="12" y1="-28" x2="-2" y2="-42" class="cs-edge-back" style="stroke:#8a4a4a;"/>
+        <text x="26" y="12" class="cs-label" style="fill:#8a4a4a;">Triclinic</text>
+        <text x="26" y="21" class="cs-name">nothing equal</text>
+      </g>
+
+    </svg>
+    <figcaption style="font-size:0.82rem;color:var(--ink-soft);text-align:center;margin-top:0.3rem;">The seven crystal systems — each a distinct shape constraint on the unit cell.</figcaption>
+  </figure>
+
+  <p class="pc-fade-in">
+    A common point of confusion: FCC and BCC are both <em>cubic</em> — they share the same unit cell shape ($a = b = c$, all angles 90°). What distinguishes them is where the atoms sit inside that box. This is why we need a second term:
+  </p>
+
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">Crystal system vs. crystal structure</div>
+    The <strong>crystal system</strong> describes only the <em>shape</em> of the unit cell — the six lattice parameters and their relationships. The <strong>crystal structure</strong> also specifies the <em>positions</em> of atoms within that cell. FCC, BCC, and simple cubic are three different structures that all belong to the same cubic system. HCP is a different structure in the hexagonal system.
+  </div>
+
+  <p class="pc-fade-in">
+    The seven systems range from maximally symmetric (cubic: three equal edges, all right angles) to minimally symmetric (triclinic: nothing equal, no right angles). Each additional constraint you relax opens a new class. Rhombohedral sits between cubic and triclinic — it keeps all edges equal but lets the angles deviate from 90°.
+  </p>
+
+  <p class="pc-fade-in">
+    Seven shapes are enough to describe every crystal that has ever existed.
+  </p>
+
+  <pc-anki>
+    <script type="application/json">
+      [
+        {"q": "Name the six lattice parameters and what each describes.",
+         "a": "Three <strong>edge lengths</strong>: $a$, $b$, $c$. Three <strong>interaxial angles</strong>: $\\alpha$ (between $b$–$c$), $\\beta$ (between $a$–$c$), $\\gamma$ (between $a$–$b$)."},
+        {"q": "Which crystal system has $a = b \\ne c$ and $\\gamma = 120°$?",
+         "a": "<strong>Hexagonal</strong>. The rhombus-shaped base gives $\\gamma = 120°$; the unique axis is $c$. Examples: Mg, Zn, graphite, HCP metals."},
+        {"q": "What is the difference between a crystal system and a crystal structure?",
+         "a": "The <strong>system</strong> describes unit-cell shape only (values and equalities of $a$, $b$, $c$, $\\alpha$, $\\beta$, $\\gamma$). The <strong>structure</strong> adds atom positions inside the cell. FCC and BCC share the cubic system but are distinct structures."},
+        {"q": "Which system has $a = b = c$ and $\\alpha = \\beta = \\gamma \\ne 90°$?",
+         "a": "<strong>Rhombohedral</strong> (also called trigonal). Equal edges but all angles oblique. Example: calcite (CaCO₃)."},
+        {"q": "Rank the seven systems from highest to lowest symmetry.",
+         "a": "Cubic → Tetragonal / Hexagonal → Orthorhombic → Rhombohedral → Monoclinic → Triclinic. Triclinic has no constraints; cubic has the most."}
+      ]
+    </script>
+  </pc-anki>
+
+  <details class="pc-skip">
+    <summary>Skipped: 14 Bravais lattices</summary>
+    Within each crystal system there are multiple ways to place lattice points — not just at corners but also at body centers, face centers, or base centers. This gives 14 distinct <strong>Bravais lattices</strong> (e.g., face-centred cubic and body-centred cubic are two Bravais lattices within the cubic system). Crystal structures are built by placing a basis (one or more atoms) at each Bravais lattice point.
+  </details>
+</div>

@@ -1,0 +1,520 @@
+<div class="pc-prose pc-stagger">
+  <div class="pc-eyebrow pc-fade-in">Section 2 · Crystallography</div>
+  <div class="pc-source pc-fade-in" data-page="61">pp. 61–69</div>
+
+  <p class="pc-fade-in">
+    A crystal lattice is not just a picture — every atom site and every
+    bond direction inside it has a precise, reproducible name. This section
+    introduces the two naming systems: <strong>point coordinates</strong>
+    (where is this site?) and <strong>direction indices</strong> (which way
+    does this vector point?), then extends the direction system to
+    four-index notation for hexagonal crystals.
+  </p>
+
+  <!-- ===================== POINT COORDINATES ===================== -->
+  <h3 class="pc-fade-in" style="font-size:1.15rem;margin-top:1.8rem;margin-bottom:0.4rem;">Point Coordinates <em>q r s</em></h3>
+
+  <p class="pc-fade-in">
+    Place the origin at one corner of the
+    <pc-term def="The minimum repeating 3-D building block of a crystal, defined by edge lengths $a$, $b$, $c$ and angles $\alpha$, $\beta$, $\gamma$.">unit cell</pc-term>.
+    A point <em>P</em> inside (or on the boundary of) the cell is described
+    by three fractions:
+  </p>
+
+  <p class="pc-fade-in" style="text-align:center;">
+    $$q = \frac{P_x}{a}, \quad r = \frac{P_y}{b}, \quad s = \frac{P_z}{c}$$
+  </p>
+
+  <p class="pc-fade-in">
+    where $a$, $b$, $c$ are the cell edge lengths along $x$, $y$, $z$.
+    The coordinates are written as three space-separated numbers with
+    <em>no</em> brackets and no commas: <strong>q r s</strong>.
+    Notable examples: <strong>0 0 0</strong> = origin corner,
+    <strong>1 0 0</strong> = the next corner along $x$,
+    <strong>½ ½ ½</strong> = body-center position.
+  </p>
+
+  <pc-grid>
+    <script type="application/json">
+      [
+        {"eyebrow": "0 0 0", "title": "Origin corner", "body": "The reference point. All coordinates are measured from here."},
+        {"eyebrow": "1 0 0", "title": "Adjacent corner", "body": "One full edge length $a$ along $+x$. Still a corner of the same cell."},
+        {"eyebrow": "½ ½ ½", "title": "Body center", "body": "The BCC atom site. Halfway along every axis simultaneously."},
+        {"eyebrow": "½ ½ 0", "title": "Face center (z=0)", "body": "Centre of the bottom face — typical FCC atom site on that face."}
+      ]
+    </script>
+  </pc-grid>
+
+  <!-- ===================== DIRECTION INDICES ===================== -->
+  <h3 class="pc-fade-in" style="font-size:1.15rem;margin-top:2rem;margin-bottom:0.4rem;">Direction Indices [uvw]</h3>
+
+  <p class="pc-fade-in">
+    A crystallographic direction is a vector. We care only about its
+    <em>orientation</em>, not its magnitude, so we reduce it to the
+    smallest integers $[uvw]$ that define the same line. Negative
+    components are written with an overbar, e.g. $[\bar{2}21]$, read
+    "bar-two, two, one."
+  </p>
+
+  <pc-stepped>
+    <script type="application/json">
+      [
+        {
+          "title": "Step 1 — choose a tail and a head",
+          "body": "Pick any two points on the line. Conventionally, translate so the tail sits at the origin, but any two lattice points work. Record their coordinates in units of the lattice parameters ($a$, $b$, $c$)."
+        },
+        {
+          "title": "Step 2 — subtract tail from head",
+          "body": "Compute $\\Delta x/a$, $\\Delta y/b$, $\\Delta z/c$. These are the raw (possibly fractional) indices. Sign matters: moving in the $-x$ direction gives a negative first index."
+        },
+        {
+          "title": "Step 3 — clear fractions",
+          "body": "Multiply all three numbers by the smallest integer that removes every fraction. E.g. $(−1, \\tfrac{1}{2}, \\tfrac{1}{4}) \\times 4 = (−4, 2, 1)$."
+        },
+        {
+          "title": "Step 4 — reduce and enclose",
+          "body": "Divide by the GCD so no smaller integer set describes the same direction. Wrap in square brackets: $[uvw]$. Negative components become overbars: $[\\bar{4}21]$."
+        }
+      ]
+    </script>
+  </pc-stepped>
+
+  <!-- ===================== WORKED EXAMPLE ===================== -->
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">Worked example — $[\bar{2}21]$</div>
+    <p style="margin:0.4rem 0 0;">
+      Tail at $(a,\,0,\,0)$, head at $(0,\,b,\,c/2)$.
+      Differences in lattice units: $\Delta = (0-1,\;1-0,\;\tfrac{1}{2}-0) = (-1,\,1,\,\tfrac{1}{2})$.
+      Multiply by 2 to clear the fraction: $(-2,\,2,\,1)$.
+      GCD = 1, so the direction is $[\bar{2}21]$.
+    </p>
+  </div>
+
+  <!-- ===================== LIVE CUBIC DIRECTION EXPLORER ===================== -->
+  <cubic-direction-explorer></cubic-direction-explorer>
+  <script>
+  (function() {
+    class CubicDirectionExplorer extends HTMLElement {
+      connectedCallback() {
+        this.innerHTML = `
+<figure class="pc-fig-interactive pc-rise" style="user-select:none;">
+  <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--ink-soft);margin-bottom:0.6rem;">
+    Interactive — drag the vector head or press a preset
+  </div>
+  <div style="display:flex;gap:1.4rem;flex-wrap:wrap;align-items:flex-start;">
+    <canvas id="cde-canvas" width="240" height="240"
+      style="width:240px;height:240px;border-radius:6px;background:var(--paper);cursor:crosshair;touch-action:none;flex-shrink:0;"></canvas>
+    <div style="display:flex;flex-direction:column;gap:0.7rem;padding-top:0.3rem;">
+      <div style="font-size:0.82rem;color:var(--ink-soft);">Presets</div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <button class="cde-btn" data-uvw="1,0,0">[100]</button>
+        <button class="cde-btn" data-uvw="0,1,0">[010]</button>
+        <button class="cde-btn" data-uvw="0,0,1">[001]</button>
+        <button class="cde-btn" data-uvw="1,1,0">[110]</button>
+        <button class="cde-btn" data-uvw="1,0,1">[101]</button>
+        <button class="cde-btn" data-uvw="1,1,1">[111]</button>
+        <button class="cde-btn" data-uvw="-1,1,0">[1̄10]</button>
+        <button class="cde-btn" data-uvw="-1,-1,1">[1̄1̄1]</button>
+      </div>
+      <div style="margin-top:0.5rem;">
+        <div style="font-size:0.82rem;color:var(--ink-soft);margin-bottom:0.25rem;">Current direction</div>
+        <div id="cde-label" style="font-size:2rem;font-family:'JetBrains Mono',monospace;color:var(--accent);letter-spacing:0.05em;">[100]</div>
+        <div id="cde-frac" style="font-size:0.8rem;color:var(--ink-soft);margin-top:0.15rem;"></div>
+      </div>
+    </div>
+  </div>
+  <figcaption style="font-size:0.78rem;color:var(--ink-soft);margin-top:0.7rem;">
+    The cube face is the $z=0$ plane. Drag the arrowhead within the face; the live $[uvw]$ updates. Drag off-face not supported — use presets for $z\\neq 0$ directions.
+  </figcaption>
+</figure>`;
+
+        const canvas = this.querySelector('#cde-canvas');
+        const label = this.querySelector('#cde-label');
+        const fracEl = this.querySelector('#cde-frac');
+        const ctx = canvas.getContext('2d');
+        const W = 240, H = 240;
+
+        // Isometric projection of a unit cube
+        // We project 3D (x,y,z) in [0,1]^3 to 2D canvas
+        const iso = ([x, y, z]) => {
+          // right=x, up=z, depth=y
+          const px = 80 + x * 90 - y * 30;
+          const py = 190 - z * 80 - y * 28 - x * 5;
+          return [px, py];
+        };
+
+        const corners = [
+          [0,0,0],[1,0,0],[1,1,0],[0,1,0],
+          [0,0,1],[1,0,1],[1,1,1],[0,1,1]
+        ];
+        const edges = [
+          [0,1],[1,2],[2,3],[3,0],
+          [4,5],[5,6],[6,7],[7,4],
+          [0,4],[1,5],[2,6],[3,7]
+        ];
+
+        // Hidden edges (back)
+        const backEdges = new Set([1,2,9]);
+
+        let head = [1, 0, 0]; // current vector head (lattice coords)
+        let dragging = false;
+
+        function gcd2(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { let t = b; b = a % b; a = t; } return a; }
+        function gcdArr(arr) { return arr.reduce((a, b) => gcd2(a, Math.abs(b)), 0); }
+
+        function toIndices(h) {
+          // h is float [x,y,z]; multiply up then find GCD
+          // Snap to nearest 0.25 on the face
+          const snap = v => Math.round(v * 4) / 4;
+          let x = snap(h[0]), y = snap(h[1]), z = snap(h[2]);
+          // Multiply by 4 to clear quarters
+          let u = Math.round(x * 4), v = Math.round(y * 4), w = Math.round(z * 4);
+          if (u === 0 && v === 0 && w === 0) { u = 1; v = 0; w = 0; }
+          const g = gcdArr([u, v, w]) || 1;
+          return [u/g, v/g, w/g];
+        }
+
+        function fmtIdx(n) {
+          const abs = Math.abs(n);
+          const s = Number.isInteger(abs) ? String(abs) : abs.toFixed(0);
+          return n < 0 ? '̅' + s : s; // combining overline — fallback below
+        }
+
+        function fmtDir(uvw) {
+          // Render as [ūvw] using unicode combining overline
+          const parts = uvw.map(n => {
+            const abs = Math.abs(Math.round(n));
+            return n < 0 ? '͟' + abs : String(abs);
+          });
+          // Use overbar unicode chars for common negatives
+          const barMap = {'1':'1̅','2':'2̅','3':'3̅','4':'4̅'};
+          const fmt = uvw.map(n => {
+            const abs = String(Math.abs(Math.round(n)));
+            return n < 0 ? (barMap[abs] || abs + '̅') : abs;
+          });
+          return '[' + fmt.join('') + ']';
+        }
+
+        function drawScene() {
+          ctx.clearRect(0, 0, W, H);
+
+          // Draw back edges dashed
+          edges.forEach(([a, b], i) => {
+            const [x1, y1] = iso(corners[a]);
+            const [x2, y2] = iso(corners[b]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            if (backEdges.has(i)) {
+              ctx.setLineDash([3, 3]);
+              ctx.strokeStyle = 'rgba(160,140,110,0.45)';
+            } else {
+              ctx.setLineDash([]);
+              ctx.strokeStyle = 'rgba(90,75,55,0.7)';
+            }
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+          });
+          ctx.setLineDash([]);
+
+          // Corner dots
+          corners.forEach(c => {
+            const [px, py] = iso(c);
+            ctx.beginPath();
+            ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(90,75,55,0.6)';
+            ctx.fill();
+          });
+
+          // Origin label
+          const [ox, oy] = iso([0,0,0]);
+          ctx.fillStyle = 'rgba(90,75,55,0.7)';
+          ctx.font = '10px JetBrains Mono, monospace';
+          ctx.fillText('O', ox - 12, oy + 4);
+
+          // Axis labels
+          const [ax] = iso([1.12, 0, 0]);
+          const [, ay2] = iso([1.12, 0, 0]);
+          ctx.fillStyle = 'var(--ink-soft)';
+          ctx.font = '10px JetBrains Mono, monospace';
+          const lx = iso([1.1, 0, 0]);
+          const ly = iso([0, 1.1, 0]);
+          const lz = iso([0, 0, 1.1]);
+          ctx.fillText('x', lx[0] - 2, lx[1] + 4);
+          ctx.fillText('y', ly[0] - 8, ly[1] + 4);
+          ctx.fillText('z', lz[0] - 3, lz[1] - 3);
+
+          // Draw direction vector from origin
+          const uvw = toIndices(head);
+          // Project head endpoint (clamp display to unit box for vis)
+          const displayHead = [
+            Math.min(Math.max(head[0], -0.05), 1.05),
+            Math.min(Math.max(head[1], -0.05), 1.05),
+            Math.min(Math.max(head[2], -0.05), 1.05)
+          ];
+          const [hx, hy] = iso(displayHead);
+          const [tx, ty] = iso([0,0,0]);
+
+          // Arrow shaft
+          ctx.beginPath();
+          ctx.moveTo(tx, ty);
+          ctx.lineTo(hx, hy);
+          ctx.strokeStyle = 'oklch(55% 0.16 35)';
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+
+          // Arrowhead
+          const angle = Math.atan2(hy - ty, hx - tx);
+          ctx.beginPath();
+          ctx.moveTo(hx, hy);
+          ctx.lineTo(hx - 10 * Math.cos(angle - 0.4), hy - 10 * Math.sin(angle - 0.4));
+          ctx.lineTo(hx - 10 * Math.cos(angle + 0.4), hy - 10 * Math.sin(angle + 0.4));
+          ctx.closePath();
+          ctx.fillStyle = 'oklch(55% 0.16 35)';
+          ctx.fill();
+
+          // Head drag dot
+          ctx.beginPath();
+          ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+          ctx.fillStyle = 'oklch(55% 0.16 35)';
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Update label
+          label.textContent = fmtDir(uvw);
+          const raw = head.map(v => {
+            const s = Math.round(v * 4) / 4;
+            return s === Math.round(s) ? String(Math.round(s)) : s.toFixed(2);
+          });
+          fracEl.textContent = `raw = (${raw.join(', ')}) → reduced`;
+        }
+
+        // Canvas interaction — drag on the z=0 face (x-y plane)
+        function canvasToLattice(cx, cy) {
+          // Invert iso for z=0 plane: px = 80 + x*90 - y*30, py = 190 - y*28 - x*5
+          // Solve 2x2: 90x - 30y = px-80, -5x - 28y = py-190
+          const px = cx - 80, py = cy - 190;
+          // 90x - 30y = px  =>  x = (px + 30y)/90
+          // -5x - 28y = py  =>  -5(px+30y)/90 - 28y = py
+          // => -(5px + 150y)/90 - 28y = py
+          // => -5px/90 - 150y/90 - 28y = py
+          // => y(-150/90 - 28) = py + 5px/90
+          // => y(-5/3 - 28) = py + px/18
+          // => y(-89/3) = py + px/18
+          const y = (py + px / 18) / (-89 / 3);
+          const x = (px + 30 * y) / 90;
+          return [
+            Math.min(Math.max(x, 0), 1),
+            Math.min(Math.max(y, 0), 1),
+            0
+          ];
+        }
+
+        canvas.addEventListener('pointerdown', e => {
+          dragging = true;
+          canvas.setPointerCapture(e.pointerId);
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = 240 / rect.width;
+          const cx = (e.clientX - rect.left) * scaleX;
+          const cy = (e.clientY - rect.top) * scaleX;
+          head = canvasToLattice(cx, cy);
+          // If nearly origin, default to [100]
+          if (Math.abs(head[0]) < 0.1 && Math.abs(head[1]) < 0.1) head = [0.25, 0, 0];
+          drawScene();
+        });
+
+        canvas.addEventListener('pointermove', e => {
+          if (!dragging) return;
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = 240 / rect.width;
+          const cx = (e.clientX - rect.left) * scaleX;
+          const cy = (e.clientY - rect.top) * scaleX;
+          head = canvasToLattice(cx, cy);
+          if (Math.abs(head[0]) < 0.05 && Math.abs(head[1]) < 0.05) head = [0.05, 0, 0];
+          drawScene();
+        });
+
+        canvas.addEventListener('pointerup', () => { dragging = false; });
+        canvas.addEventListener('pointercancel', () => { dragging = false; });
+
+        // Preset buttons
+        this.querySelectorAll('.cde-btn').forEach(btn => {
+          btn.style.cssText = 'padding:4px 10px;border:1px solid var(--ink-soft);border-radius:4px;background:var(--paper);cursor:pointer;font-family:JetBrains Mono,monospace;font-size:0.78rem;color:var(--ink);';
+          btn.addEventListener('click', () => {
+            const [u, v, w] = btn.dataset.uvw.split(',').map(Number);
+            // Convert index to a point in [0,1] range for display
+            const mag = Math.max(Math.abs(u), Math.abs(v), Math.abs(w));
+            head = [u / mag, v / mag, w / mag];
+            drawScene();
+          });
+        });
+
+        drawScene();
+      }
+    }
+    if (!customElements.get('cubic-direction-explorer')) {
+      customElements.define('cubic-direction-explorer', CubicDirectionExplorer);
+    }
+  })();
+  </script>
+
+  <!-- ===================== DIRECTION FAMILIES ===================== -->
+  <p class="pc-fade-in" style="margin-top:1.4rem;">
+    Many crystals have multiple directions that are
+    <pc-term def="Directions related by the symmetry of the crystal lattice; physically and geometrically equivalent.">crystallographically equivalent</pc-term>.
+    The full set is called a <strong>direction family</strong> and written
+    with angle brackets: $\langle uvw \rangle$.
+    For a cubic crystal, $\langle 100 \rangle$ contains $[100]$, $[010]$,
+    $[001]$, $[\bar{1}00]$, $[0\bar{1}0]$, $[00\bar{1}]$ — six directions, one family.
+  </p>
+
+  <!-- ===================== BRACKET CHEAT SHEET ===================== -->
+  <div class="pc-callout pc-callout--alt pc-fade-in">
+    <div class="pc-callout-title">Bracket cheat sheet</div>
+    <table style="width:100%;border-collapse:collapse;font-size:0.88rem;margin-top:0.4rem;">
+      <tr>
+        <td style="padding:4px 10px 4px 0;font-family:'JetBrains Mono',monospace;color:var(--accent);">q r s</td>
+        <td style="padding:4px 0;">Point coordinate (no brackets, spaces)</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 10px 4px 0;font-family:'JetBrains Mono',monospace;color:var(--accent);">[uvw]</td>
+        <td style="padding:4px 0;">Specific direction</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 10px 4px 0;font-family:'JetBrains Mono',monospace;color:var(--accent);">&langle;uvw&rangle;</td>
+        <td style="padding:4px 0;">Family of equivalent directions</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 10px 4px 0;font-family:'JetBrains Mono',monospace;color:var(--accent);">(hkl)</td>
+        <td style="padding:4px 0;">Specific plane (Miller indices — next section)</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 10px 4px 0;font-family:'JetBrains Mono',monospace;color:var(--accent);">{hkl}</td>
+        <td style="padding:4px 0;">Family of equivalent planes</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ===================== HEXAGONAL [uvtw] ===================== -->
+  <h3 class="pc-fade-in" style="font-size:1.15rem;margin-top:2rem;margin-bottom:0.4rem;">Hexagonal Four-Index Notation [uvtw]</h3>
+
+  <p class="pc-fade-in">
+    The hexagonal lattice has three equivalent basal axes
+    $\mathbf{a}_1$, $\mathbf{a}_2$, $\mathbf{a}_3$ at 120° to each other,
+    plus a $z$-axis. Using all four makes symmetry-equivalent directions
+    look the same numerically — a huge practical advantage. The fourth
+    index $t$ is always redundant: $t = -(u+v)$.
+  </p>
+
+  <pc-equation>
+    <script type="application/json">
+      {
+        "tex": "u = \\frac{2U - V}{3}, \\quad v = \\frac{2V - U}{3}, \\quad t = -(u+v), \\quad w = W",
+        "terms": {
+          "U, V, W": "Three-index direction $[UVW]$ from the standard cubic-style $\\mathbf{a}_1, \\mathbf{a}_2, z$ description.",
+          "u, v": "New four-index basal components along $\\mathbf{a}_1$ and $\\mathbf{a}_2$.",
+          "t": "Third basal index, always equal to $-(u+v)$ — fully determined by $u$ and $v$.",
+          "w": "Unchanged $z$-component."
+        }
+      }
+    </script>
+  </pc-equation>
+
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">Worked example — $[0\bar{2}1] \rightarrow [\bar{2}4\bar{2}3]$</div>
+    <p style="margin:0.4rem 0 0;">
+      Start with $[UVW] = [0\,\bar{2}\,1]$.<br>
+      $u = (2 \cdot 0 - (-2))/3 = 2/3$<br>
+      $v = (2 \cdot (-2) - 0)/3 = -4/3$<br>
+      $t = -(2/3 - 4/3) = 2/3$<br>
+      $w = 1$<br>
+      Multiply through by 3 to clear fractions: $[2,\,-4,\,2,\,3]$.
+      Divide by GCD = 2: $[\bar{2}\,4\,\bar{2}\,3]$.
+      Wait — signs: $u$ original $= 2/3 > 0$, $v = -4/3 < 0$, $t = 2/3 > 0$, $w = 1$.
+      After ×3: $(2, -4, 2, 3)$. GCD of $|2,4,2,3|$ = 1. Final answer: $[2\bar{4}23]$.
+    </p>
+  </div>
+
+  <!-- ===================== HEXAGONAL 3D VIZ ===================== -->
+  <pc-3d>
+    <script type="application/json">
+      {
+        "objects": [
+          {"type": "cylinder", "from": [0,0,0], "to": [1.2,0,0],    "r": 0.03, "color": "#c25b2a", "label": "a₁"},
+          {"type": "cylinder", "from": [0,0,0], "to": [-0.6,1.039,0], "r": 0.03, "color": "#c25b2a", "label": "a₂"},
+          {"type": "cylinder", "from": [0,0,0], "to": [-0.6,-1.039,0],"r": 0.03, "color": "#c25b2a", "label": "a₃"},
+          {"type": "cylinder", "from": [0,0,0], "to": [0,0,1.4],    "r": 0.03, "color": "#4a90d9", "label": "z"},
+          {"type": "arrow",    "from": [0,0,0], "to": [1.2,0,0],    "color": "#c25b2a"},
+          {"type": "arrow",    "from": [0,0,0], "to": [-0.6,1.039,0],"color": "#c25b2a"},
+          {"type": "arrow",    "from": [0,0,0], "to": [-0.6,-1.039,0],"color": "#c25b2a"},
+          {"type": "arrow",    "from": [0,0,0], "to": [0,0,1.4],    "color": "#4a90d9"},
+          {"type": "sphere",   "pos": [0,0,0],  "r": 0.07, "color": "#888"},
+          {"type": "label",    "pos": [1.35,0,0],       "text": "a₁ [100]"},
+          {"type": "label",    "pos": [-0.6,1.2,0],     "text": "a₂ [010]"},
+          {"type": "label",    "pos": [-0.6,-1.2,0],    "text": "a₃ [1̄1̄0]"},
+          {"type": "label",    "pos": [0,0,1.55],       "text": "z [0001]"}
+        ],
+        "camera": [2.5, 1.8, 2.0],
+        "axes": false,
+        "caption": "Hexagonal basal plane showing a₁, a₂, a₃ at 120° and the z-axis. Orbit to inspect the 120° symmetry."
+      }
+    </script>
+  </pc-3d>
+
+  <!-- ===================== CLOSING CALLOUT ===================== -->
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">Why it matters</div>
+    Direction indices are the language of deformation: slip planes, cleavage, and
+    conductivity all favour specific $[uvw]$ families, so naming directions
+    precisely is the first step toward predicting how a material will fail or flow.
+  </div>
+
+  <p class="pc-fade-in" style="font-style:italic;color:var(--ink-soft);text-align:center;margin-top:1.4rem;">
+    Every direction in every crystal has a unique three-digit name.
+  </p>
+
+  <!-- ===================== ANKI ===================== -->
+  <pc-anki>
+    <script type="application/json">
+      [
+        {
+          "q": "What are point coordinates $q\\ r\\ s$ and how are they computed?",
+          "a": "Fractions of the unit-cell edges: $q = P_x/a$, $r = P_y/b$, $s = P_z/c$. Written as three space-separated numbers with no brackets."
+        },
+        {
+          "q": "What point coordinates describe the body-center position of a unit cell?",
+          "a": "$\\tfrac{1}{2}\\ \\tfrac{1}{2}\\ \\tfrac{1}{2}$ — halfway along every axis."
+        },
+        {
+          "q": "Outline the four steps to find direction indices $[uvw]$ from two points.",
+          "a": "1. Choose tail and head. 2. Subtract tail from head (in lattice units). 3. Multiply to clear fractions. 4. Reduce by GCD, enclose in $[\\ ]$; negative → overbar."
+        },
+        {
+          "q": "Tail at $(a,0,0)$, head at $(0,b,c/2)$. What is the direction index?",
+          "a": "Differences: $(-1,1,\\tfrac{1}{2})$. Multiply by 2: $(-2,2,1)$. GCD=1. Direction is $[\\bar{2}21]$."
+        },
+        {
+          "q": "What is the relationship between $t$ and $u$, $v$ in four-index hexagonal notation?",
+          "a": "$t = -(u+v)$. It is always fully determined by the other two basal indices."
+        },
+        {
+          "q": "Convert $[UVW] = [01\\bar{1}]$ to four-index hexagonal notation $[uvtw]$.",
+          "a": "$u=(2\\cdot0-1)/3=-1/3$, $v=(2\\cdot1-0)/3=2/3$, $t=-(-1/3+2/3)=-1/3$, $w=-1$. Multiply by 3: $(-1,2,-1,-3)$. Result: $[\\bar{1}2\\bar{1}\\bar{3}]$."
+        }
+      ]
+    </script>
+  </pc-anki>
+
+  <details class="pc-skip pc-fade-in">
+    <summary>Skipped: negative direction ambiguity and overbar typography</summary>
+    <p>
+      Crystallography conventions differ slightly between textbooks on how to typeset
+      overbars. Some use Unicode combining overline (U+0305), others use the $\bar{n}$
+      LaTeX macro, and older texts write an explicit minus sign. All are equivalent.
+      In machine-readable CIF files (Crystallographic Information Framework), directions
+      are stored as signed integers, avoiding the overbar problem entirely.
+    </p>
+  </details>
+</div>

@@ -1,0 +1,500 @@
+<div class="pc-prose pc-stagger">
+  <div class="pc-eyebrow pc-fade-in">Chapter 2 · Single Crystals, Polycrystals, Anisotropy</div>
+  <div class="pc-source pc-fade-in" data-page="79">pp. 79–81</div>
+
+  <p class="pc-fade-in">
+    Every rule we derived for unit cells assumed a perfect, unbroken lattice. Real materials are almost never that clean.
+    The same crystallographic ideas apply, but the <em>scale</em> and <em>orientation</em> of the crystal matter
+    enormously — they determine whether a material feels the same from every direction or behaves very differently
+    depending on which way you push it.
+  </p>
+
+  <!-- single vs polycrystalline toggle -->
+  <pc-toggle>
+    <script type="application/json">
+    {
+      "a": {
+        "label": "Single Crystal",
+        "body": "<p>The entire sample is one unbroken lattice: every atom sits in register with every other atom from edge to edge. The result is <strong>perfect periodicity at macroscopic scale</strong>.</p><p>Examples: gem-quality sapphire, silicon wafers grown by the Czochralski process (seed crystal pulled slowly from a melt), and the hollow single-crystal turbine blades used in jet engines because they resist creep at extreme temperatures.</p><svg viewBox='0 0 220 140' width='220' height='140' style='display:block;margin:1em auto;'><defs><pattern id='lat-a' x='0' y='0' width='22' height='22' patternUnits='userSpaceOnUse'><circle cx='11' cy='11' r='7' fill='none' stroke='#6a5d4a' stroke-width='1.2'/><line x1='0' y1='11' x2='22' y2='11' stroke='#6a5d4a' stroke-width='0.5' opacity='0.4'/><line x1='11' y1='0' x2='11' y2='22' stroke='#6a5d4a' stroke-width='0.5' opacity='0.4'/></pattern></defs><rect x='10' y='10' width='200' height='120' rx='6' fill='url(#lat-a)' stroke='#6a5d4a' stroke-width='1.5'/><text x='110' y='132' text-anchor='middle' font-family='JetBrains Mono,monospace' font-size='9' fill='#6a5d4a'>uniform orientation everywhere</text></svg>"
+      },
+      "b": {
+        "label": "Polycrystalline",
+        "body": "<p>The bulk sample is a mosaic of many small <strong>grains</strong>, each a tiny single crystal with its own lattice orientation. Where grains meet there is a thin, disordered <pc-term def='A ~2–5 atom-wide transition zone where the lattice of one grain cannot perfectly connect to the misoriented lattice of the next. Atoms are out of register — higher energy, higher diffusivity, preferential corrosion site.'>grain boundary</pc-term>.</p><p>Most engineering metals (steel, aluminium alloys, copper wire) are polycrystalline. Grain size is tunable: slow solidification → large grains; rapid quench or cold-work-plus-anneal → fine grains.</p><svg viewBox='0 0 220 140' width='220' height='140' style='display:block;margin:1em auto;'><defs><clipPath id='bound-clip'><rect x='10' y='10' width='200' height='120' rx='6'/></clipPath></defs><rect x='10' y='10' width='200' height='120' rx='6' fill='#f6f1e7' stroke='#6a5d4a' stroke-width='1.5'/><g clip-path='url(#bound-clip)'><polygon points='10,10 90,10 80,45 30,60 10,40' style='fill:#dde8f0;stroke:#1f1a14;stroke-width:1.5'/><polygon points='90,10 170,10 180,50 100,65 80,45' style='fill:#e8ddd0;stroke:#1f1a14;stroke-width:1.5'/><polygon points='170,10 210,10 210,70 160,75 180,50' style='fill:#dfd8e8;stroke:#1f1a14;stroke-width:1.5'/><polygon points='10,40 30,60 20,100 10,110 10,40' style='fill:#e4ecd8;stroke:#1f1a14;stroke-width:1.5'/><polygon points='30,60 80,45 100,65 95,105 55,115 20,100' style='fill:#f0e8d0;stroke:#1f1a14;stroke-width:1.5'/><polygon points='80,45 180,50 160,75 130,100 95,105 100,65' style='fill:#dce8e0;stroke:#1f1a14;stroke-width:1.5'/><polygon points='160,75 210,70 210,130 170,130 130,100' style='fill:#e8d8dc;stroke:#1f1a14;stroke-width:1.5'/><polygon points='10,110 20,100 55,115 60,130 10,130' style='fill:#d8e0e8;stroke:#1f1a14;stroke-width:1.5'/><polygon points='55,115 95,105 130,100 170,130 60,130' style='fill:#e0dcd0;stroke:#1f1a14;stroke-width:1.5'/></g><text x='110' y='145' text-anchor='middle' font-family='JetBrains Mono,monospace' font-size='9' fill='#6a5d4a'>dark lines = grain boundaries</text></svg>"
+      }
+    }
+    </script>
+  </pc-toggle>
+
+  <!-- solidification animation -->
+  <solidification-anim class="pc-fade-in"></solidification-anim>
+  <script>
+  (function() {
+    class SolidificationAnim extends HTMLElement {
+      connectedCallback() {
+        const W = 480, H = 280;
+        this.innerHTML = `<figure class="pc-fig-interactive pc-rise" style="text-align:center;">
+          <figcaption style="font-family:'JetBrains Mono',monospace;font-size:0.72em;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft,#6a5d4a);margin-bottom:0.5em;">Solidification — 4 stages</figcaption>
+          <canvas id="sf-canvas" width="${W}" height="${H}" style="width:min(${W}px,100%);height:auto;border-radius:6px;background:#1f1a14;display:block;margin:0 auto;"></canvas>
+          <div style="margin-top:0.7em;display:flex;gap:0.6em;justify-content:center;align-items:center;flex-wrap:wrap;">
+            <button id="sf-play" style="font-family:'JetBrains Mono',monospace;font-size:0.78em;padding:0.4em 1.2em;border:1.5px solid var(--accent,#5077b2);border-radius:4px;background:transparent;color:var(--accent,#5077b2);cursor:pointer;">&#9654; Play</button>
+            <span id="sf-label" style="font-family:'JetBrains Mono',monospace;font-size:0.78em;color:#fbf6ea;min-width:200px;text-align:left;"></span>
+          </div>
+        </figure>`;
+
+        const canvas = this.querySelector('#sf-canvas');
+        const ctx = canvas.getContext('2d');
+        const btn = this.querySelector('#sf-play');
+        const lbl = this.querySelector('#sf-label');
+
+        const stages = [
+          { name: "(a) Nucleation", desc: "Tiny nuclei form at random sites in the liquid" },
+          { name: "(b) Growth",     desc: "Each nucleus grows outward in its own orientation" },
+          { name: "(c) Impingement",desc: "Growing grains collide — irregular boundaries form" },
+          { name: "(d) Micrograph", desc: "Final polycrystal: grains + dark boundary lines" }
+        ];
+
+        // Fixed seed positions for reproducibility
+        const seeds = [
+          {x: 0.18, y: 0.25, hue: 200}, {x: 0.55, y: 0.15, hue: 30},
+          {x: 0.82, y: 0.30, hue: 270}, {x: 0.12, y: 0.72, hue: 60},
+          {x: 0.42, y: 0.62, hue: 320}, {x: 0.74, y: 0.70, hue: 140},
+          {x: 0.30, y: 0.42, hue: 180}, {x: 0.65, y: 0.45, hue: 350},
+          {x: 0.90, y: 0.58, hue: 100}
+        ].map(s => ({x: s.x * W, y: s.y * H, hue: s.hue}));
+
+        let phase = -1; // -1 = idle
+        let raf = null;
+        let t = 0;
+
+        const PHASE_DURATION = [40, 90, 60, 30]; // frames per phase
+
+        function voronoiCell(px, py, seedIdx) {
+          // Return true if pixel (px,py) belongs to seedIdx
+          const s = seeds[seedIdx];
+          const d0 = (px-s.x)**2 + (py-s.y)**2;
+          for (let i = 0; i < seeds.length; i++) {
+            if (i === seedIdx) continue;
+            if ((px-seeds[i].x)**2 + (py-seeds[i].y)**2 < d0) return false;
+          }
+          return true;
+        }
+
+        function drawStage(stageIdx, progress) {
+          ctx.clearRect(0, 0, W, H);
+
+          // Background liquid
+          ctx.fillStyle = '#1f1a14';
+          ctx.fillRect(0, 0, W, H);
+
+          if (stageIdx === 0) {
+            // (a) show liquid + nuclei appearing
+            const nShow = Math.ceil(progress * seeds.length);
+            ctx.fillStyle = '#2a4a8a22';
+            ctx.fillRect(0,0,W,H);
+            // liquid shimmer
+            ctx.fillStyle = '#3a5a9a18';
+            for (let i=0;i<8;i++) {
+              ctx.beginPath();
+              ctx.ellipse(W*0.1+i*W*0.1+Math.sin(i)*20, H*0.5, 30, 5, Math.PI*0.1*i, 0, Math.PI*2);
+              ctx.fill();
+            }
+            for (let i = 0; i < nShow; i++) {
+              const s = seeds[i];
+              ctx.beginPath();
+              ctx.arc(s.x, s.y, 4, 0, Math.PI*2);
+              ctx.fillStyle = `hsl(${s.hue}, 60%, 70%)`;
+              ctx.fill();
+              ctx.beginPath();
+              ctx.arc(s.x, s.y, 7, 0, Math.PI*2);
+              ctx.strokeStyle = `hsl(${s.hue}, 60%, 70%)`;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+
+          } else if (stageIdx === 1) {
+            // (b) grains grow as circles up to Voronoi radius
+            const maxR = Math.sqrt(W*W + H*H) * 0.28 * progress;
+            for (let i = 0; i < seeds.length; i++) {
+              const s = seeds[i];
+              ctx.beginPath();
+              ctx.arc(s.x, s.y, maxR, 0, Math.PI*2);
+              ctx.fillStyle = `hsl(${s.hue}, 35%, 28%)`;
+              ctx.fill();
+              // draw lattice lines inside circle
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(s.x, s.y, maxR, 0, Math.PI*2);
+              ctx.clip();
+              const angle = s.hue * 0.05;
+              ctx.strokeStyle = `hsl(${s.hue}, 45%, 55%)`;
+              ctx.lineWidth = 0.6;
+              ctx.globalAlpha = 0.5;
+              const spacing = 14;
+              for (let d = -W; d < W*2; d += spacing) {
+                ctx.beginPath();
+                ctx.moveTo(s.x + d * Math.cos(angle) - W * Math.sin(angle), s.y + d * Math.sin(angle) + W * Math.cos(angle));
+                ctx.lineTo(s.x + d * Math.cos(angle) + W * Math.sin(angle), s.y + d * Math.sin(angle) - W * Math.cos(angle));
+                ctx.stroke();
+              }
+              ctx.restore();
+              ctx.globalAlpha = 1;
+            }
+
+          } else if (stageIdx === 2 || stageIdx === 3) {
+            // (c)+(d) full Voronoi grain coloring
+            // Use imageData for Voronoi
+            const idata = ctx.createImageData(W, H);
+            const d = idata.data;
+
+            // Pre-compute nearest seed for each pixel using scanline
+            for (let py = 0; py < H; py++) {
+              for (let px = 0; px < W; px++) {
+                let minD = Infinity, minIdx = 0, secondD = Infinity;
+                for (let i = 0; i < seeds.length; i++) {
+                  const dd = (px-seeds[i].x)**2 + (py-seeds[i].y)**2;
+                  if (dd < minD) { secondD = minD; minD = dd; minIdx = i; }
+                  else if (dd < secondD) secondD = dd;
+                }
+                const idx = (py * W + px) * 4;
+                const isBoundary = Math.sqrt(secondD) - Math.sqrt(minD) < (stageIdx === 3 ? 2.5 : 1.5 * progress);
+                if (isBoundary) {
+                  // boundary = dark
+                  d[idx]   = 20; d[idx+1] = 18; d[idx+2] = 15; d[idx+3] = 255;
+                } else {
+                  const h = seeds[minIdx].hue;
+                  // HSL to RGB
+                  const [r,g,b] = hslToRgb(h/360, 0.30, 0.26 + (stageIdx===3?0.04:0));
+                  d[idx]   = Math.round(r*255);
+                  d[idx+1] = Math.round(g*255);
+                  d[idx+2] = Math.round(b*255);
+                  d[idx+3] = 255;
+                }
+              }
+            }
+            ctx.putImageData(idata, 0, 0);
+
+            if (stageIdx === 2) {
+              // show some growing still — fade in Voronoi over progress
+              ctx.globalAlpha = Math.min(1, progress * 2);
+            }
+            ctx.globalAlpha = 1;
+
+            // lattice lines inside each grain (stage 3 only)
+            if (stageIdx === 3) {
+              for (let i = 0; i < seeds.length; i++) {
+                const s = seeds[i];
+                const angle = s.hue * 0.05;
+                ctx.strokeStyle = `hsl(${s.hue}, 50%, 60%)`;
+                ctx.lineWidth = 0.5;
+                ctx.globalAlpha = 0.22;
+                const spacing = 13;
+                // clipping to grain is expensive — just draw them; boundaries overdraw
+                for (let dd = -W; dd < W*2; dd += spacing) {
+                  ctx.beginPath();
+                  ctx.moveTo(s.x + dd*Math.cos(angle) - H*Math.sin(angle), s.y + dd*Math.sin(angle) + H*Math.cos(angle));
+                  ctx.lineTo(s.x + dd*Math.cos(angle) + H*Math.sin(angle), s.y + dd*Math.sin(angle) - H*Math.cos(angle));
+                  ctx.stroke();
+                }
+              }
+              ctx.globalAlpha = 1;
+              // re-darken boundaries
+              ctx.globalAlpha = 0.7;
+              const idata2 = ctx.getImageData(0,0,W,H);
+              ctx.putImageData(idata2, 0,0);
+              ctx.globalAlpha = 1;
+            }
+          }
+
+          // Stage label overlay
+          const info = stages[stageIdx];
+          ctx.fillStyle = 'rgba(31,26,20,0.72)';
+          ctx.fillRect(0, H-42, W, 42);
+          ctx.fillStyle = '#fbf6ea';
+          ctx.font = 'bold 13px "JetBrains Mono", monospace';
+          ctx.fillText(info.name, 14, H-22);
+          ctx.fillStyle = '#c0b09a';
+          ctx.font = '12px "JetBrains Mono", monospace';
+          ctx.fillText(info.desc, 14, H-8);
+        }
+
+        function hslToRgb(h, s, l) {
+          let r, g, b;
+          if (s === 0) { r = g = b = l; }
+          else {
+            const q = l < 0.5 ? l*(1+s) : l+s-l*s;
+            const p = 2*l-q;
+            r = hue2rgb(p,q,h+1/3); g = hue2rgb(p,q,h); b = hue2rgb(p,q,h-1/3);
+          }
+          return [r,g,b];
+        }
+        function hue2rgb(p,q,t){
+          if(t<0) t+=1; if(t>1) t-=1;
+          if(t<1/6) return p+(q-p)*6*t;
+          if(t<1/2) return q;
+          if(t<2/3) return p+(q-p)*(2/3-t)*6;
+          return p;
+        }
+
+        // Draw idle first frame
+        drawStage(0, 0);
+        lbl.textContent = stages[0].name + ' — press Play';
+
+        let currentStage = 0;
+        let frameInStage = 0;
+        let running = false;
+
+        function step() {
+          if (!running) return;
+          const dur = PHASE_DURATION[currentStage];
+          frameInStage++;
+          const progress = Math.min(frameInStage / dur, 1);
+          drawStage(currentStage, progress);
+          lbl.textContent = stages[currentStage].name;
+
+          if (frameInStage >= dur) {
+            currentStage++;
+            frameInStage = 0;
+            if (currentStage >= stages.length) {
+              running = false;
+              btn.textContent = '▶ Replay';
+              return;
+            }
+          }
+          raf = requestAnimationFrame(step);
+        }
+
+        btn.addEventListener('click', () => {
+          if (raf) cancelAnimationFrame(raf);
+          running = true;
+          currentStage = 0;
+          frameInStage = 0;
+          btn.textContent = '■ Playing…';
+          raf = requestAnimationFrame(step);
+        });
+      }
+    }
+    customElements.define('solidification-anim', SolidificationAnim);
+  })();
+  </script>
+
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">Grain boundary</div>
+    A grain boundary is a ~2–5-atom-wide transition zone where two misoriented lattices meet.
+    Atoms there are out of register — higher energy, faster diffusion, preferential corrosion sites.
+    Finer grains mean more boundary area and generally stronger (harder-to-slip) material — this
+    is the basis of <strong>Hall-Petch strengthening</strong>.
+  </div>
+
+  <p class="pc-fade-in">
+    <pc-term def="The dependence of a physical property on the crystallographic direction along which it is measured. Arises because atomic spacing and bonding density vary with direction.">Anisotropy</pc-term>
+    is the dependence of a property on direction. Because atoms are not equally spaced in all directions,
+    the elastic modulus, thermal conductivity, optical index, and many other properties differ with
+    crystallographic direction. Lower symmetry crystal systems are more anisotropic; among cubics,
+    tungsten happens to be nearly isotropic while iron and copper show strong directionality.
+  </p>
+
+  <!-- modulus bar chart -->
+  <pc-plot>
+    <script type="application/json">
+    {
+      "kind": "bar",
+      "title": "Elastic modulus (GPa) along three directions",
+      "xLabel": "Metal",
+      "yLabel": "E (GPa)",
+      "series": [
+        {"name": "[100]", "points": [[0,63.7],[1,66.7],[2,125],[3,384.6]]},
+        {"name": "[110]", "points": [[0,72.6],[1,130.3],[2,210.5],[3,384.6]]},
+        {"name": "[111]", "points": [[0,76.1],[1,191.1],[2,272.7],[3,384.6]]}
+      ],
+      "categories": ["Al","Cu","Fe","W"]
+    }
+    </script>
+  </pc-plot>
+
+  <p class="pc-fade-in">
+    The chart makes the pattern vivid. Aluminium is mildly anisotropic (63–76 GPa).
+    Copper and iron are strongly anisotropic: iron's $[111]$ modulus is more than twice its $[100]$ value.
+    Tungsten, despite being cubic, is elastically isotropic — all three bars are identical at 384.6 GPa.
+    This is a rare coincidence of its elastic constants.
+  </p>
+
+  <!-- compass rose interactive -->
+  <copper-modulus-rose class="pc-fade-in"></copper-modulus-rose>
+  <script>
+  (function(){
+    class CopperModulusRose extends HTMLElement {
+      connectedCallback(){
+        const W = 340, H = 340, CX = W/2, CY = H/2, R = 120;
+        this.innerHTML = `<figure class="pc-fig-interactive pc-rise" style="text-align:center;">
+          <figcaption style="font-family:'JetBrains Mono',monospace;font-size:0.72em;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft,#6a5d4a);margin-bottom:0.5em;">Copper — drag the arrow to explore directional modulus</figcaption>
+          <svg id="cmr-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="width:min(${W}px,90%);height:auto;touch-action:none;cursor:grab;display:block;margin:0 auto;border-radius:50%;"></svg>
+          <div id="cmr-readout" style="margin-top:0.6em;font-family:'JetBrains Mono',monospace;font-size:1em;color:var(--ink,#1f1a14);"></div>
+        </figure>`;
+
+        const svg = this.querySelector('#cmr-svg');
+        const readout = this.querySelector('#cmr-readout');
+
+        // Known moduli: [100]=0°, [110]=45°, [111]=54.7°
+        // We'll model E(theta) in the (001) plane of a cubic crystal
+        // For cubic: 1/E = S11 - 2(S11-S12-S44/2)(l1²l2² + l2²l3² + l1²l3²)
+        // For Cu: S11=1/66.7e-3, but easier: use known data points to fit
+        // In (001) plane, l3=0, so l1²l2² = sin²θcos²θ = sin²(2θ)/4
+        // 1/E(θ) = S11 - 2(S11-S12-S44/2)*sin²(2θ)/4  ... wait use full formula
+        // Use Cu elastic compliance values (GPa^-1):
+        // S11 = 0.01498, S12 = -0.00629, S44 = 0.01326 (from literature)
+        // For (001) plane: l1=cosθ, l2=sinθ, l3=0
+        // 1/E = S11 - 2*(S11-S12-S44/2)*(l1²l2²)
+        //      = S11 - 2*(S11-S12-S44/2)*cos²θ*sin²θ
+        const S11 = 0.014981, S12 = -0.006294, S44 = 0.013256;
+        const A = 2*(S11 - S12 - S44/2);  // anisotropy factor numerator
+
+        function modulus(deg){
+          const rad = deg * Math.PI/180;
+          const c = Math.cos(rad), s = Math.sin(rad);
+          const inv_E = S11 - A * c*c*s*s;
+          return 1/inv_E; // GPa
+        }
+
+        // Draw polar modulus rose
+        function buildRosePath(){
+          let d = '';
+          for (let i=0; i<=360; i++){
+            const E = modulus(i);
+            const r = (E/220) * R;  // scale so max ~200GPa fits
+            const rad = (i-90)*Math.PI/180; // -90 so [100] points right
+            const x = CX + r*Math.cos(rad);
+            const y = CY + r*Math.sin(rad);
+            d += (i===0 ? 'M' : 'L') + x.toFixed(1)+','+y.toFixed(1)+' ';
+          }
+          return d + 'Z';
+        }
+
+        // Background grid rings
+        let svgContent = '';
+        const ringVals = [50,100,150,200];
+        ringVals.forEach(v => {
+          const rr = (v/220)*R;
+          svgContent += `<circle cx="${CX}" cy="${CY}" r="${rr.toFixed(1)}" fill="none" stroke="#6a5d4a" stroke-width="0.6" opacity="0.25"/>`;
+          svgContent += `<text x="${(CX+rr+3).toFixed(1)}" y="${(CY-3).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="8" fill="#6a5d4a" opacity="0.55">${v}</text>`;
+        });
+        // Axes
+        svgContent += `<line x1="${CX-R-16}" y1="${CY}" x2="${CX+R+16}" y2="${CY}" stroke="#6a5d4a" stroke-width="0.8" opacity="0.3"/>`;
+        svgContent += `<line x1="${CX}" y1="${CY-R-16}" x2="${CX}" y2="${CY+R+16}" stroke="#6a5d4a" stroke-width="0.8" opacity="0.3"/>`;
+        // Direction labels
+        svgContent += `<text x="${CX+R+18}" y="${CY+4}" font-family="JetBrains Mono,monospace" font-size="9" fill="#6a5d4a">[100]</text>`;
+        svgContent += `<text x="${CX+2}" y="${CY-R-18}" font-family="JetBrains Mono,monospace" font-size="9" fill="#6a5d4a">[010]</text>`;
+
+        // Rose path
+        svgContent += `<path id="cmr-rose" d="${buildRosePath()}" fill="rgba(80,119,178,0.18)" stroke="rgba(80,119,178,0.75)" stroke-width="1.5"/>`;
+
+        // 45° [110] guide
+        const r110 = (modulus(45)/220)*R;
+        svgContent += `<line x1="${CX}" y1="${CY}" x2="${(CX+r110*Math.cos(-45*Math.PI/180)).toFixed(1)}" y2="${(CY+r110*Math.sin(-45*Math.PI/180)).toFixed(1)}" stroke="#c07020" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>`;
+        svgContent += `<text x="${(CX+r110*Math.cos(-45*Math.PI/180)+4).toFixed(1)}" y="${(CY+r110*Math.sin(-45*Math.PI/180)-4).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="8" fill="#c07020">[110]</text>`;
+
+        // Arrow group (interactive)
+        svgContent += `<g id="cmr-arrow"><line id="cmr-aline" x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="#1f1a14" stroke-width="2.5" stroke-linecap="round"/><polygon id="cmr-ahead" points="${CX+R},${CY} ${CX+R-12},${CY-6} ${CX+R-12},${CY+6}" fill="#1f1a14"/></g>`;
+        svgContent += `<circle id="cmr-handle" cx="${CX+R}" cy="${CY}" r="10" fill="transparent" style="cursor:grab;"/>`;
+
+        svg.innerHTML = svgContent;
+
+        let angleDeg = 0;
+        function update(deg){
+          angleDeg = ((deg % 360) + 360) % 360;
+          // Arrow tip
+          const rad = (angleDeg - 90)*Math.PI/180;
+          const E = modulus(angleDeg);
+          const r = (E/220)*R;
+          const tx = CX + r*Math.cos(rad), ty = CY + r*Math.sin(rad);
+          const aline = svg.querySelector('#cmr-aline');
+          const ahead = svg.querySelector('#cmr-ahead');
+          const handle = svg.querySelector('#cmr-handle');
+          if(aline){ aline.setAttribute('x1',CX); aline.setAttribute('y1',CY); aline.setAttribute('x2',tx.toFixed(1)); aline.setAttribute('y2',ty.toFixed(1)); }
+          if(ahead){
+            const nx = Math.cos(rad), ny = Math.sin(rad);
+            const px = -ny, py = nx;
+            const p1 = `${tx.toFixed(1)},${ty.toFixed(1)}`;
+            const p2 = `${(tx-nx*12+px*6).toFixed(1)},${(ty-ny*12+py*6).toFixed(1)}`;
+            const p3 = `${(tx-nx*12-px*6).toFixed(1)},${(ty-ny*12-py*6).toFixed(1)}`;
+            ahead.setAttribute('points', `${p1} ${p2} ${p3}`);
+          }
+          if(handle){ handle.setAttribute('cx',tx.toFixed(1)); handle.setAttribute('cy',ty.toFixed(1)); }
+          readout.innerHTML = `Direction: <strong>${angleDeg.toFixed(0)}°</strong> &nbsp;|&nbsp; E&nbsp;≈&nbsp;<strong>${E.toFixed(1)}&nbsp;GPa</strong>`;
+        }
+        update(0);
+
+        // Drag wiring
+        let dragging = false;
+        function getAngle(evt){
+          const rect = svg.getBoundingClientRect();
+          const scaleX = W / rect.width;
+          const scaleY = H / rect.height;
+          const cx = (evt.clientX || evt.touches[0].clientX) - rect.left;
+          const cy = (evt.clientY || evt.touches[0].clientY) - rect.top;
+          const dx = cx*scaleX - CX, dy = cy*scaleY - CY;
+          return Math.atan2(dy,dx)*180/Math.PI + 90;
+        }
+        svg.addEventListener('mousedown', e => { dragging=true; update(getAngle(e)); e.preventDefault(); });
+        window.addEventListener('mousemove', e => { if(dragging) update(getAngle(e)); });
+        window.addEventListener('mouseup', () => { dragging=false; });
+        svg.addEventListener('touchstart', e => { dragging=true; update(getAngle(e)); e.preventDefault(); }, {passive:false});
+        window.addEventListener('touchmove', e => { if(dragging) update(getAngle(e)); });
+        window.addEventListener('touchend', () => { dragging=false; });
+      }
+    }
+    customElements.define('copper-modulus-rose', CopperModulusRose);
+  })();
+  </script>
+
+  <p class="pc-fade-in">
+    A <pc-term def="A random polycrystalline aggregate in which the grain orientations are statistically uniform in all directions. Its bulk properties are direction-independent even though each grain is anisotropic.">isotropic polycrystal</pc-term>
+    arises when grain orientations are random: the anisotropy of individual grains averages out and the
+    bulk material responds the same from any direction. Most structural metals in service are in this state.
+  </p>
+
+  <p class="pc-fade-in">
+    However, processing can impose a preferred orientation called
+    <pc-term def="A non-random distribution of grain orientations in a polycrystalline material, produced by rolling, drawing, or controlled solidification. Results in bulk anisotropy.">crystallographic texture</pc-term>.
+    The classic case: silicon–iron transformer cores are cold-rolled so that a $\langle 100 \rangle$ direction
+    aligns with the magnetic flux path. Because $[100]$ is the easy magnetization direction in iron, this
+    <em>grain-oriented electrical steel</em> has substantially lower hysteresis loss — saving significant
+    energy at grid scale.
+  </p>
+
+  <div class="pc-callout pc-callout--alt pc-fade-in">
+    <div class="pc-callout-title">Texture — anisotropy by design</div>
+    When engineers cold-roll electrical steel and align $\langle 100 \rangle \parallel$ magnetic field,
+    they are deliberately engineering grain texture to exploit — rather than average away — crystal anisotropy.
+  </div>
+
+  <pc-anki>
+    <script type="application/json">
+    [
+      {
+        "q": "What distinguishes a single crystal from a polycrystalline material?",
+        "a": "A <strong>single crystal</strong> has one unbroken lattice with a uniform orientation throughout. A <strong>polycrystal</strong> is a mosaic of many grains, each a tiny single crystal with its own orientation, separated by grain boundaries."
+      },
+      {
+        "q": "What is a grain boundary, and why is it a special region?",
+        "a": "A ~2–5-atom-wide transition zone where two misoriented lattices meet. Atoms there are <em>out of register</em> — higher energy, faster diffusivity, preferential corrosion site, and a barrier to dislocation motion (Hall-Petch strengthening)."
+      },
+      {
+        "q": "Why is tungsten elastically isotropic while copper is strongly anisotropic, even though both are cubic?",
+        "a": "Isotropy in a cubic crystal requires specific relationships among the elastic constants $C_{11}$, $C_{12}$, $C_{44}$. Tungsten satisfies them by coincidence ($A \\approx 1$); copper has $A \\approx 3.2$, so its modulus varies from 66.7 GPa along [100] to 191.1 GPa along [111]."
+      },
+      {
+        "q": "Why does a random polycrystalline aggregate behave isotropically even if each grain is anisotropic?",
+        "a": "With random grain orientations the directional effects of individual grains average out over the many grains sampled by any applied load — the bulk response is the same in all directions."
+      },
+      {
+        "q": "What is crystallographic texture and give one engineering application?",
+        "a": "<strong>Texture</strong> is a non-random distribution of grain orientations. Grain-oriented silicon steel for transformer cores is cold-rolled so $\\langle 100 \\rangle \\parallel$ magnetic field, reducing hysteresis loss because [100] is the easy-magnetization direction in iron."
+      }
+    ]
+    </script>
+  </pc-anki>
+
+  <p class="pc-fade-in" style="font-style:italic;color:var(--ink-soft,#6a5d4a);margin-top:1.5em;font-size:0.95em;">
+    Inside every spoon there are millions of tiny crystals — each with its own grain of opinion.
+  </p>
+</div>

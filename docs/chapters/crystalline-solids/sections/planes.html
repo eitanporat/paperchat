@@ -1,0 +1,748 @@
+<div class="pc-prose pc-stagger">
+  <div class="pc-eyebrow pc-fade-in">Chapter 2 · Crystallographic Planes</div>
+  <div class="pc-source pc-fade-in" data-page="70">pp. 70–75</div>
+
+  <p class="pc-fade-in">
+    A crystal is laced with flat families of atomic planes — the slip planes metals shear along,
+    the diffraction planes X-rays reflect from, the cleavage planes minerals split on.
+    To name any such plane unambiguously,
+    crystallographers use <pc-term def="A set of three integers (hkl) — or four integers (hkil) in hexagonal — that identifies a crystallographic plane by the reciprocals of its intercepts on the unit-cell axes.">Miller indices</pc-term>.
+    The recipe looks odd at first glance (reciprocals? why?) but has a clear geometric logic.
+  </p>
+
+  <p class="pc-fade-in">
+    The five-step procedure below builds the indices from scratch.
+    One caveat before starting: the procedure requires the plane
+    <em>not</em> to pass through the chosen origin. If it does, shift the origin by one
+    unit-cell length along any convenient axis before you begin.
+  </p>
+
+  <!-- 5-step procedure -->
+  <pc-stepped>
+    <script type="application/json">
+      [
+        {
+          "title": "Step 1 — shift origin if needed",
+          "body": "If the plane passes through your chosen origin, translate the origin by one unit-cell length along any axis. The new origin must lie off the plane."
+        },
+        {
+          "title": "Step 2 — find the axial intercepts",
+          "body": "Read off where the plane crosses the <em>x</em>, <em>y</em>, and <em>z</em> axes, expressed as multiples of the lattice parameters <em>a</em>, <em>b</em>, <em>c</em>. If the plane never crosses an axis (runs parallel to it), that intercept is ∞."
+        },
+        {
+          "title": "Step 3 — take reciprocals",
+          "body": "Invert each intercept: 1/A, 1/B, 1/C. The reciprocal of ∞ is 0 — this is the key step that converts 'parallel to an axis' into a finite, workable index."
+        },
+        {
+          "title": "Step 4 — clear fractions and reduce",
+          "body": "Multiply all three reciprocals by the smallest integer that makes every one an integer, then divide by any common factor to get the lowest set. The result is the triple (h, k, l)."
+        },
+        {
+          "title": "Step 5 — enclose in parentheses",
+          "body": "Write <strong>(hkl)</strong>. Negative indices are written with an overbar: (h̄kl) means h is negative. No commas. The round bracket signals 'a specific plane (and its parallel family)'."
+        }
+      ]
+    </script>
+  </pc-stepped>
+
+  <!-- CENTERPIECE: live 3D unit cell with hkl sliders -->
+  <miller-plane-3d class="pc-rise"></miller-plane-3d>
+
+  <p class="pc-fade-in">
+    Use the sliders above to set h, k, l directly. The colored plane updates live:
+    watch how setting an index to 0 makes the plane run parallel to that axis,
+    while increasing the magnitude pulls the intercept closer to the origin
+    (intercept = 1/index).
+  </p>
+
+  <!-- Worked example -->
+  <div class="pc-callout pc-fade-in">
+    <div class="pc-callout-title">Worked example — the (01̄2) plane</div>
+    <p style="margin:0.4rem 0 0;">
+      A plane passes through the origin, so shift the origin by <strong>+b</strong>.
+      New intercepts: A = ∞ (parallel to x), B = −b, C = c/2.
+      Reciprocals: 1/∞ = 0, 1/(−1) = −1, 1/(½) = 2.
+      No fractions to clear; indices are (0 −1 2).
+      Overbar on the negative: <strong>(01̄2)</strong>.
+    </p>
+  </div>
+
+  <p class="pc-fade-in">
+    Three common planes and their geometry are worth memorizing. The <strong>(100)</strong>
+    plane is parallel to the <em>y</em>–<em>z</em> face of the unit cell (two zero indices = cuts only one axis).
+    The <strong>(110)</strong> plane cuts two axes at unit distance and runs parallel to <em>z</em>
+    (one zero = parallel to one axis). The <strong>(111)</strong> plane cuts all three axes at
+    equal distance (no zeros = it's the close-packed diagonal face in FCC).
+  </p>
+
+  <!-- Four common planes as SVG thumbnails -->
+  <pc-grid>
+    <script type="application/json">
+      [
+        {
+          "eyebrow": "(100)",
+          "title": "Two zero indices",
+          "body": "Parallel to the <em>y</em>–<em>z</em> face. Intercepts: 1, ∞, ∞. The front/back face of the cubic cell."
+        },
+        {
+          "eyebrow": "(110)",
+          "title": "One zero index",
+          "body": "Cuts <em>x</em> and <em>y</em> at 1; parallel to <em>z</em>. A diagonal cross-section of the cell."
+        },
+        {
+          "eyebrow": "(111)",
+          "title": "No zero indices",
+          "body": "Cuts all three axes at 1. The close-packed plane in FCC; forms the triangular face of a corner-truncated cube."
+        },
+        {
+          "eyebrow": "(1̄12)",
+          "title": "Mixed signs + magnitude",
+          "body": "Intercepts: −1, 1, ½. Negative <em>x</em> intercept; <em>z</em> intercept at ½ (index = 2 means plane is twice as 'steep' in <em>z</em>)."
+        }
+      ]
+    </script>
+  </pc-grid>
+
+  <!-- Families and cubic perpendicularity -->
+  <p class="pc-fade-in">
+    Braces denote a <pc-term def="The set of all crystallographic planes that are equivalent by the symmetry of the crystal system. E.g., {100} in a cube groups (100), (010), (001), (1̄00), (01̄0), (001̄).">family of planes</pc-term>: {100} collects all six face-planes
+    of a cube — (100), (010), (001) and their negatives — which are
+    distinct planes but identical in every physical sense.
+    In <strong>cubic systems only</strong>, the direction [hkl] is perpendicular
+    to the plane (hkl). This convenient coincidence does not hold for non-cubic crystals.
+  </p>
+
+  <!-- Hexagonal four-index notation -->
+  <p class="pc-fade-in">
+    The <pc-term def="A four-index notation (hkil) for hexagonal crystals using three basal axes (a₁, a₂, a₃) plus the c-axis. The redundant index i always equals −(h+k).">Miller–Bravais indices (hkil)</pc-term> extend the system to hexagonal cells,
+    which have three equivalent basal axes <em>a</em>₁, <em>a</em>₂, <em>a</em>₃ in the base plane plus a <em>c</em>-axis.
+    The third basal index is always $i = -(h+k)$, so it carries no extra information —
+    its purpose is to make symmetrically equivalent planes obvious
+    (they show up as permutations of the same digits).
+  </p>
+
+  <!-- Hexagonal planes 3D figure -->
+  <hex-planes-figure class="pc-rise"></hex-planes-figure>
+
+  <!-- Bracket cheat sheet -->
+  <div class="pc-callout pc-callout--alt pc-fade-in">
+    <div class="pc-callout-title">Bracket cheat sheet</div>
+    <table style="border-collapse:collapse; width:100%; font-size:0.9rem;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:0.3rem 0.6rem; border-bottom:1px solid var(--ink-soft); font-weight:400; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.1em;">Notation</th>
+          <th style="text-align:left; padding:0.3rem 0.6rem; border-bottom:1px solid var(--ink-soft); font-weight:400; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.1em;">Meaning</th>
+          <th style="text-align:left; padding:0.3rem 0.6rem; border-bottom:1px solid var(--ink-soft); font-weight:400; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.1em;">Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:0.3rem 0.6rem; color:var(--accent); font-family:'JetBrains Mono',monospace;">(hkl)</td>
+          <td style="padding:0.3rem 0.6rem;">Specific plane</td>
+          <td style="padding:0.3rem 0.6rem;">(111) — diagonal face</td>
+        </tr>
+        <tr style="background:color-mix(in srgb,var(--paper) 80%,transparent);">
+          <td style="padding:0.3rem 0.6rem; color:var(--accent); font-family:'JetBrains Mono',monospace;">{hkl}</td>
+          <td style="padding:0.3rem 0.6rem;">Family of equivalent planes</td>
+          <td style="padding:0.3rem 0.6rem;">{110} — all 12 face-diagonals</td>
+        </tr>
+        <tr>
+          <td style="padding:0.3rem 0.6rem; color:var(--accent); font-family:'JetBrains Mono',monospace;">[uvw]</td>
+          <td style="padding:0.3rem 0.6rem;">Specific direction</td>
+          <td style="padding:0.3rem 0.6rem;">[110] — face diagonal</td>
+        </tr>
+        <tr style="background:color-mix(in srgb,var(--paper) 80%,transparent);">
+          <td style="padding:0.3rem 0.6rem; color:var(--accent); font-family:'JetBrains Mono',monospace;">&lt;uvw&gt;</td>
+          <td style="padding:0.3rem 0.6rem;">Family of equivalent directions</td>
+          <td style="padding:0.3rem 0.6rem;">&lt;100&gt; — all 6 face-normals</td>
+        </tr>
+        <tr>
+          <td style="padding:0.3rem 0.6rem; color:var(--accent); font-family:'JetBrains Mono',monospace;">(hkil)</td>
+          <td style="padding:0.3rem 0.6rem;">Hexagonal plane (Miller–Bravais)</td>
+          <td style="padding:0.3rem 0.6rem;">(0001) — basal plane</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="pc-fade-in" style="font-style:italic; color:var(--ink-soft);">
+    Reciprocals look weird until you realize "parallel to an axis" is just "crosses it at infinity."
+  </p>
+
+  <pc-anki>
+    <script type="application/json">
+      [
+        {
+          "q": "A plane cuts the x-axis at 1, the y-axis at 2, and is parallel to z. What are its Miller indices?",
+          "a": "Intercepts: 1, 2, ∞. Reciprocals: 1, ½, 0. Clear fractions (×2): 2, 1, 0. Miller indices: <strong>(210)</strong>."
+        },
+        {
+          "q": "Why do Miller indices use reciprocals of intercepts instead of the intercepts directly?",
+          "a": "Reciprocals map 'parallel to an axis' (intercept = ∞) to a finite index of 0, making the notation compact and closed under integer arithmetic. They also naturally encode <em>plane spacing</em>: larger index = closer planes to the origin."
+        },
+        {
+          "q": "What does a zero in a Miller index mean geometrically?",
+          "a": "The plane is <strong>parallel to that axis</strong> — it never intersects it (intercept = ∞; 1/∞ = 0)."
+        },
+        {
+          "q": "How does {hkl} differ from (hkl)?",
+          "a": "<strong>(hkl)</strong> names one specific plane. <strong>{hkl}</strong> denotes the <em>family</em> of all planes that are crystallographically equivalent by symmetry — e.g., {100} contains (100), (010), (001), (1̄00), (01̄0), (001̄)."
+        },
+        {
+          "q": "In which crystal system is [hkl] guaranteed to be perpendicular to (hkl)?",
+          "a": "<strong>Cubic systems only.</strong> In tetragonal, hexagonal, orthorhombic, etc., this perpendicularity does not generally hold."
+        },
+        {
+          "q": "For the hexagonal Miller–Bravais index (hkil), what is the constraint on i?",
+          "a": "$i = -(h+k)$. The third basal index is always the negative sum of the first two, making it redundant but useful for revealing symmetry between equivalent planes."
+        }
+      ]
+    </script>
+  </pc-anki>
+
+  <details class="pc-skip pc-fade-in">
+    <summary>Skipped: linear density, planar density, and d-spacing formula</summary>
+    <p>
+      Each family (hkl) has a characteristic <strong>interplanar spacing</strong>
+      $d_{hkl}$. For cubic lattices: $d_{hkl} = a / \sqrt{h^2 + k^2 + l^2}$.
+      X-ray diffraction peaks appear when $2 d_{hkl} \sin\theta = n\lambda$
+      (Bragg's law) — so knowing (hkl) lets you predict or identify diffraction angles.
+      Planar density (fraction of area covered by atoms in a given plane)
+      and linear density (along a direction) influence slip behavior
+      and are computed the same way as for 3D packing but restricted to the plane.
+    </p>
+  </details>
+</div>
+
+
+<!-- ========================================================
+     Custom component: live 3D unit cell with h,k,l sliders
+     ======================================================== -->
+<script>
+(function () {
+  class MillerPlane3D extends HTMLElement {
+    connectedCallback() {
+      this._built = false;
+      // Defer until Three.js is available (loaded on demand by pc-3d, or load it here)
+      this._tryBuild();
+    }
+
+    _tryBuild() {
+      if (this._built) return;
+      if (typeof THREE === 'undefined') {
+        // Load Three.js on demand
+        if (!document.querySelector('script[data-miller-three]')) {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js';
+          s.setAttribute('data-miller-three', '1');
+          s.onload = () => this._tryBuild();
+          document.head.appendChild(s);
+        } else {
+          setTimeout(() => this._tryBuild(), 80);
+        }
+        return;
+      }
+      this._built = true;
+      this._init();
+    }
+
+    _init() {
+      const container = document.createElement('figure');
+      container.className = 'pc-fig-interactive';
+      container.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:1rem;padding:1rem 0;';
+
+      // --- Controls row ---
+      const controls = document.createElement('div');
+      controls.style.cssText = 'display:flex;flex-wrap:wrap;gap:1.2rem;justify-content:center;align-items:center;';
+
+      const state = { h: 1, k: 1, l: 1 };
+      const labels = ['h', 'k', 'l'];
+      const sliderEls = {};
+      const valueEls = {};
+
+      labels.forEach(lbl => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:0.25rem;';
+
+        const name = document.createElement('div');
+        name.style.cssText = "font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);";
+        name.textContent = lbl;
+
+        const sl = document.createElement('input');
+        sl.type = 'range'; sl.min = '-2'; sl.max = '2'; sl.step = '1';
+        sl.value = String(state[lbl]);
+        sl.style.cssText = 'width:100px;accent-color:var(--accent);cursor:pointer;';
+
+        const val = document.createElement('div');
+        val.style.cssText = "font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-soft);";
+        val.textContent = state[lbl];
+
+        sl.addEventListener('input', () => {
+          state[lbl] = parseInt(sl.value);
+          val.textContent = state[lbl];
+          updateScene();
+        });
+
+        wrap.appendChild(name);
+        wrap.appendChild(sl);
+        wrap.appendChild(val);
+        controls.appendChild(wrap);
+        sliderEls[lbl] = sl;
+        valueEls[lbl] = val;
+      });
+
+      // --- Indices display ---
+      const indicesDisplay = document.createElement('div');
+      indicesDisplay.style.cssText = "font-family:'JetBrains Mono',monospace;font-size:20px;letter-spacing:0.08em;color:var(--ink);min-width:6rem;text-align:center;";
+
+      // --- Intercepts display ---
+      const interceptsDisplay = document.createElement('div');
+      interceptsDisplay.style.cssText = "font-size:0.82rem;color:var(--ink-soft);text-align:center;font-family:'JetBrains Mono',monospace;";
+
+      controls.appendChild(indicesDisplay);
+
+      // --- Three.js canvas ---
+      const canvasWrap = document.createElement('div');
+      canvasWrap.style.cssText = 'position:relative;width:320px;height:280px;';
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(320, 280);
+      renderer.setClearColor(0x000000, 0);
+      canvasWrap.appendChild(renderer.domElement);
+      renderer.domElement.style.cssText = 'width:320px;height:280px;display:block;border-radius:6px;';
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(38, 320 / 280, 0.1, 100);
+      camera.position.set(2.8, 2.2, 2.8);
+      camera.lookAt(0.5, 0.5, 0.5);
+
+      // Ambient + directional light
+      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      dirLight.position.set(4, 6, 4);
+      scene.add(dirLight);
+
+      // --- Unit cell wireframe (cube 0..1 in x,y,z) ---
+      const edges = [
+        [[0,0,0],[1,0,0]],[[0,1,0],[1,1,0]],[[0,0,1],[1,0,1]],[[0,1,1],[1,1,1]],
+        [[0,0,0],[0,1,0]],[[1,0,0],[1,1,0]],[[0,0,1],[0,1,1]],[[1,0,1],[1,1,1]],
+        [[0,0,0],[0,0,1]],[[1,0,0],[1,0,1]],[[0,1,0],[0,1,1]],[[1,1,0],[1,1,1]]
+      ];
+      const INK_COLOR = 0x1f1a14;
+      edges.forEach(([a, b]) => {
+        const geo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(...a), new THREE.Vector3(...b)
+        ]);
+        const mat = new THREE.LineBasicMaterial({ color: INK_COLOR, opacity: 0.4, transparent: true });
+        scene.add(new THREE.Line(geo, mat));
+      });
+
+      // Axis labels as sprites (canvas texture)
+      function makeAxisLabel(text, color) {
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0,0,64,64);
+        ctx.font = 'bold 36px JetBrains Mono, monospace';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 32, 32);
+        const tex = new THREE.CanvasTexture(c);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        return new THREE.Sprite(mat);
+      }
+
+      const axisLabels = [
+        { text: 'x', color: '#c0392b', pos: [1.18, 0, 0] },
+        { text: 'y', color: '#27ae60', pos: [0, 1.18, 0] },
+        { text: 'z', color: '#2980b9', pos: [0, 0, 1.18] }
+      ];
+      axisLabels.forEach(({ text, color, pos }) => {
+        const sp = makeAxisLabel(text, color);
+        sp.position.set(...pos);
+        sp.scale.set(0.18, 0.18, 0.18);
+        scene.add(sp);
+      });
+
+      // Plane mesh (updated each frame)
+      let planeMesh = null;
+      let interceptMarkers = [];
+
+      function formatIndex(n) {
+        if (n < 0) return n.toString().replace('-', '̅'); // overbar via combining — fallback to minus
+        return n === 0 ? '0' : String(n);
+      }
+
+      function overbar(n) {
+        // Use HTML for display; for canvas we'll use - prefix
+        if (n < 0) return '<span style="text-decoration:overline">' + Math.abs(n) + '</span>';
+        return String(n);
+      }
+
+      function fmtIntercept(idx) {
+        if (idx === 0) return '∞';
+        return (1 / idx).toFixed(2).replace(/\.?0+$/, '') + (idx < 0 ? ' (neg)' : '');
+      }
+
+      function updateScene() {
+        const { h, k, l } = state;
+
+        // Update display
+        indicesDisplay.innerHTML = '(' + overbar(h) + overbar(k) + overbar(l) + ')';
+        interceptsDisplay.innerHTML =
+          'x:' + fmtIntercept(h) + '&nbsp;&nbsp;y:' + fmtIntercept(k) + '&nbsp;&nbsp;z:' + fmtIntercept(l);
+
+        // Remove old plane
+        if (planeMesh) { scene.remove(planeMesh); planeMesh.geometry.dispose(); planeMesh.material.dispose(); planeMesh = null; }
+        interceptMarkers.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+        interceptMarkers = [];
+
+        // Degenerate: all zero → skip
+        if (h === 0 && k === 0 && l === 0) return;
+
+        // Build plane polygon clipped to [−0.5..1.5]^3 around center 0.5
+        // Plane equation: h*(x - ox) + k*(y - oy) + l*(z - oz) = 1
+        // where intercepts are: ix = 1/h (or ∞), iy = 1/k (or ∞), iz = 1/l (or ∞)
+        // We'll sample the plane as a quad/triangle by finding intersection with unit-cube faces
+
+        // For visualization: the plane hx + ky + lz = 1
+        // Clip to box [0,1]^3 extended slightly [-0.05, 1.05]
+        const normal = new THREE.Vector3(h, k, l).normalize();
+        // d such that plane passes through "first intercept"
+        // Plane: h*x + k*y + l*z = 1 (in lattice coords)
+        const planeConst = 1; // h*x + k*y + l*z = planeConst
+
+        // Sample a grid of candidate points, keep those satisfying hx+ky+lz ≈ 1 within box
+        // Better: clip the infinite plane to the unit cube
+
+        // Find 3 basis vectors on the plane
+        // Use parametric: choose two linearly independent vectors perpendicular to (h,k,l)
+        const nv = new THREE.Vector3(h, k, l);
+        let u = new THREE.Vector3();
+        if (Math.abs(h) <= Math.abs(k) && Math.abs(h) <= Math.abs(l)) {
+          u.set(0, -l, k);
+        } else if (Math.abs(k) <= Math.abs(l)) {
+          u.set(-l, 0, h);
+        } else {
+          u.set(-k, h, 0);
+        }
+        u.normalize();
+        const v = new THREE.Vector3().crossVectors(nv.normalize(), u).normalize();
+
+        // Anchor point on plane closest to (0.5, 0.5, 0.5)
+        // Project center onto plane hx+ky+lz=1
+        const denom = h*h + k*k + l*l;
+        const cx = 0.5, cy = 0.5, cz = 0.5;
+        const t0 = (1 - h*cx - k*cy - l*cz) / denom;
+        const anchor = new THREE.Vector3(cx + t0*h, cy + t0*k, cz + t0*l);
+
+        // Sample points on plane in a large disk, keep those in [−0.05, 1.05]^3
+        const R_MAX = 3.0, STEPS = 64;
+        const kept = [];
+        for (let ri = 1; ri <= 6; ri++) {
+          const r = (ri / 6) * R_MAX;
+          for (let ai = 0; ai < STEPS; ai++) {
+            const ang = (ai / STEPS) * Math.PI * 2;
+            const pt = anchor.clone()
+              .addScaledVector(u, r * Math.cos(ang))
+              .addScaledVector(v, r * Math.sin(ang));
+            if (pt.x >= -0.05 && pt.x <= 1.05 &&
+                pt.y >= -0.05 && pt.y <= 1.05 &&
+                pt.z >= -0.05 && pt.z <= 1.05) {
+              kept.push(pt.clone());
+            }
+          }
+        }
+        // Also include anchor itself if inside box
+        if (anchor.x >= -0.05 && anchor.x <= 1.05 &&
+            anchor.y >= -0.05 && anchor.y <= 1.05 &&
+            anchor.z >= -0.05 && anchor.z <= 1.05) {
+          kept.push(anchor.clone());
+        }
+
+        if (kept.length >= 3) {
+          // Convex hull in 2D on the plane
+          // Project to (u,v) coords
+          const pts2 = kept.map(p => {
+            const dp = p.clone().sub(anchor);
+            return [dp.dot(u), dp.dot(v)];
+          });
+          // Convex hull
+          const hull = convexHull2D(pts2);
+          const positions = [];
+          hull.forEach(i => {
+            positions.push(kept[i].x, kept[i].y, kept[i].z);
+          });
+          // Triangulate fan from hull[0]
+          const indices = [];
+          for (let i = 1; i < hull.length - 1; i++) {
+            indices.push(0, i, i + 1);
+          }
+
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+          geo.setIndex(indices);
+          geo.computeVertexNormals();
+
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0x4a90d9,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.55,
+            roughness: 0.6
+          });
+          planeMesh = new THREE.Mesh(geo, mat);
+          scene.add(planeMesh);
+        }
+
+        // Intercept markers
+        [[h, new THREE.Vector3(1/h, 0, 0)], [k, new THREE.Vector3(0, 1/k, 0)], [l, new THREE.Vector3(0, 0, 1/l)]].forEach(([idx, pos]) => {
+          if (idx === 0) return;
+          if (pos.x < -0.1 || pos.x > 1.1 || pos.y < -0.1 || pos.y > 1.1 || pos.z < -0.1 || pos.z > 1.1) return;
+          const geo = new THREE.SphereGeometry(0.045, 12, 12);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xe67e22 });
+          const m = new THREE.Mesh(geo, mat);
+          m.position.copy(pos);
+          scene.add(m);
+          interceptMarkers.push(m);
+        });
+      }
+
+      // Convex hull 2D (Graham scan)
+      function convexHull2D(pts) {
+        const n = pts.length;
+        if (n < 3) return pts.map((_, i) => i);
+        // Find bottom-most
+        let start = 0;
+        for (let i = 1; i < n; i++) if (pts[i][1] < pts[start][1] || (pts[i][1] === pts[start][1] && pts[i][0] < pts[start][0])) start = i;
+        const base = pts[start];
+        const order = pts.map((p, i) => i).filter(i => i !== start);
+        order.sort((a, b) => {
+          const ax = pts[a][0] - base[0], ay = pts[a][1] - base[1];
+          const bx = pts[b][0] - base[0], by = pts[b][1] - base[1];
+          const cross = ax * by - ay * bx;
+          if (Math.abs(cross) > 1e-10) return cross > 0 ? -1 : 1;
+          return (ax*ax+ay*ay) - (bx*bx+by*by);
+        });
+        const stack = [start, order[0]];
+        for (let i = 1; i < order.length; i++) {
+          while (stack.length >= 2) {
+            const a = pts[stack[stack.length-2]], b = pts[stack[stack.length-1]], c = pts[order[i]];
+            const cross = (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]);
+            if (cross > 0) break;
+            stack.pop();
+          }
+          stack.push(order[i]);
+        }
+        return stack;
+      }
+
+      // Orbit controls (simple mouse drag)
+      let isDragging = false, lastX = 0, lastY = 0;
+      let theta = Math.atan2(2.8, 2.8), phi = Math.atan2(Math.sqrt(2.8*2.8+2.8*2.8), 2.2);
+      const RADIUS = 3.5;
+      const CENTER = new THREE.Vector3(0.5, 0.5, 0.5);
+
+      function updateCamera() {
+        camera.position.x = CENTER.x + RADIUS * Math.sin(phi) * Math.cos(theta);
+        camera.position.y = CENTER.y + RADIUS * Math.cos(phi);
+        camera.position.z = CENTER.z + RADIUS * Math.sin(phi) * Math.sin(theta);
+        camera.lookAt(CENTER);
+      }
+      updateCamera();
+
+      renderer.domElement.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+      window.addEventListener('mouseup', () => isDragging = false);
+      window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        const dx = e.clientX - lastX, dy = e.clientY - lastY;
+        lastX = e.clientX; lastY = e.clientY;
+        theta -= dx * 0.012;
+        phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi + dy * 0.012));
+        updateCamera();
+      });
+      renderer.domElement.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
+      }, { passive: true });
+      renderer.domElement.addEventListener('touchmove', e => {
+        if (!isDragging || e.touches.length !== 1) return;
+        const dx = e.touches[0].clientX - lastX, dy = e.touches[0].clientY - lastY;
+        lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+        theta -= dx * 0.012;
+        phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi + dy * 0.012));
+        updateCamera();
+        e.preventDefault();
+      }, { passive: false });
+      renderer.domElement.addEventListener('touchend', () => isDragging = false);
+
+      // Animate
+      const animate = () => {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+      };
+
+      // Assemble DOM
+      canvasWrap.appendChild(renderer.domElement);
+      container.appendChild(controls);
+      container.appendChild(indicesDisplay);
+      container.appendChild(canvasWrap);
+      container.appendChild(interceptsDisplay);
+
+      const caption = document.createElement('figcaption');
+      caption.style.cssText = 'font-size:0.82rem;color:var(--ink-soft);text-align:center;max-width:400px;';
+      caption.innerHTML = 'Drag to orbit. Orange spheres mark axial intercepts. Sliders set h, k, l from &minus;2 to 2 (0 = parallel to that axis).';
+      container.appendChild(caption);
+
+      this.innerHTML = '';
+      this.appendChild(container);
+
+      updateScene();
+      animate();
+    }
+  }
+
+  if (!customElements.get('miller-plane-3d')) {
+    customElements.define('miller-plane-3d', MillerPlane3D);
+  }
+})();
+</script>
+
+
+<!-- ========================================================
+     Hexagonal planes figure (toggle between three planes)
+     ======================================================== -->
+<script>
+(function () {
+  class HexPlanesFigure extends HTMLElement {
+    connectedCallback() {
+      const planes = [
+        {
+          label: '(0001) — Basal',
+          color: '#4a90d9',
+          desc: 'Perpendicular to the c-axis; parallel to all three basal axes a₁, a₂, a₃. The "floor" of the hexagonal prism. Dense-packed in HCP.',
+          svgExtra: (cx, cy, r) => {
+            // Filled hexagon as the basal plane (viewed from slight angle — draw as ellipse)
+            const pts = [];
+            for (let i = 0; i < 6; i++) {
+              const a = (i * 60 - 30) * Math.PI / 180;
+              pts.push([cx + r * Math.cos(a), cy + r * 0.45 * Math.sin(a)]);
+            }
+            const d = pts.map((p, j) => (j === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + ' Z';
+            return `<path d="${d}" fill="#4a90d9" fill-opacity="0.35" stroke="#4a90d9" stroke-width="2"/>`;
+          }
+        },
+        {
+          label: '(1̄010) — Prismatic',
+          color: '#e67e22',
+          desc: 'Parallel to the c-axis and one basal axis. Forms one of the six rectangular faces of the hexagonal prism.',
+          svgExtra: (cx, cy, r) => {
+            const h = 80;
+            // One vertical rectangular face of prism
+            const a1 = -30 * Math.PI / 180;
+            const a2 = (120 - 30) * Math.PI / 180;
+            const x1 = cx + r * Math.cos(a1), y1 = cy + r * 0.45 * Math.sin(a1);
+            const x2 = cx + r * Math.cos(a2), y2 = cy + r * 0.45 * Math.sin(a2);
+            return `<polygon points="${x1.toFixed(1)},${y1.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)} ${x2.toFixed(1)},${(y2-h).toFixed(1)} ${x1.toFixed(1)},${(y1-h).toFixed(1)}" fill="#e67e22" fill-opacity="0.35" stroke="#e67e22" stroke-width="2"/>`;
+          }
+        },
+        {
+          label: '(1̄011) — Pyramidal',
+          color: '#8e44ad',
+          desc: 'Cuts both the c-axis and two basal axes. Tilted face connecting a basal edge to the top of the prism — the "pyramidal" cap plane.',
+          svgExtra: (cx, cy, r) => {
+            const h = 80;
+            const a1 = -30 * Math.PI / 180;
+            const a2 = (120 - 30) * Math.PI / 180;
+            const x1 = cx + r * Math.cos(a1), y1 = cy + r * 0.45 * Math.sin(a1);
+            const x2 = cx + r * Math.cos(a2), y2 = cy + r * 0.45 * Math.sin(a2);
+            // Triangle from bottom edge to top-center
+            return `<polygon points="${x1.toFixed(1)},${y1.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)} ${cx.toFixed(1)},${(cy-h-10).toFixed(1)}" fill="#8e44ad" fill-opacity="0.35" stroke="#8e44ad" stroke-width="2"/>`;
+          }
+        }
+      ];
+
+      let current = 0;
+
+      const render = () => {
+        const p = planes[current];
+        const CX = 110, CY = 170, R = 80, H = 100;
+
+        // Hexagonal prism SVG (simple isometric-ish projection)
+        const hexPts = [];
+        for (let i = 0; i < 6; i++) {
+          const a = (i * 60 - 30) * Math.PI / 180;
+          hexPts.push([CX + R * Math.cos(a), CY + R * 0.45 * Math.sin(a)]);
+        }
+        const topPts = hexPts.map(([x, y]) => [x, y - H]);
+
+        const hexBottom = hexPts.map((pt, j) => (j === 0 ? 'M' : 'L') + pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join(' ') + ' Z';
+        const hexTop = topPts.map((pt, j) => (j === 0 ? 'M' : 'L') + pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join(' ') + ' Z';
+
+        // Only draw visible vertical edges (3 back + 3 front)
+        const vertEdges = hexPts.map((pt, i) =>
+          `<line x1="${pt[0].toFixed(1)}" y1="${pt[1].toFixed(1)}" x2="${topPts[i][0].toFixed(1)}" y2="${topPts[i][1].toFixed(1)}" stroke="#1f1a14" stroke-width="1" stroke-opacity="0.3"/>`
+        ).join('');
+
+        // Axis labels
+        const axisLines = `
+          <line x1="${CX}" y1="${CY - H - 10}" x2="${CX}" y2="${CY - H - 28}" stroke="#2980b9" stroke-width="1.5"/>
+          <text x="${CX}" y="${CY - H - 32}" text-anchor="middle" font-size="12" style="fill:#2980b9;font-family:'JetBrains Mono',monospace;">c</text>
+          <line x1="${CX}" y1="${CY + 8}" x2="${CX + R + 14}" y2="${(CY + 8 + (CY + R * 0.45 + 8)) / 2}" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="${(CX + R + 20).toFixed(0)}" y="${(CY + R * 0.45 * 0.5 + 16).toFixed(0)}" font-size="12" style="fill:#c0392b;font-family:'JetBrains Mono',monospace;">a₁</text>
+        `;
+
+        const highlight = p.svgExtra(CX, CY, R);
+
+        const btnStyle = (i) => `
+          padding:0.3rem 0.75rem;
+          font-family:'JetBrains Mono',monospace;
+          font-size:11px;
+          text-transform:uppercase;
+          letter-spacing:0.1em;
+          background:${i === current ? 'var(--accent)' : 'none'};
+          color:${i === current ? '#fff' : 'var(--ink-soft)'};
+          border:1.5px solid ${i === current ? 'var(--accent)' : 'var(--ink-soft)'};
+          border-radius:3px;
+          cursor:pointer;
+        `;
+
+        this.innerHTML = `
+          <figure class="pc-fig-interactive" style="display:flex;flex-direction:column;align-items:center;gap:0.8rem;">
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;">
+              ${planes.map((pl, i) => `<button data-idx="${i}" style="${btnStyle(i)}">${pl.label}</button>`).join('')}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:center;align-items:flex-start;">
+              <svg viewBox="0 40 220 250" width="220" height="230" style="display:block;overflow:visible;">
+                <path d="${hexBottom}" fill="#f6f1e7" stroke="#1f1a14" stroke-width="1.2" stroke-opacity="0.4"/>
+                ${vertEdges}
+                <path d="${hexTop}" fill="#e8e0d0" stroke="#1f1a14" stroke-width="1.2" stroke-opacity="0.5"/>
+                ${highlight}
+                ${axisLines}
+              </svg>
+              <div style="max-width:220px;padding-top:0.5rem;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${p.color};margin-bottom:0.5rem;">${p.label}</div>
+                <p style="margin:0;font-size:0.9rem;color:var(--ink-soft);">${p.desc}</p>
+              </div>
+            </div>
+          </figure>
+        `;
+
+        this.querySelectorAll('button[data-idx]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            current = parseInt(btn.getAttribute('data-idx'));
+            render();
+          });
+        });
+      };
+
+      render();
+    }
+  }
+
+  if (!customElements.get('hex-planes-figure')) {
+    customElements.define('hex-planes-figure', HexPlanesFigure);
+  }
+})();
+</script>
